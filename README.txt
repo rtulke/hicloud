@@ -1,68 +1,88 @@
-Ein leistungsstarkes, interaktives Kommandozeilen-Tool zur Verwaltung von Hetzner Cloud Ressourcen. Mit hicloud können Sie VMs erstellen und verwalten, Snapshots und Backups erstellen, und viele weitere Aktionen durchführen - alles von der Kommandozeile aus.
-Inhaltsverzeichnis
+# HiCloud
 
-Installation
-Konfiguration
-Interaktive Konsole
-Befehlsreferenz
+A powerful, interactive command-line tool for managing Hetzner Cloud resources. With hicloud, you can create and manage VMs, create snapshots and backups, and perform many other actions - all from the command line.
 
-VM-Befehle
-Snapshot-Befehle
-Backup-Befehle
-Allgemeine Befehle
+## Table of Contents
 
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Interactive Console](#interactive-console)
+- [Command Reference](#command-reference)
+  - [VM Commands](#vm-commands)
+  - [Snapshot Commands](#snapshot-commands)
+  - [Backup Commands](#backup-commands)
+  - [General Commands](#general-commands)
+- [Advanced Features](#advanced-features)
+  - [Tab Completion](#tab-completion)
+  - [Command History](#command-history)
+- [Examples](#examples)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
 
-Erweiterte Funktionen
+## Installation
 
-Tab-Completion
-Befehlsverlauf
+### System Requirements
 
+- Python 3.6 or higher
+- pip (Python package manager)
+- Hetzner Cloud API token
 
-Beispiele
-Fehlerbehebung
+### Installation of Required Packages
 
-Installation
-Systemvoraussetzungen
-
-Python 3.6 oder höher
-pip (Python-Paketmanager)
-Hetzner Cloud API-Token
-
-Installation der erforderlichen Pakete
-bash# Linux/macOS
+```bash
+# Linux/macOS
 pip install requests toml
 
 # Windows
 pip install requests toml pyreadline3
-Installation von hicloud
-bash# Repository klonen
+```
+
+### Installation of hicloud
+
+```bash
+# Clone repository
 git clone https://github.com/rtulke/hicloud.git
 cd hicloud
 
-# Script ausführbar machen
+# Make script executable
 chmod +x hicloud.py
 
-# Optional: Systemweit verfügbar machen
+# Optional: Make available system-wide
 sudo ln -s $(pwd)/hicloud.py /usr/local/bin/hicloud
-Verwendung mit virtualenv (empfohlen)
-bash# Virtuelles Environment erstellen
+```
+
+### Usage with virtualenv (recommended)
+
+```bash
+# Create virtual environment
 python3 -m venv venv
 
-# Environment aktivieren (Linux/macOS)
+# Activate environment (Linux/macOS)
 source venv/bin/activate
 
-# Environment aktivieren (Windows)
+# Activate environment (Windows)
 .\venv\Scripts\activate
 
-# Abhängigkeiten installieren
+# Install dependencies
 pip install requests toml
-Konfiguration
-hicloud verwendet TOML-Konfigurationsdateien, um API-Tokens und Projekteinstellungen zu speichern.
-Generieren einer Beispielkonfiguration
-bash./hicloud.py --gen-config ~/.hicloud.toml
-Dieser Befehl erstellt eine Beispielkonfigurationsdatei mit den richtigen Berechtigungen (chmod 600).
-Konfigurationsformat
-toml[default]
+```
+
+## Configuration
+
+hicloud uses TOML configuration files to store API tokens and project settings.
+
+### Generating an Example Configuration
+
+```bash
+./hicloud.py --gen-config ~/.hicloud.toml
+```
+
+This command creates an example configuration file with the correct permissions (chmod 600).
+
+### Configuration Format
+
+```toml
+[default]
 api_token = "your_api_token_here"
 project_name = "default"
 
@@ -73,151 +93,238 @@ project_name = "Production"
 [project2]
 api_token = "project2_api_token"
 project_name = "Development"
-Sicherheitshinweise
+```
 
-Die Konfigurationsdatei muss mit 600-Berechtigungen geschützt sein (chmod 600 ~/.hicloud.toml)
-Der API-Token gewährt vollen Zugriff auf Ihre Hetzner Cloud-Ressourcen
-Es wird empfohlen, Tokens mit begrenzten Berechtigungen zu verwenden
+### Security Notes
 
-Interaktive Konsole
-hicloud bietet eine interaktive Konsole zur Verwaltung Ihrer Hetzner Cloud-Ressourcen.
-Starten der interaktiven Konsole
-bash# Standardkonfiguration verwenden (~/.hicloud.toml)
+- The configuration file must be protected with 600 permissions (`chmod 600 ~/.hicloud.toml`)
+- The API token grants full access to your Hetzner Cloud resources
+- It is recommended to use tokens with limited permissions
+
+## Interactive Console
+
+hicloud provides an interactive console for managing your Hetzner Cloud resources.
+
+### Starting the Interactive Console
+
+```bash
+# Use default configuration (~/.hicloud.toml)
 ./hicloud.py
 
-# Bestimmte Konfigurationsdatei angeben
+# Specify a specific configuration file
 ./hicloud.py --config myproject.toml
 
-# Bestimmtes Projekt aus der Konfigurationsdatei verwenden
+# Use a specific project from the configuration file
 ./hicloud.py --project project1
 
-# API-Token direkt übergeben (umgeht Konfigurationsdatei)
+# Pass API token directly (bypasses configuration file)
 ./hicloud.py --token your_api_token_here
-Konsolen-Features
+```
 
-Farbige Ausgabe für bessere Lesbarkeit
-Tab-Completion für Befehle und Unterbefehle
-Befehlshistorie mit Pfeiltasten-Navigation
-Kontextbezogene Hilfe
-Bestätigungsabfragen für kritische Operationen
+### Console Features
 
-Befehlsreferenz
-VM-Befehle
-BefehlBeschreibungParameterBeispielvm listListet alle VMs aufkeinevm listvm info <id>Zeigt detaillierte Informationen zu einer VM<id>: ID der VMvm info 123456vm createStartet den interaktiven VM-Erstellungsprozesskeinevm createvm start <id>Startet eine VM<id>: ID der VMvm start 123456vm stop <id>Stoppt eine VM<id>: ID der VMvm stop 123456vm delete <id>Löscht eine VM<id>: ID der VMvm delete 123456
-VM-Erstellungsoptionen
-Beim Ausführen von vm create werden folgende Optionen abgefragt:
-OptionBeschreibungNameDer Name der VMServer-TypCPU-Kerne, RAM und FestplattengrößeImageBetriebssystem (z.B. Ubuntu, Debian, CentOS)StandortRechenzentrum (z.B. Nürnberg, Helsinki, Falkenstein)SSH-KeysSSH-Keys für den Zugriff (optional)IP-VersionIPv4, IPv6 oder beidesRoot-PasswortAutomatisch generiertes Root-Passwort (optional)
-Snapshot-Befehle
-BefehlBeschreibungParameterBeispielsnapshot listListet alle Snapshots aufkeinesnapshot listsnapshot create <id>Erstellt einen Snapshot einer VM<id>: ID der VMsnapshot create 123456snapshot delete <id>Löscht einen Snapshot<id>: ID des Snapshotssnapshot delete 987654snapshot delete all <id>Löscht alle Snapshots einer VM<id>: ID der VMsnapshot delete all 123456
-Backup-Befehle
-BefehlBeschreibungParameterBeispielbackup listListet alle Backups aufkeinebackup listbackup enable <id> [WINDOW]Aktiviert automatische Backups für eine VM<id>: ID der VM<br>[WINDOW]: Backup-Fenster (optional)backup enable 123456 22-02backup disable <id>Deaktiviert automatische Backups für eine VM<id>: ID der VMbackup disable 123456backup delete <id>Löscht ein Backup<id>: ID des Backupsbackup delete 987654
-Backup-Fenster
-Beim Aktivieren von automatischen Backups können Sie ein Backup-Fenster angeben:
-FensterZeitrahmen (UTC)22-0222:00 - 02:00 Uhr02-0602:00 - 06:00 Uhr06-1006:00 - 10:00 Uhr10-1410:00 - 14:00 Uhr14-1814:00 - 18:00 Uhr18-2218:00 - 22:00 Uhr
-Allgemeine Befehle
-BefehlBeschreibungParameterBeispielproject, infoZeigt Informationen zum aktuellen ProjektkeineprojecthistoryZeigt den Befehlsverlauf ankeinehistoryhistory clearLöscht den Befehlsverlaufkeinehistory clearclearLöscht den BildschirmkeineclearhelpZeigt Hilfeinformationen ankeinehelpexit, quit, qBeendet das Programmkeineexit
-Erweiterte Funktionen
-Tab-Completion
-hicloud bietet eine umfassende Tab-Completion-Unterstützung:
+- Colored output for better readability
+- Tab completion for commands and subcommands
+- Command history with arrow key navigation
+- Contextual help
+- Confirmation prompts for critical operations
 
-Hauptbefehle: Drücken Sie <Tab>, um verfügbare Befehle anzuzeigen
-hicloud> <Tab>
-backup  clear   exit    help    history info    project quit    q       snapshot vm
+## Command Reference
 
-Unterbefehle: Nach Eingabe eines Hauptbefehls zeigt <Tab> die verfügbaren Unterbefehle an
-hicloud> vm <Tab>
-create  delete  info    list    start   stop
+### VM Commands
 
-Teilwortsuche: Geben Sie den Anfang eines Befehls ein und drücken Sie <Tab>
-hicloud> vm st<Tab>
-start   stop
+| Command | Description | Parameters | Example |
+|---------|-------------|------------|---------|
+| vm list | Lists all VMs | none | `vm list` |
+| vm info \<id\> | Shows detailed information about a VM | \<id\>: ID of the VM | `vm info 123456` |
+| vm create | Starts the interactive VM creation process | none | `vm create` |
+| vm start \<id\> | Starts a VM | \<id\>: ID of the VM | `vm start 123456` |
+| vm stop \<id\> | Stops a VM | \<id\>: ID of the VM | `vm stop 123456` |
+| vm delete \<id\> | Deletes a VM | \<id\>: ID of the VM | `vm delete 123456` |
 
-Kontextbezogene Hilfe: Bei der Vervollständigung werden Hinweise zum Befehl angezeigt
-hicloud> vm <Tab>
-VM commands: list, info <id>, create, start <id>, stop <id>, delete <id>
+#### VM Creation Options
 
+When running `vm create`, the following options are requested:
 
-Befehlsverlauf
-hicloud speichert Ihre Befehlshistorie in ~/.tmp/hicloud/history:
+| Option | Description |
+|--------|-------------|
+| Name | The name of the VM |
+| Server Type | CPU cores, RAM and disk size |
+| Image | Operating system (e.g., Ubuntu, Debian, CentOS) |
+| Location | Data center (e.g., Nuremberg, Helsinki, Falkenstein) |
+| SSH Keys | SSH keys for access (optional) |
+| IP Version | IPv4, IPv6, or both |
+| Root Password | Automatically generated root password (optional) |
 
-Navigation: Verwenden Sie die Pfeiltasten ↑ und ↓, um durch vorherige Befehle zu navigieren
-Anzeigen: Mit history können Sie den gesamten Befehlsverlauf anzeigen
-Löschen: Mit history clear können Sie den Befehlsverlauf löschen
-Persistenz: Die Geschichte wird zwischen Sitzungen gespeichert (maximal 1000 Befehle)
+### Snapshot Commands
 
-Beispiele
-VM-Verwaltung
-# VM-Liste anzeigen
+| Command | Description | Parameters | Example |
+|---------|-------------|------------|---------|
+| snapshot list | Lists all snapshots | none | `snapshot list` |
+| snapshot create \<id\> | Creates a snapshot of a VM | \<id\>: ID of the VM | `snapshot create 123456` |
+| snapshot delete \<id\> | Deletes a snapshot | \<id\>: ID of the snapshot | `snapshot delete 987654` |
+| snapshot delete all \<id\> | Deletes all snapshots of a VM | \<id\>: ID of the VM | `snapshot delete all 123456` |
+
+### Backup Commands
+
+| Command | Description | Parameters | Example |
+|---------|-------------|------------|---------|
+| backup list | Lists all backups | none | `backup list` |
+| backup enable \<id\> [WINDOW] | Enables automatic backups for a VM | \<id\>: ID of the VM<br>[WINDOW]: Backup window (optional) | `backup enable 123456 22-02` |
+| backup disable \<id\> | Disables automatic backups for a VM | \<id\>: ID of the VM | `backup disable 123456` |
+| backup delete \<id\> | Deletes a backup | \<id\>: ID of the backup | `backup delete 987654` |
+
+#### Backup Windows
+
+When enabling automatic backups, you can specify a backup window:
+
+| Window | Time Frame (UTC) |
+|--------|------------------|
+| 22-02 | 22:00 - 02:00 |
+| 02-06 | 02:00 - 06:00 |
+| 06-10 | 06:00 - 10:00 |
+| 10-14 | 10:00 - 14:00 |
+| 14-18 | 14:00 - 18:00 |
+| 18-22 | 18:00 - 22:00 |
+
+### General Commands
+
+| Command | Description | Parameters | Example |
+|---------|-------------|------------|---------|
+| project, info | Shows information about the current project | none | `project` |
+| history | Shows the command history | none | `history` |
+| history clear | Clears the command history | none | `history clear` |
+| clear | Clears the screen | none | `clear` |
+| help | Shows help information | none | `help` |
+| exit, quit, q | Exits the program | none | `exit` |
+
+## Advanced Features
+
+### Tab Completion
+
+hicloud provides comprehensive tab completion support:
+
+- Main commands: Press \<Tab\> to display available commands
+  ```
+  hicloud> <Tab>
+  backup  clear   exit    help    history info    project quit    q       snapshot vm
+  ```
+
+- Subcommands: After entering a main command, \<Tab\> shows available subcommands
+  ```
+  hicloud> vm <Tab>
+  create  delete  info    list    start   stop
+  ```
+
+- Partial word search: Enter the beginning of a command and press \<Tab\>
+  ```
+  hicloud> vm st<Tab>
+  start   stop
+  ```
+
+- Contextual help: When completing, hints about the command are displayed
+  ```
+  hicloud> vm <Tab>
+  VM commands: list, info <id>, create, start <id>, stop <id>, delete <id>
+  ```
+
+### Command History
+
+hicloud stores your command history in `~/.tmp/hicloud/history`:
+
+- Navigation: Use the arrow keys ↑ and ↓ to navigate through previous commands
+- Display: With `history` you can display the entire command history
+- Clear: With `history clear` you can clear the command history
+- Persistence: The history is saved between sessions (maximum 1000 commands)
+
+## Examples
+
+### VM Management
+
+```
+# Display VM list
 hicloud> vm list
 Virtual Machines:
 ID         Name                           Status     Type            IP              Location
 ------------------------------------------------------------------------------------------
 123456     web-server                     running    cx21            203.0.113.10    nbg1
 
-# VM erstellen
+# Create VM
 hicloud> vm create
 Name: new-server
 ...
 
-# VM starten
+# Start VM
 hicloud> vm start 123456
 Starting VM 'web-server' (ID: 123456)...
 Waiting for server to start...
 .........
 VM 123456 started successfully
 
-# VM stoppen
+# Stop VM
 hicloud> vm stop 123456
 Stopping VM 'web-server' (ID: 123456)...
 Waiting for server to stop...
 .........
 VM 123456 stopped successfully
 
-# VM-Details anzeigen
+# Display VM details
 hicloud> vm info 123456
 ...
-Snapshot-Verwaltung
-# Snapshot erstellen
+```
+
+### Snapshot Management
+
+```
+# Create snapshot
 hicloud> snapshot create 123456
 Creating snapshot for VM 'web-server' (ID: 123456)...
 Waiting for snapshot creation to complete...
 .........
 Snapshot created successfully with ID 987654
 
-# Snapshots anzeigen
+# Display snapshots
 hicloud> snapshot list
 Snapshots:
 ID         Name                                                  Created             Size         Server ID
 -----------------------------------------------------------------------------------------------------------
 987654     web-server snapshot                                   2025-05-08T15:32:45 35.50 GB     123456
 
-# Snapshot löschen
+# Delete snapshot
 hicloud> snapshot delete 987654
 Are you sure you want to delete snapshot 987654? [y/N]: y
 Deleting snapshot 987654...
 Snapshot 987654 deleted successfully
-Backup-Verwaltung
-# Backups anzeigen
+```
+
+### Backup Management
+
+```
+# Display backups
 hicloud> backup list
 Backups:
 ID         Name                                                  Created             Size         Server ID
 -----------------------------------------------------------------------------------------------------------
 123789     web-server backup                                     2025-05-08T02:15:30 15.25 GB     123456
 
-# Automatische Backups aktivieren
+# Enable automatic backups
 hicloud> backup enable 123456 22-02
 Enabling automatic backups for VM 'web-server' (ID: 123456)...
 Waiting for backup enablement to complete...
 .........
 Automatic backups enabled successfully for VM 123456
 
-# Automatische Backups deaktivieren
+# Disable automatic backups
 hicloud> backup disable 123456
 Disabling automatic backups for VM 'web-server' (ID: 123456)...
 Waiting for backup disablement to complete...
 .........
 Automatic backups disabled successfully for VM 123456
-Projektinformationen
+```
+
+### Project Information
+
+```
 hicloud> project
 Project Information: Production
 ============================================================
@@ -237,14 +344,27 @@ Resources:
     - sin (Singapore)
   Networks: 2
   SSH Keys: 3
-Fehlerbehebung
-Häufige Probleme
-ProblemLösung"No configuration file found"Erstellen Sie eine Konfigurationsdatei mit --gen-config oder geben Sie einen Token direkt mit --token an"Insecure permissions on ~/.hicloud.toml"Setzen Sie die richtigen Berechtigungen mit chmod 600 ~/.hicloud.toml"Connection Status: Error"Überprüfen Sie Ihren API-Token und Ihre Internetverbindung"No VMs found"Stellen Sie sicher, dass Sie das richtige Projekt ausgewählt habenTab-Completion funktioniert nichtInstallieren Sie unter Windows pyreadline3 mit pip install pyreadline3History-Verzeichnis konnte nicht erstellt werdenÜberprüfen Sie die Schreibrechte in Ihrem Home-Verzeichnis
-Debugging
+```
 
-Verwenden Sie --token, um die Konfigurationsdatei zu umgehen und direkt mit einem Token zu arbeiten
-Prüfen Sie die Berechtigungen des API-Tokens in der Hetzner Cloud Console
-Bei Problemen mit der Befehlshistorie löschen Sie den Ordner ~/.tmp/hicloud und starten Sie neu
+## Troubleshooting
 
-Lizenz
-Dieses Projekt ist unter der MIT-Lizenz lizenziert - siehe LICENSE für Details.
+### Common Problems
+
+| Problem | Solution |
+|---------|----------|
+| "No configuration file found" | Create a configuration file with `--gen-config` or provide a token directly with `--token` |
+| "Insecure permissions on ~/.hicloud.toml" | Set the correct permissions with `chmod 600 ~/.hicloud.toml` |
+| "Connection Status: Error" | Check your API token and your internet connection |
+| "No VMs found" | Make sure you have selected the correct project |
+| Tab completion doesn't work | On Windows, install pyreadline3 with `pip install pyreadline3` |
+| History directory could not be created | Check write permissions in your home directory |
+
+### Debugging
+
+- Use `--token` to bypass the configuration file and work directly with a token
+- Check the permissions of the API token in the Hetzner Cloud Console
+- If you have problems with the command history, delete the folder `~/.tmp/hicloud` and restart
+
+## License
+
+This project is licensed under the MIT License - see LICENSE for details.
