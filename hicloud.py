@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # hicloud.py - Hetzner Cloud CLI Tool
-# License: GPLv4
+# License: GPLv3
 
 import os
 import sys
