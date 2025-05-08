@@ -1,6 +1,6 @@
 # Hetzner interactive Cloud CLI
 
-A Python-based interactive command line tool for managing Hetzner Cloud resources. With hicloud, you can create and manage VMs, take snapshots and backups, and perform many other actions - all from a simple, user-defined command line. And why? Because it's enough for most people and because it's faster than using complex commands since it works entirely with tab complition.
+A Python-based interactive command line tool for managing Hetzner Cloud resources. With hicloud, you can create and manage VMs, take snapshots and backups - all from a simple, user-defined command line. And why? Because it's enough for most people and because it's faster than using complex commands since it works entirely with tab complition.
 
 ![Example](/demo/hicloud.png)
 
