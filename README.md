@@ -258,6 +258,11 @@ hicloud stores your command history in `~/.tmp/hicloud/history`:
 - Clear: With `history clear` you can clear the command history
 - Persistence: The history is saved between sessions (maximum 1000 commands)
 
+### Clear Screen
+
+hicloud has some functions to clear a screen ;)
+- try cls under windows or clear under linux and macOS or use the simple linux like shortcut: ctrl+l
+
 ## Examples
 
 ### VM Management
