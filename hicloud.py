@@ -62,6 +62,37 @@ class HetznerCloudManager:
         except requests.exceptions.RequestException as e:
             return 500, {"error": f"Request failed: {str(e)}"}
     
+    # SSH Key Management Functions
+    def list_ssh_keys(self) -> List[Dict]:
+        """List all SSH keys in the project"""
+        status_code, response = self._make_request("GET", "ssh_keys")
+        
+        if status_code != 200:
+            print(f"Error listing SSH keys: {response.get('error', 'Unknown error')}")
+            return []
+            
+        return response.get("ssh_keys", [])
+    
+    def get_ssh_key_by_id(self, key_id: int) -> Dict:
+        """Get SSH key by ID"""
+        status_code, response = self._make_request("GET", f"ssh_keys/{key_id}")
+        
+        if status_code != 200:
+            print(f"Error getting SSH key: {response.get('error', 'Unknown error')}")
+            return {}
+            
+        return response.get("ssh_key", {})
+    
+    def delete_ssh_key(self, key_id: int) -> bool:
+        """Delete an SSH key by ID"""
+        status_code, response = self._make_request("DELETE", f"ssh_keys/{key_id}")
+        
+        if status_code not in [200, 204]:
+            print(f"Error deleting SSH key: {response.get('error', 'Unknown error')}")
+            return False
+            
+        return True
+    
     # Backup Management Functions
     def list_backups(self, server_id: Optional[int] = None) -> List[Dict]:
         """List all backups, optionally filtered by server ID"""
@@ -479,6 +510,13 @@ class InteractiveConsole:
                     "delete": {"help": "Delete a backup: backup delete <id>"}
                 }
             },
+            "keys": {
+                "help": "SSH key commands: list, delete <id>",
+                "subcommands": {
+                    "list": {"help": "List all SSH keys"},
+                    "delete": {"help": "Delete an SSH key: keys delete <id>"}
+                }
+            },
             "project": {"help": "Show current project information"},
             "info": {"help": "Show current project information"},
             "history": {
@@ -698,6 +736,8 @@ class InteractiveConsole:
                 elif main_cmd == "vm" or main_cmd == "server":
                     # KORRIGIERT: Entfernung des zusätzlichen Hilfe-Texts
                     self.handle_vm_command(parts[1:] if len(parts) > 1 else [])
+                elif main_cmd == "keys":
+                    self.handle_keys_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "project" or main_cmd == "info":
                     self.show_project_info()
                 elif main_cmd == "history":
@@ -742,6 +782,8 @@ Available commands:
     backup delete <id>           - Delete a backup by ID
     
   General Commands:
+    keys list                    - List all SSH keys
+    keys delete <id>             - Delete an SSH key by ID
     project, info                - Show current project information
     history                      - Show command history
     history clear                - Clear command history
@@ -814,7 +856,65 @@ Available commands:
             print(f"Error: {str(e)}")
             
         print(f"{'-'*60}")
+    
+    def handle_keys_command(self, args: List[str]):
+        """Handle SSH key-related commands"""
+        if not args:
+            print("Missing keys subcommand. Use 'keys list|delete'")
+            return
+            
+        subcommand = args[0].lower()
         
+        if subcommand == "list":
+            # List all SSH keys
+            ssh_keys = self.hetzner.list_ssh_keys()
+            
+            if not ssh_keys:
+                print("No SSH keys found")
+                return
+                
+            print("\nSSH Keys:")
+            print(f"{'ID':<10} {'Name':<30} {'Fingerprint':<50} {'Created':<20}")
+            print("-" * 110)
+            
+            # Sort keys alphabetically by name
+            for key in sorted(ssh_keys, key=lambda x: x.get('name', '').lower()):
+                fingerprint = key.get('fingerprint', 'N/A')
+                created = key.get('created', 'N/A')
+                
+                # Format the creation date if it exists
+                if created != 'N/A':
+                    created = created.split('T')[0]
+                    
+                print(f"{key['id']:<10} {key['name']:<30} {fingerprint:<50} {created:<20}")
+                
+        elif subcommand == "delete":
+            # Delete SSH key by ID
+            if len(args) < 2:
+                print("Missing SSH key ID. Use 'keys delete <id>'")
+                return
+                
+            key_id = int(args[1])
+            key = self.hetzner.get_ssh_key_by_id(key_id)
+            
+            if not key:
+                print(f"SSH key with ID {key_id} not found")
+                return
+                
+            confirm = input(f"Are you sure you want to delete SSH key '{key.get('name')}' (ID: {key_id})? [y/N]: ")
+            
+            if confirm.lower() != 'y':
+                print("Operation cancelled")
+                return
+                
+            print(f"Deleting SSH key {key_id}...")
+            if self.hetzner.delete_ssh_key(key_id):
+                print(f"SSH key {key_id} deleted successfully")
+            else:
+                print(f"Failed to delete SSH key {key_id}")
+        else:
+            print(f"Unknown keys subcommand: {subcommand}")
+
     def handle_backup_command(self, args: List[str]):
         """Handle backup-related commands"""
         if not args:
