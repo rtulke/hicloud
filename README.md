@@ -222,6 +222,10 @@ When enabling automatic backups, you can specify a backup window:
 | clear | Clears the screen | none | `clear` |
 | help | Shows help information | none | `help` |
 | exit, quit, q | Exits the program | none | `exit` |
+| keys list | Lists all SSH keys | none | `keys list` |
+| keys delete \<id\> | Deletes an SSH key | \<id\>: ID of the SSH key | `keys delete 123456` |
+
+Diese Befehle sollten in der "Command Reference" Sektion des README.md Dokuments unter "General Commands" hinzugefügt werden.
 
 ## Advanced Features
 
