@@ -1,6 +1,6 @@
 # HiCloud
 
-A powerful, interactive command-line tool for managing Hetzner Cloud resources. With hicloud, you can create and manage VMs, create snapshots and backups, and perform many other actions - all from the command line.
+A interactive command-line tool for managing Hetzner Cloud resources. With hicloud, you can create and manage VMs, create snapshots and backups, and perform many other actions - all from the command line with own promt CLI.
 
 ## Table of Contents
 
@@ -27,19 +27,32 @@ A powerful, interactive command-line tool for managing Hetzner Cloud resources. 
 - pip (Python package manager)
 - Hetzner Cloud API token
 
-### Installation of Required Packages
+### Installation - systemwide (with pip, not recommended)
 
 ```bash
 # Linux/macOS
-pip install requests toml
+sudo pip install requests toml
 
 # Windows
 pip install requests toml pyreadline3
-```
 
-### Installation of hicloud
+# Clone repository
+git clone https://github.com/rtulke/hicloud.git
+cd hicloud
+
+# Make script executable
+chmod +x hicloud.py
+
+# Optional: Make available system-wide
+sudo ln -s $(pwd)/hicloud.py /usr/local/bin/hicloud
+```
+### Installation - systemwide (APT Debian based Distributions)
 
 ```bash
+# Install Python packages
+sudo apt update && apt upgade
+sudo apt install python3-requests python3-toml git
+
 # Clone repository
 git clone https://github.com/rtulke/hicloud.git
 cd hicloud
@@ -51,20 +64,27 @@ chmod +x hicloud.py
 sudo ln -s $(pwd)/hicloud.py /usr/local/bin/hicloud
 ```
 
-### Usage with virtualenv (recommended)
+
+### Installation - virtual python environment
 
 ```bash
-# Create virtual environment
-python3 -m venv venv
+# Clone repository
+git clone https://github.com/rtulke/hicloud.git
+cd hicloud
 
-# Activate environment (Linux/macOS)
-source venv/bin/activate
-
-# Activate environment (Windows)
-.\venv\Scripts\activate
-
-# Install dependencies
+# Linux/macOS
+python3 -m venv .venv
+chmod +x hicloud.py
+sudo ln -s $(pwd)/hicloud.py /usr/local/bin/hicloud
+source .venv/bin/activate
 pip install requests toml
+hicloud
+
+# Windows
+python3 -m venv .venv
+.venv\Scripts\activate
+pip install requests toml pyreadline3
+python3 hicloud.py
 ```
 
 ## Configuration
@@ -74,12 +94,14 @@ hicloud uses TOML configuration files to store API tokens and project settings.
 ### Generating an Example Configuration
 
 ```bash
+# Linux/macOS
 ./hicloud.py --gen-config ~/.hicloud.toml
 ```
-
-This command creates an example configuration file with the correct permissions (chmod 600).
+This command creates an example configuration file.
 
 ### Configuration Format
+
+You can run with multiple Hetzner Projects by using the project name, see: https://console.hetzner.cloud/projects
 
 ```toml
 [default]
@@ -98,12 +120,11 @@ project_name = "Development"
 ### Security Notes
 
 - The configuration file must be protected with 600 permissions (`chmod 600 ~/.hicloud.toml`)
-- The API token grants full access to your Hetzner Cloud resources
-- It is recommended to use tokens with limited permissions
+- The API token grants full access to your Hetzner Cloud resources (read & write) follow the Hetzner Dashboard: Security -> API Tokens - Add new API Token (read & write)
 
 ## Interactive Console
 
-hicloud provides an interactive console for managing your Hetzner Cloud resources.
+hicloud provides an interactive cli console and is not a commandline tool :) for managing your Hetzner Cloud resources.
 
 ### Starting the Interactive Console
 
@@ -207,19 +228,19 @@ hicloud provides comprehensive tab completion support:
 - Main commands: Press \<Tab\> to display available commands
   ```
   hicloud> <Tab>
-  backup  clear   exit    help    history info    project quit    q       snapshot vm
+  Available commands: backup, clear, exit, help, history, info, project, q, quit, snapshot, vm
   ```
 
 - Subcommands: After entering a main command, \<Tab\> shows available subcommands
   ```
   hicloud> vm <Tab>
-  create  delete  info    list    start   stop
+  VM commands: list, info <id>, create, start <id>, stop <id>, delete <id>
   ```
 
 - Partial word search: Enter the beginning of a command and press \<Tab\>
   ```
   hicloud> vm st<Tab>
-  start   stop
+  Matching subcommands: start, stop
   ```
 
 - Contextual help: When completing, hints about the command are displayed
@@ -252,6 +273,8 @@ ID         Name                           Status     Type            IP         
 # Create VM
 hicloud> vm create
 Name: new-server
+...
+start create a vm with an interactive configuration manager
 ...
 
 # Start VM
@@ -367,4 +390,4 @@ Resources:
 
 ## License
 
-This project is licensed under the MIT License - see LICENSE for details.
+This project is licensed under the GPLv3 License - see LICENSE for details.
