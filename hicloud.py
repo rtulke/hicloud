@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # hicloud.py - Hetzner Cloud CLI Tool
-# License: MIT
+# License: GPLv4
 
 import os
 import sys
@@ -493,10 +493,7 @@ class InteractiveConsole:
             "quit": {"help": "Exit the program"},
             "q": {"help": "Exit the program"}
         }
-        
-        # Setze den Completer
-        readline.set_completer(self._command_completer)
-        
+    
     def _command_completer(self, text, state):
         """Custom command completer for tab completion"""
         buffer = readline.get_line_buffer()
@@ -652,7 +649,7 @@ class InteractiveConsole:
     def _display_welcome_screen(self):
         """Display the welcome screen"""
         print(f"\n{'='*60}")
-        print(f"hicloud - Hetzner Interactive Console v{VERSION}")
+        print(f"hicloud Interactive Console v{VERSION}")
         print(f"{'='*60}")
         print(f"Active Project: \033[1;32m{self.hetzner.project_name}\033[0m")
         print(f"API Endpoint: {API_BASE_URL}")
@@ -699,7 +696,7 @@ class InteractiveConsole:
                 elif main_cmd == "backup":
                     self.handle_backup_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "vm" or main_cmd == "server":
-                    print("VM commands available: list, info, create, start, stop, delete")
+                    # KORRIGIERT: Entfernung des zusätzlichen Hilfe-Texts
                     self.handle_vm_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "project" or main_cmd == "info":
                     self.show_project_info()
@@ -717,7 +714,8 @@ class InteractiveConsole:
                 print(f"Error: {str(e)}")
         
         # Beim Beenden die Historie speichern
-        self._save_history()    
+        self._save_history()
+    
     def show_help(self):
         """Show help information"""
         help_text = """
@@ -752,6 +750,192 @@ Available commands:
     exit, quit, q                - Exit the program
 """
         print(help_text)
+    
+    def show_project_info(self):
+        """Show detailed information about the current project"""
+        print(f"\n{'='*60}")
+        print(f"Project Information: \033[1;32m{self.hetzner.project_name}\033[0m")
+        print(f"{'='*60}")
+        
+        # API-Verbindungsstatus prüfen mit einem gültigen Endpunkt
+        try:
+            # Statt des leeren Endpunkts einen gültigen API-Endpunkt verwenden
+            status_code, response = self.hetzner._make_request("GET", "datacenters")
+            if status_code == 200:
+                print(f"Connection Status: \033[1;32mConnected\033[0m")
+                print(f"API Endpoint: {API_BASE_URL}")
+                
+                # Server zählen
+                servers = self.hetzner.list_servers()
+                server_count = len(servers)
+                running_servers = sum(1 for s in servers if s.get("status") == "running")
+                
+                # Snapshots zählen
+                snapshots = self.hetzner.list_snapshots()
+                snapshot_count = len(snapshots)
+                
+                # Ressourcen anzeigen
+                print(f"\nResources:")
+                print(f"  VMs: {server_count} total, {running_servers} running")
+                print(f"  Snapshots: {snapshot_count}")
+                
+                # Datacenters anzeigen
+                datacenters = response.get("datacenters", [])
+                if datacenters:
+                    datacenter_count = len(datacenters)
+                    print(f"  Datacenters: {datacenter_count}")
+                    print("  Available Locations:")
+                    for dc in datacenters:
+                        print(f"    - {dc['name']} ({dc['location']['name']})")
+                
+                # Verbundene Netzwerke zählen
+                try:
+                    status_code, networks = self.hetzner._make_request("GET", "networks")
+                    if status_code == 200:
+                        network_count = len(networks.get("networks", []))
+                        print(f"  Networks: {network_count}")
+                except Exception:
+                    pass
+                    
+                # Verfügbare SSH-Schlüssel zählen
+                try:
+                    status_code, ssh_keys = self.hetzner._make_request("GET", "ssh_keys")
+                    if status_code == 200:
+                        ssh_key_count = len(ssh_keys.get("ssh_keys", []))
+                        print(f"  SSH Keys: {ssh_key_count}")
+                except Exception:
+                    pass
+                    
+            else:
+                print(f"Connection Status: \033[1;31mError\033[0m (HTTP {status_code})")
+                print(f"Could not connect to API. Response: {response.get('error', {}).get('message', 'Unknown error')}")
+        except Exception as e:
+            print(f"Connection Status: \033[1;31mError\033[0m")
+            print(f"Error: {str(e)}")
+            
+        print(f"{'-'*60}")
+        
+    def handle_backup_command(self, args: List[str]):
+        """Handle backup-related commands"""
+        if not args:
+            print("Missing backup subcommand. Use 'backup list|enable|disable|delete'")
+            return
+            
+        subcommand = args[0].lower()
+        
+        if subcommand == "list":
+            # List backups, optionally filtered by VM ID
+            vm_id = int(args[1]) if len(args) > 1 else None
+            
+            backups = self.hetzner.list_backups(vm_id)
+            if not backups:
+                print("No backups found")
+                return
+                
+            # Gruppiere Backups nach Server-Namen
+            backup_groups = {}
+            for backup in backups:
+                server_name = backup.get("created_from", {}).get("name", "Unknown")
+                if server_name not in backup_groups:
+                    backup_groups[server_name] = []
+                backup_groups[server_name].append(backup)
+            
+            print("\nBackups:")
+            print(f"{'ID':<10} {'Name':<50} {'Created':<20} {'Size':<12} {'Server ID':<15}")
+            print("-" * 107)
+            
+            # Sortiere die Server-Namen alphabetisch
+            for server_name in sorted(backup_groups.keys()):
+                group_backups = backup_groups[server_name]
+                
+                # Sortiere Backups innerhalb der Gruppe nach Größe (absteigend)
+                group_backups.sort(key=lambda x: x.get("image_size", 0), reverse=True)
+                
+                for backup in group_backups:
+                    server_id = backup.get("created_from", {}).get("id", "N/A")
+                    desc = f"{server_name} backup" if server_name != "Unknown" else backup.get("description", "N/A")
+                    
+                    # Formatiere Größe
+                    size_gb = backup.get("image_size", 0)
+                    formatted_size = self._format_size(size_gb)
+                    
+                    print(f"{backup['id']:<10} {desc:<50} {backup['created'][:19]:<20} {formatted_size:<12} {server_id:<15}")
+                
+                # Füge eine Leerzeile zwischen den Gruppen ein
+                print()
+        
+        elif subcommand == "enable":
+            # Enable automatic backups for a VM
+            if len(args) < 2:
+                print("Missing VM ID. Use 'backup enable <id> [WINDOW]'")
+                return
+                
+            vm_id = int(args[1])
+            server = self.hetzner.get_server_by_id(vm_id)
+            
+            if not server:
+                print(f"VM with ID {vm_id} not found")
+                return
+            
+            # Optional backup window parameter
+            backup_window = args[2] if len(args) > 2 else None
+            if backup_window and backup_window not in ["22-02", "02-06", "06-10", "10-14", "14-18", "18-22"]:
+                print("Invalid backup window. Must be one of: 22-02, 02-06, 06-10, 10-14, 14-18, 18-22")
+                return
+                
+            print(f"Enabling automatic backups for VM '{server.get('name')}' (ID: {vm_id})...")
+            if self.hetzner.enable_server_backups(vm_id, backup_window):
+                print(f"Automatic backups enabled successfully for VM {vm_id}")
+            else:
+                print(f"Failed to enable automatic backups for VM {vm_id}")
+        
+        elif subcommand == "disable":
+            # Disable automatic backups for a VM
+            if len(args) < 2:
+                print("Missing VM ID. Use 'backup disable <id>'")
+                return
+                
+            vm_id = int(args[1])
+            server = self.hetzner.get_server_by_id(vm_id)
+            
+            if not server:
+                print(f"VM with ID {vm_id} not found")
+                return
+                
+            print(f"Disabling automatic backups for VM '{server.get('name')}' (ID: {vm_id})...")
+            if self.hetzner.disable_server_backups(vm_id):
+                print(f"Automatic backups disabled successfully for VM {vm_id}")
+            else:
+                print(f"Failed to disable automatic backups for VM {vm_id}")
+        
+        elif subcommand == "delete":
+            # Delete a backup by ID
+            if len(args) < 2:
+                print("Missing backup ID. Use 'backup delete <id>'")
+                return
+                
+            backup_id = int(args[1])
+            
+            confirm = input(f"Are you sure you want to delete backup {backup_id}? [y/N]: ")
+            if confirm.lower() != 'y':
+                print("Operation cancelled")
+                return
+                
+            print(f"Deleting backup {backup_id}...")
+            if self.hetzner.delete_backup(backup_id):
+                print(f"Backup {backup_id} deleted successfully")
+            else:
+                print(f"Failed to delete backup {backup_id}")
+        
+        else:
+            print(f"Unknown backup subcommand: {subcommand}")
+    
+    def _format_size(self, size_gb: float) -> str:
+        """Format size in GB or MB with 2 decimal places"""
+        if size_gb >= 1:
+            return f"{size_gb:.2f} GB"
+        else:
+            return f"{size_gb * 1024:.2f} MB"
     
     def handle_snapshot_command(self, args: List[str]):
         """Handle snapshot-related commands"""
@@ -807,7 +991,7 @@ Available commands:
         elif subcommand == "create":
             # Create a snapshot for a VM
             if len(args) < 2:
-                print("Missing VM ID. Use 'snapshot create VM_ID'")
+                print("Missing VM ID. Use 'snapshot create <id>'")
                 return
                 
             vm_id = int(args[1])
@@ -828,13 +1012,13 @@ Available commands:
         elif subcommand == "delete":
             # Delete a snapshot by ID or all snapshots for a VM
             if len(args) < 2:
-                print("Missing snapshot ID or 'all'. Use 'snapshot delete ID' or 'snapshot delete all VM_ID'")
+                print("Missing snapshot ID or 'all'. Use 'snapshot delete <id>' or 'snapshot delete all <id>'")
                 return
                 
             if args[1].lower() == "all":
                 # Delete all snapshots for a VM
                 if len(args) < 3:
-                    print("Missing VM ID. Use 'snapshot delete all VM_ID'")
+                    print("Missing VM ID. Use 'snapshot delete all <id>'")
                     return
                     
                 vm_id = int(args[2])
@@ -883,133 +1067,12 @@ Available commands:
                     print(f"Failed to delete snapshot {snapshot_id}")
         else:
             print(f"Unknown snapshot subcommand: {subcommand}")
-    
-    def _format_size(self, size_gb: float) -> str:
-        """Format size in GB or MB with 2 decimal places"""
-        if size_gb >= 1:
-            return f"{size_gb:.2f} GB"
-        else:
-            return f"{size_gb * 1024:.2f} MB"
-    
-    def handle_backup_command(self, args: List[str]):
-        """Handle backup-related commands"""
-        if not args:
-            print("Missing backup subcommand. Use 'backup list|enable|disable|delete'")
-            return
-            
-        subcommand = args[0].lower()
-        
-        if subcommand == "list":
-            # List backups, optionally filtered by VM ID
-            vm_id = int(args[1]) if len(args) > 1 else None
-            
-            backups = self.hetzner.list_backups(vm_id)
-            if not backups:
-                print("No backups found")
-                return
-                
-            # Gruppiere Backups nach Server-Namen
-            backup_groups = {}
-            for backup in backups:
-                server_name = backup.get("created_from", {}).get("name", "Unknown")
-                if server_name not in backup_groups:
-                    backup_groups[server_name] = []
-                backup_groups[server_name].append(backup)
-            
-            print("\nBackups:")
-            print(f"{'ID':<10} {'Name':<50} {'Created':<20} {'Size':<12} {'Server ID':<15}")
-            print("-" * 107)
-            
-            # Sortiere die Server-Namen alphabetisch
-            for server_name in sorted(backup_groups.keys()):
-                group_backups = backup_groups[server_name]
-                
-                # Sortiere Backups innerhalb der Gruppe nach Größe (absteigend)
-                group_backups.sort(key=lambda x: x.get("image_size", 0), reverse=True)
-                
-                for backup in group_backups:
-                    server_id = backup.get("created_from", {}).get("id", "N/A")
-                    desc = f"{server_name} backup" if server_name != "Unknown" else backup.get("description", "N/A")
-                    
-                    # Formatiere Größe
-                    size_gb = backup.get("image_size", 0)
-                    formatted_size = self._format_size(size_gb)
-                    
-                    print(f"{backup['id']:<10} {desc:<50} {backup['created'][:19]:<20} {formatted_size:<12} {server_id:<15}")
-                
-                # Füge eine Leerzeile zwischen den Gruppen ein
-                print()
-        
-        elif subcommand == "enable":
-            # Enable automatic backups for a VM
-            if len(args) < 2:
-                print("Missing VM ID. Use 'backup enable VM_ID [WINDOW]'")
-                return
-                
-            vm_id = int(args[1])
-            server = self.hetzner.get_server_by_id(vm_id)
-            
-            if not server:
-                print(f"VM with ID {vm_id} not found")
-                return
-            
-            # Optional backup window parameter
-            backup_window = args[2] if len(args) > 2 else None
-            if backup_window and backup_window not in ["22-02", "02-06", "06-10", "10-14", "14-18", "18-22"]:
-                print("Invalid backup window. Must be one of: 22-02, 02-06, 06-10, 10-14, 14-18, 18-22")
-                return
-                
-            print(f"Enabling automatic backups for VM '{server.get('name')}' (ID: {vm_id})...")
-            if self.hetzner.enable_server_backups(vm_id, backup_window):
-                print(f"Automatic backups enabled successfully for VM {vm_id}")
-            else:
-                print(f"Failed to enable automatic backups for VM {vm_id}")
-        
-        elif subcommand == "disable":
-            # Disable automatic backups for a VM
-            if len(args) < 2:
-                print("Missing VM ID. Use 'backup disable VM_ID'")
-                return
-                
-            vm_id = int(args[1])
-            server = self.hetzner.get_server_by_id(vm_id)
-            
-            if not server:
-                print(f"VM with ID {vm_id} not found")
-                return
-                
-            print(f"Disabling automatic backups for VM '{server.get('name')}' (ID: {vm_id})...")
-            if self.hetzner.disable_server_backups(vm_id):
-                print(f"Automatic backups disabled successfully for VM {vm_id}")
-            else:
-                print(f"Failed to disable automatic backups for VM {vm_id}")
-        
-        elif subcommand == "delete":
-            # Delete a backup by ID
-            if len(args) < 2:
-                print("Missing backup ID. Use 'backup delete ID'")
-                return
-                
-            backup_id = int(args[1])
-            
-            confirm = input(f"Are you sure you want to delete backup {backup_id}? [y/N]: ")
-            if confirm.lower() != 'y':
-                print("Operation cancelled")
-                return
-                
-            print(f"Deleting backup {backup_id}...")
-            if self.hetzner.delete_backup(backup_id):
-                print(f"Backup {backup_id} deleted successfully")
-            else:
-                print(f"Failed to delete backup {backup_id}")
-        
-        else:
-            print(f"Unknown backup subcommand: {subcommand}")
-    
+
+    # KORRIGIERT: Vollständig neu implementierte handle_vm_command-Methode
     def handle_vm_command(self, args: List[str]):
         """Handle VM-related commands"""
         if not args:
-            print("Missing VM subcommand. Use 'vm list|create|delete'")
+            print("Missing VM subcommand. Use 'vm list|info|create|start|stop|delete'")
             return
             
         subcommand = args[0].lower()
@@ -1033,7 +1096,7 @@ Available commands:
         elif subcommand == "info":
             # Show detailed information about a specific VM
             if len(args) < 2:
-                print("Missing VM ID. Use 'vm info ID'")
+                print("Missing VM ID. Use 'vm info <id>'")
                 return
                 
             vm_id = int(args[1])
@@ -1144,7 +1207,8 @@ Available commands:
                 
             print(f"{'-'*60}")
                 
-        if subcommand == "create":
+        elif subcommand == "create":
+            # Create a new VM (interactive)
             print("Create a new VM:")
             name = input("Name: ")
             if not name:
@@ -1386,35 +1450,10 @@ Available commands:
             else:
                 print(f"Failed to create VM: {response.get('error', {}).get('message', 'Unknown error')}")
                 
-        elif subcommand == "delete":
-            # Delete a VM by ID
-            if len(args) < 2:
-                print("Missing VM ID. Use 'vm delete ID'")
-                return
-                
-            vm_id = int(args[1])
-            server = self.hetzner.get_server_by_id(vm_id)
-            
-            if not server:
-                print(f"VM with ID {vm_id} not found")
-                return
-                
-            confirm = input(f"Are you sure you want to delete VM '{server.get('name')}' (ID: {vm_id})? [y/N]: ")
-            
-            if confirm.lower() != 'y':
-                print("Operation cancelled")
-                return
-                
-            print(f"Deleting VM {vm_id}...")
-            if self.hetzner.delete_server(vm_id):
-                print(f"VM {vm_id} deleted successfully")
-            else:
-                print(f"Failed to delete VM {vm_id}")
-                
         elif subcommand == "start":
             # Start a VM by ID
             if len(args) < 2:
-                print("Missing VM ID. Use 'vm start ID'")
+                print("Missing VM ID. Use 'vm start <id>'")
                 return
                 
             vm_id = int(args[1])
@@ -1437,7 +1476,7 @@ Available commands:
         elif subcommand == "stop":
             # Stop a VM by ID
             if len(args) < 2:
-                print("Missing VM ID. Use 'vm stop ID'")
+                print("Missing VM ID. Use 'vm stop <id>'")
                 return
                 
             vm_id = int(args[1])
@@ -1457,72 +1496,32 @@ Available commands:
             else:
                 print(f"Failed to stop VM {vm_id}")
                 
+        elif subcommand == "delete":
+            # Delete a VM by ID
+            if len(args) < 2:
+                print("Missing VM ID. Use 'vm delete <id>'")
+                return
+                
+            vm_id = int(args[1])
+            server = self.hetzner.get_server_by_id(vm_id)
+            
+            if not server:
+                print(f"VM with ID {vm_id} not found")
+                return
+                
+            confirm = input(f"Are you sure you want to delete VM '{server.get('name')}' (ID: {vm_id})? [y/N]: ")
+            
+            if confirm.lower() != 'y':
+                print("Operation cancelled")
+                return
+                
+            print(f"Deleting VM {vm_id}...")
+            if self.hetzner.delete_server(vm_id):
+                print(f"VM {vm_id} deleted successfully")
+            else:
+                print(f"Failed to delete VM {vm_id}")
         else:
             print(f"Unknown VM subcommand: {subcommand}")
-            
-    def show_project_info(self):
-        """Show detailed information about the current project"""
-        print(f"\n{'='*60}")
-        print(f"Project Information: \033[1;32m{self.hetzner.project_name}\033[0m")
-        print(f"{'='*60}")
-        
-        # API-Verbindungsstatus prüfen mit einem gültigen Endpunkt
-        try:
-            # Statt des leeren Endpunkts einen gültigen API-Endpunkt verwenden
-            status_code, response = self.hetzner._make_request("GET", "datacenters")
-            if status_code == 200:
-                print(f"Connection Status: \033[1;32mConnected\033[0m")
-                print(f"API Endpoint: {API_BASE_URL}")
-                
-                # Server zählen
-                servers = self.hetzner.list_servers()
-                server_count = len(servers)
-                running_servers = sum(1 for s in servers if s.get("status") == "running")
-                
-                # Snapshots zählen
-                snapshots = self.hetzner.list_snapshots()
-                snapshot_count = len(snapshots)
-                
-                # Ressourcen anzeigen
-                print(f"\nResources:")
-                print(f"  VMs: {server_count} total, {running_servers} running")
-                print(f"  Snapshots: {snapshot_count}")
-                
-                # Datacenters anzeigen
-                datacenters = response.get("datacenters", [])
-                if datacenters:
-                    datacenter_count = len(datacenters)
-                    print(f"  Datacenters: {datacenter_count}")
-                    print("  Available Locations:")
-                    for dc in datacenters:
-                        print(f"    - {dc['name']} ({dc['location']['name']})")
-                
-                # Verbundene Netzwerke zählen
-                try:
-                    status_code, networks = self.hetzner._make_request("GET", "networks")
-                    if status_code == 200:
-                        network_count = len(networks.get("networks", []))
-                        print(f"  Networks: {network_count}")
-                except Exception:
-                    pass
-                    
-                # Verfügbare SSH-Schlüssel zählen
-                try:
-                    status_code, ssh_keys = self.hetzner._make_request("GET", "ssh_keys")
-                    if status_code == 200:
-                        ssh_key_count = len(ssh_keys.get("ssh_keys", []))
-                        print(f"  SSH Keys: {ssh_key_count}")
-                except Exception:
-                    pass
-                    
-            else:
-                print(f"Connection Status: \033[1;31mError\033[0m (HTTP {status_code})")
-                print(f"Could not connect to API. Response: {response.get('error', {}).get('message', 'Unknown error')}")
-        except Exception as e:
-            print(f"Connection Status: \033[1;31mError\033[0m")
-            print(f"Error: {str(e)}")
-            
-        print(f"{'-'*60}")
 
 
 def main():
