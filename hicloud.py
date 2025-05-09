@@ -62,6 +62,28 @@ class HetznerCloudManager:
         except requests.exceptions.RequestException as e:
             return 500, {"error": f"Request failed: {str(e)}"}
     
+    def rebuild_server_from_snapshot(self, server_id: int, snapshot_id: int) -> bool:
+        """Rebuild a server from a snapshot"""
+        data = {
+            "image": str(snapshot_id)
+        }
+        
+        status_code, response = self._make_request(
+            "POST", f"servers/{server_id}/actions/rebuild", data
+        )
+        
+        if status_code != 201:
+            print(f"Error rebuilding server: {response.get('error', 'Unknown error')}")
+            return False
+            
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for server rebuild to complete...")
+            return self._wait_for_action(action_id)
+            
+        return True
+    
     # SSH Key Management Functions
     def list_ssh_keys(self) -> List[Dict]:
         """List all SSH keys in the project"""
@@ -493,12 +515,13 @@ class InteractiveConsole:
                 }
             },
             "snapshot": {
-                "help": "Snapshot commands: list, create, delete <id>, delete all",
+                "help": "Snapshot commands: list, create, delete <id>, delete all, rebuild <id>",
                 "subcommands": {
                     "list": {"help": "List all snapshots or for specific VM"},
                     "create": {"help": "Create a snapshot for a VM"},
                     "delete": {"help": "Delete a snapshot: snapshot delete <id>"},
-                    "all": {"help": "Delete all snapshots for a VM: snapshot delete all"}
+                    "all": {"help": "Delete all snapshots for a VM: snapshot delete all"},
+                    "rebuild": {"help": "Rebuild a server from a snapshot: snapshot rebuild <id> <server_id>"}
                 }
             },
             "backup": {
@@ -774,6 +797,7 @@ Available commands:
     snapshot create              - Create a snapshot for a VM
     snapshot delete <id>         - Delete a snapshot by ID
     snapshot delete all          - Delete all snapshots for a VM
+    snapshot rebuild <id> <sv>   - Rebuild a server from a snapshot
     
   Backup Commands:
     backup list                  - List all backups or for specific VM
@@ -1040,7 +1064,7 @@ Available commands:
     def handle_snapshot_command(self, args: List[str]):
         """Handle snapshot-related commands"""
         if not args:
-            print("Missing snapshot subcommand. Use 'snapshot list|create|delete'")
+            print("Missing snapshot subcommand. Use 'snapshot list|create|delete|rebuild'")
             return
             
         subcommand = args[0].lower()
@@ -1108,6 +1132,54 @@ Available commands:
                 print(f"Snapshot created successfully with ID {snapshot['id']}")
             else:
                 print("Failed to create snapshot")
+        
+        elif subcommand == "rebuild":
+            # Rebuild a server from a snapshot
+            if len(args) < 3:
+                print("Missing snapshot ID and server ID. Use 'snapshot rebuild <snapshot_id> <server_id>'")
+                return
+                
+            try:
+                snapshot_id = int(args[1])
+                server_id = int(args[2])
+            except ValueError:
+                print("Invalid ID format. Both snapshot ID and server ID must be integers.")
+                return
+                
+            # Get server and snapshot details for confirmation
+            server = self.hetzner.get_server_by_id(server_id)
+            if not server:
+                print(f"Server with ID {server_id} not found")
+                return
+                
+            # Check if the snapshot exists
+            snapshots = self.hetzner.list_snapshots()
+            snapshot = next((s for s in snapshots if s.get('id') == snapshot_id), None)
+            
+            if not snapshot:
+                print(f"Snapshot with ID {snapshot_id} not found")
+                return
+                
+            snapshot_name = snapshot.get('description', f'Snapshot {snapshot_id}')
+            
+            # Warning message
+            print("\n\033[1;31mWARNING!\033[0m")
+            print(f"Rebuilding server '{server.get('name')}' will delete all data on the server!")
+            print("This action is irreversible.")
+            print(f"The server will be rebuilt using snapshot '{snapshot_name}'")
+            
+            confirm = input(f"Are you sure you want to rebuild server '{server.get('name')}' (ID: {server_id})? Type 'rebuild' to confirm: ")
+            
+            if confirm.lower() != 'rebuild':
+                print("Operation cancelled")
+                return
+                
+            print(f"Rebuilding server '{server.get('name')}' (ID: {server_id}) from snapshot {snapshot_id}...")
+            
+            if self.hetzner.rebuild_server_from_snapshot(server_id, snapshot_id):
+                print(f"Server {server_id} successfully rebuilt from snapshot {snapshot_id}")
+            else:
+                print(f"Failed to rebuild server from snapshot")
                 
         elif subcommand == "delete":
             # Delete a snapshot by ID or all snapshots for a VM
