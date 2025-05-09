@@ -189,6 +189,7 @@ When running `vm create`, the following options are requested:
 | snapshot create \<id\> | Creates a snapshot of a VM | \<id\>: ID of the VM | `snapshot create 123456` |
 | snapshot delete \<id\> | Deletes a snapshot | \<id\>: ID of the snapshot | `snapshot delete 987654` |
 | snapshot delete all \<id\> | Deletes all snapshots of a VM | \<id\>: ID of the VM | `snapshot delete all 123456` |
+| snapshot rebuild \<id\> \<sv\> | Rebuilds a server from a snapshot | \<id\>: ID of the snapshot<br>\<sv\>: ID of the server | `snapshot rebuild 987654 123456` |
 
 ### Backup Commands
 
@@ -331,6 +332,18 @@ hicloud> snapshot delete 987654
 Are you sure you want to delete snapshot 987654? [y/N]: y
 Deleting snapshot 987654...
 Snapshot 987654 deleted successfully
+
+# Rebuild server from snapshot
+hicloud> snapshot rebuild 987654 123456
+WARNING!
+Rebuilding server 'web-server' will delete all data on the server!
+This action is irreversible.
+The server will be rebuilt using snapshot 'web-server snapshot'
+Are you sure you want to rebuild server 'web-server' (ID: 123456)? Type 'rebuild' to confirm: rebuild
+Rebuilding server 'web-server' (ID: 123456) from snapshot 987654...
+Waiting for server rebuild to complete...
+.........
+Server 123456 successfully rebuilt from snapshot 987654
 ```
 
 ### Backup Management
