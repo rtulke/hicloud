@@ -112,7 +112,7 @@ Project Commands:
   project list               - List all available projects
   project switch <n>         - Switch to a different project
   project resources          - Show all resources in the current project
-  project, info              - Show current project information
+  project info               - Show current project information
   
 Pricing Commands:
   pricing list               - Show pricing table for all resources
