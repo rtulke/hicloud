@@ -6,7 +6,11 @@ import platform
 import readline
 
 from typing import Dict, List
-from utils.constants import HISTORY_DIR, HISTORY_FILE, HISTORY_MAX_LINES
+from utils.constants import HISTORY_DIR, HISTORY_FILE, HISTORY_MAX_LINES, VERSION
+# Korrekte Imports für die Formatierungsfunktionen
+from utils.formatting import get_terminal_width as _get_terminal_width
+from utils.formatting import horizontal_line as _horizontal_line
+from utils.formatting import print_table as _print_table
 
 from commands.vm import VMCommands
 from commands.snapshot import SnapshotCommands
@@ -50,15 +54,15 @@ class InteractiveConsole:
     # Formatierungsfunktionen als Methodenwrapper
     def get_terminal_width(self):
         """Wrapper für die globale get_terminal_width Funktion"""
-        return get_terminal_width()
+        return _get_terminal_width()
         
     def horizontal_line(self, char="="):
         """Wrapper für die globale horizontal_line Funktion"""
-        return horizontal_line(char)
+        return _horizontal_line(char)
         
     def print_table(self, headers, rows, title=None):
         """Wrapper für die globale print_table Funktion"""
-        print_table(headers, rows, title)
+        _print_table(headers, rows, title)
     
     def _setup_readline(self):
         """Setup readline with history and tab completion support"""
@@ -356,7 +360,7 @@ class InteractiveConsole:
         try:
             hist_len = readline.get_current_history_length()
             print("\nCommand History:")
-            print(horizontal_line('-'))
+            print(self.horizontal_line('-'))
             
             # History-Einträge abrufen (ohne den aktuellen 'history' Befehl)
             for i in range(1, hist_len):
@@ -364,7 +368,7 @@ class InteractiveConsole:
                 item = readline.get_history_item(i)
                 if item:
                     print(f"{i:4d}  {item}")
-            print(horizontal_line('-'))
+            print(self.horizontal_line('-'))
         except Exception as e:
             print(f"Error displaying history: {str(e)}")
     
@@ -377,38 +381,38 @@ class InteractiveConsole:
             os.system("clear")
     
     def _display_welcome_screen(self):
-    """Display the welcome screen"""
-    width = self.get_terminal_width()
-    
-    print(f"\n{self.horizontal_line('=')}")
-    
-    # Zentrieren des Titels
-    title = f"hicloud Interactive Console v{VERSION}"
-    padding = (width - len(title)) // 2
-    print(" " * padding + title)
-    
-    print(f"{self.horizontal_line('=')}")
-    print(f"Active Project: \033[1;32m{self.hetzner.project_name}\033[0m")
-    
-    # Debug-Modus anzeigen, wenn aktiviert
-    if self.debug:
-        print(f"Debug Mode: \033[1;33mEnabled\033[0m")
-    
-    # Versuche, Projektinformationen abzurufen
-    try:
-        status_code, response = self.hetzner._make_request("GET", "datacenters")
-        if status_code == 200:
-            datacenter_count = len(response.get("datacenters", []))
-            print(f"Connection Status: \033[1;32mConnected\033[0m ({datacenter_count} datacenters available)")
-        else:
-            print(f"Connection Status: \033[1;31mError\033[0m (HTTP {status_code})")
-            print(f"API Response: {response.get('error', {}).get('message', 'Unknown error')}")
-    except Exception as e:
-        print(f"Connection Status: \033[1;31mError\033[0m")
-        print(f"Error: {str(e)}")
+        """Display the welcome screen"""
+        width = self.get_terminal_width()
         
-    print(f"{self.horizontal_line('-')}")
-    print("Type 'help' for available commands, 'exit' to quit")
+        print(f"\n{self.horizontal_line('=')}")
+        
+        # Zentrieren des Titels
+        title = f"hicloud Interactive Console v{VERSION}"
+        padding = (width - len(title)) // 2
+        print(" " * padding + title)
+        
+        print(f"{self.horizontal_line('=')}")
+        print(f"Active Project: \033[1;32m{self.hetzner.project_name}\033[0m")
+        
+        # Debug-Modus anzeigen, wenn aktiviert
+        if self.debug:
+            print(f"Debug Mode: \033[1;33mEnabled\033[0m")
+        
+        # Versuche, Projektinformationen abzurufen
+        try:
+            status_code, response = self.hetzner._make_request("GET", "datacenters")
+            if status_code == 200:
+                datacenter_count = len(response.get("datacenters", []))
+                print(f"Connection Status: \033[1;32mConnected\033[0m ({datacenter_count} datacenters available)")
+            else:
+                print(f"Connection Status: \033[1;31mError\033[0m (HTTP {status_code})")
+                print(f"API Response: {response.get('error', {}).get('message', 'Unknown error')}")
+        except Exception as e:
+            print(f"Connection Status: \033[1;31mError\033[0m")
+            print(f"Error: {str(e)}")
+            
+        print(f"{self.horizontal_line('-')}")
+        print("Type 'help' for available commands, 'exit' to quit")
 
     def start(self):
         """Start the interactive console"""
@@ -468,49 +472,49 @@ class InteractiveConsole:
         help_text = """
 Available commands:
 
-  VM Commands:
-    vm list                      - List all VMs
-    vm info <id>                 - Show detailed information about a VM
-    vm create                    - Create a new VM (interactive)
-    vm start <id>                - Start a VM
-    vm stop <id>                 - Stop a VM
-    vm delete <id>               - Delete a VM by ID
+  vm commands:
+    vm list                           - list all vms
+    vm info <id>                      - show detailed information about a vm
+    vm create                         - create a new vm (interactive)
+    vm start <id>                     - start a vm
+    vm stop <id>                      - stop a vm
+    vm delete <id>                    - delete a vm by id
     
-  Snapshot Commands:
-    snapshot list                - List all snapshots or for specific VM
-    snapshot create              - Create a snapshot for a VM
-    snapshot delete <id>         - Delete a snapshot by ID
-    snapshot delete all          - Delete all snapshots for a VM
-    snapshot rebuild <id> <sv>   - Rebuild a server from a snapshot
+  snapshot commands:
+    snapshot list                     - list all snapshots or for specific vm
+    snapshot create                   - create a snapshot for a vm
+    snapshot delete <id>              - delete a snapshot by id
+    snapshot delete all               - delete all snapshots for a vm
+    snapshot rebuild <id> <sv>        - rebuild a server from a snapshot
     
-  Backup Commands:
-    backup list                  - List all backups or for specific VM
-    backup enable <id> [WINDOW]  - Enable automatic backups for a VM
-    backup disable <id>          - Disable automatic backups for a VM
-    backup delete <id>           - Delete a backup by ID
+  backup commands:
+    backup list                       - list all backups or for specific vm
+    backup enable <id> [window]       - enable automatic backups for a vm
+    backup disable <id>               - disable automatic backups for a vm
+    backup delete <id>                - delete a backup by id
     
-  Monitoring Commands:
-    metrics list <id>            - List available metrics for a server
-    metrics cpu <id> [--hours=24] - Show CPU utilization metrics
-    metrics traffic <id> [--days=7] - Show network traffic metrics
+  monitoring commands:
+    metrics list <id>                 - list available metrics for a server
+    metrics cpu <id> [--hours=24]     - show cpu utilization metrics
+    metrics traffic <id> [--days=7]   - show network traffic metrics
     
-  Project Commands:
-    project list                 - List all available projects
-    project switch <n>           - Switch to a different project
-    project resources            - Show all resources in the current project
-    info                         - Show current project information
+  project commands:
+    project list                      - list all available projects
+    project switch <n>                - switch to a different project
+    project resources                 - show all resources in the current project
+    info                              - show current project information
     
-  Pricing Commands:
-    pricing list                 - Show pricing table for all resources
-    pricing calculate            - Calculate monthly costs for current resources
+  pricing commands:
+    pricing list                      - show pricing table for all resources
+    pricing calculate                 - calculate monthly costs for current resources
     
-  General Commands:
-    keys list                    - List all SSH keys
-    keys delete <id>             - Delete an SSH key by ID
-    history                      - Show command history
-    history clear                - Clear command history
-    clear, reset                 - Clear screen
-    help                         - Show this help message
-    exit, quit, q                - Exit the program
+  general commands:
+    keys list                         - list all ssh keys
+    keys delete <id>                  - delete an ssh key by id
+    history                           - show command history
+    history clear                     - clear command history
+    clear, reset                      - clear screen
+    help                              - show this help message
+    exit, quit, q                     - exit the program
 """
         print(help_text)
