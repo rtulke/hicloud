@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # hicloud.py - Hetzner Cloud CLI Tool
 # License: GPLv3
+# Author: Robert Tulke rt@debian.sh
 
 import os
 import sys
