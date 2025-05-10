@@ -83,35 +83,35 @@ Once in the interactive console, type `help` to see all available commands:
 
 ```
 VM Commands:
-  vm list                    - List all VMs
-  vm info <id>               - Show detailed information about a VM
-  vm create                  - Create a new VM (interactive)
-  vm start <id>              - Start a VM
-  vm stop <id>               - Stop a VM
-  vm delete <id>             - Delete a VM by ID
-  vm resize <id> <type>      - Change server type
-  vm rename <id> <name>      - Rename a VM
-  vm rescue <id>             - Enable rescue mode
-  vm reset-password <id>     - Reset root password
-  vm image <id> <name>       - Create custom image from VM
+  vm list                          - List all VMs
+  vm info <id>                     - Show detailed information about a VM
+  vm create                        - Create a new VM (interactive)
+  vm start <id>                    - Start a VM
+  vm stop <id>                     - Stop a VM
+  vm delete <id>                   - Delete a VM by ID
+  vm resize <id> <type>            - Change server type
+  vm rename <id> <name>            - Rename a VM
+  vm rescue <id>                   - Enable rescue mode
+  vm reset-password <id>           - Reset root password
+  vm image <id> <name>             - Create custom image from VM
   
 Snapshot Commands:
-  snapshot list              - List all snapshots or for specific VM
-  snapshot create            - Create a snapshot for a VM
-  snapshot delete <id>       - Delete a snapshot by ID
-  snapshot delete all        - Delete all snapshots for a VM
-  snapshot rebuild <id> <sv> - Rebuild a server from a snapshot
+  snapshot list                    - List all snapshots or for specific VM
+  snapshot create                  - Create a snapshot for a VM
+  snapshot delete <id>             - Delete a snapshot by ID
+  snapshot delete all              - Delete all snapshots for a VM
+  snapshot rebuild <id> <sv>       - Rebuild a server from a snapshot
   
 Backup Commands:
-  backup list                - List all backups or for specific VM
-  backup enable <id> [WINDOW] - Enable automatic backups for a VM
-  backup disable <id>        - Disable automatic backups for a VM
-  backup delete <id>         - Delete a backup by ID
+  backup list                      - List all backups or for specific VM
+  backup enable <id> [WINDOW]      - Enable automatic backups for a VM
+  backup disable <id>              - Disable automatic backups for a VM
+  backup delete <id>               - Delete a backup by ID
   
-Monitoring Commands:
-  metrics list <id>          - List available metrics for a server
-  metrics cpu <id> [--hours=24] - Show CPU utilization metrics
-  metrics traffic <id> [--days=7] - Show network traffic metrics
+Monitoring Commands:  
+  metrics list <id>                 - List available metrics for a server
+  metrics cpu <id> [--hours=24]     - Show CPU utilization metrics
+  metrics traffic <id> [--days=7]   - Show network traffic metrics
   
 Project Commands:
   project list               - List all available projects
