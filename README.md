@@ -124,13 +124,13 @@ Pricing Commands:
   pricing calculate                 - Calculate monthly costs for current resources
   
 General Commands:
-  keys list                          - List all SSH keys
-  keys delete <id>                   - Delete an SSH key by ID
-  history                            - Show command history
-  history clear                      - Clear command history
-  clear                              - Clear screen
-  help                               - Show this help message
-  exit, quit, q                      - Exit the program
+  keys list                         - List all SSH keys
+  keys delete <id>                  - Delete an SSH key by ID
+  history                           - Show command history
+  history clear                     - Clear command history
+  clear                             - Clear screen
+  help                              - Show this help message
+  exit, quit, q                     - Exit the program
 ```
 
 ## Development
