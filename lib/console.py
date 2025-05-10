@@ -86,6 +86,14 @@ class InteractiveConsole:
             except Exception as e:
                 print(f"Warning: Could not configure readline: {str(e)}")
         
+        # Tab-Vervollständigung deaktivieren (wir übernehmen die manuelle Steuerung)
+        # Diese Einstellung verhindert das Standardverhalten von readline,
+        # alle Vervollständigungen anzuzeigen, wenn zweimal Tab gedrückt wird
+        try:
+            readline.set_completion_display_matches_hook(lambda *args: None)
+        except:
+            pass  # Ignorieren, wenn nicht unterstützt
+        
         # Setze den Custom Completer
         try:
             readline.set_completer(self._command_completer)
@@ -149,11 +157,12 @@ class InteractiveConsole:
                 }
             },
             "project": {
-                "help": "Project commands: list, switch <n>, resources",
+                "help": "Project commands: list, switch <n>, resources, info",
                 "subcommands": {
                     "list": {"help": "List all available projects"},
                     "switch": {"help": "Switch to a different project: project switch <n>"},
-                    "resources": {"help": "Show all resources in the current project"}
+                    "resources": {"help": "Show all resources in the current project"},
+                    "info": {"help": "Show detailed information about the current project"}
                 }
             },
             "pricing": {
@@ -170,7 +179,6 @@ class InteractiveConsole:
                     "delete": {"help": "Delete an SSH key: keys delete <id>"}
                 }
             },
-            "info": {"help": "Show current project information"},
             "history": {
                 "help": "Command history: history, history clear",
                 "subcommands": {
@@ -186,122 +194,79 @@ class InteractiveConsole:
         }
     
     def _command_completer(self, text, state):
-        """Custom command completer for tab completion"""
+        """Vereinfachter Command Completer"""
         buffer = readline.get_line_buffer()
         line = buffer.lstrip()
         
-        # Zeige alle verfügbaren Befehle als erste Übereinstimmung, wenn der Zustand 0 ist
-        if state == 0 and not text and not line:
-            print("\n\033[90mAvailable commands: " + ", ".join(sorted(self.commands.keys())) + "\033[0m")
-            print("\nhicloud> ", end="", flush=True)
+        # Wenn wir das zweite Mal Tab drücken (state > 0), nix tun
+        if state > 0:
             return None
-        
+                
         # Teile die Eingabe in Wörter auf
         parts = line.split()
         
-        # Bestimme den Kontext (Haupt- oder Unterbefehl)
-        if not parts:  # Leere Zeile
-            matches = sorted(self.commands.keys())
-            if state < len(matches):
-                return matches[state]
-            else:
-                return None
-        elif len(parts) == 1 and not line.endswith(' '):  # Erster Teil, noch nicht abgeschlossen
-            # Nur Hauptbefehle vervollständigen, die mit dem Text beginnen
-            cmd_part = parts[0]
-            matches = [cmd for cmd in self.commands.keys() if cmd.startswith(cmd_part)]
-            
-            # Wenn wir genau eine Übereinstimmung haben, füge ein Leerzeichen hinzu
-            if len(matches) == 1:
-                return matches[0] + ' ' if state == 0 else None
-                
-            # Wenn wir mehrere Übereinstimmungen haben
-            elif len(matches) > 1:
-                # Finde gemeinsames Präfix (wenn vorhanden)
-                if state == 0:
-                    # Prüfe, ob es ein längeres gemeinsames Präfix gibt
-                    if text != "":  # Nur wenn etwas eingegeben wurde
-                        common_prefix = self._get_common_prefix(matches)
-                        if common_prefix and len(common_prefix) > len(cmd_part):
-                            return common_prefix
-                    # Zeige die möglichen Matches an
-                    print("\n\033[90mMatching commands: " + ", ".join(matches) + "\033[0m")
-                    print("\nhicloud> " + line, end="", flush=True)
-                
-                # Gib die Matches je nach state zurück
-                if state < len(matches):
-                    return matches[state]
-                else:
-                    return None
-            else:
-                return None
-                
-        elif len(parts) == 1 and line.endswith(' '):  # Erster Teil abgeschlossen, zweiter Teil beginnt
-            # Wenn der Hauptbefehl bekannt ist, zeige die Unterbefehle an
-            cmd = parts[0]
-            
-            if cmd in self.commands and 'subcommands' in self.commands[cmd]:
-                if state == 0:  # Nur beim ersten Aufruf die Hilfe anzeigen
-                    # Zeige Hilfe für den Hauptbefehl über dem Prompt
-                    print(f"\n\033[90m{self.commands[cmd]['help']}\033[0m")
-                    print("\nhicloud> " + line, end="", flush=True)
-                    
-                # Liste der möglichen Unterbefehle
-                subcmds = sorted(self.commands[cmd]['subcommands'].keys())
-                if state < len(subcmds):
-                    return subcmds[state]
-                else:
-                    return None
-            else:
-                return None
-                
-        elif len(parts) >= 2 and not line.endswith(' '):  # Zweiter Teil oder höher, unvollständig
-            # Wir vervollständigen möglicherweise einen Unterbefehl
-            cmd = parts[0]
-            curr_part = parts[-1]  # Der aktuelle Teil, den wir vervollständigen
-            
-            # Wenn der zweite Teil ein "delete" ist und wir bei "all" sein könnten (für snapshot delete all)
-            if len(parts) == 2 and cmd == "snapshot" and parts[1] == "delete":
-                if state == 0:
-                    # Zeige Hilfe für 'delete' Unterbefehl
-                    print(f"\n\033[90m{self.commands[cmd]['subcommands']['delete']['help']}\033[0m")
-                    print("\nhicloud> " + line, end="", flush=True)
-                return "all " if state == 0 else None
-                
-            # Normaler Fall: Unterbefehlvervollständigung
-            if cmd in self.commands and 'subcommands' in self.commands[cmd]:
-                # Finde passende Unterbefehle
-                matches = [subcmd for subcmd in self.commands[cmd]['subcommands'].keys() 
-                          if subcmd.startswith(curr_part)]
-                
-                # Wenn genau ein Match, füge Leerzeichen an
-                if len(matches) == 1:
-                    return matches[0] + ' ' if state == 0 else None
-                
-                # Wenn wir mehrere Übereinstimmungen haben
-                elif len(matches) > 1:
-                    # Finde gemeinsames Präfix (wenn vorhanden)
-                    if state == 0:
-                        # Prüfe, ob es ein längeres gemeinsames Präfix gibt
-                        if curr_part != "":  # Nur wenn etwas eingegeben wurde
-                            common_prefix = self._get_common_prefix(matches)
-                            if common_prefix and len(common_prefix) > len(curr_part):
-                                return common_prefix
-                        # Zeige die möglichen Matches an
-                        print("\n\033[90mMatching subcommands: " + ", ".join(matches) + "\033[0m")
-                        print("\nhicloud> " + line, end="", flush=True)
-                    
-                    # Gib den Match zurück je nach state
-                    if state < len(matches):
-                        return matches[state]
-                    else:
-                        return None
-            else:
-                return None
-                
-        # Wenn wir hier ankommen, haben wir keine Übereinstimmungen
-        return None
+        if not parts:
+            # Zeige die Liste der Hauptbefehle an
+            print("\n\033[90mAvailable commands: " + ", ".join(sorted(self.commands.keys())) + "\033[0m")
+            print("\nhicloud> " + line, end="", flush=True)
+            return None
         
+        # Hauptbefehl
+        cmd = parts[0]
+        
+        # Hauptbefehl vervollständigen
+        if len(parts) == 1 and not line.endswith(' '):
+            matches = [c for c in self.commands.keys() if c.startswith(cmd)]
+            if len(matches) == 1:
+                # Nur ein passender Befehl - vollständiger Befehl + Leerzeichen
+                return matches[0] + ' '
+            elif len(matches) > 0:
+                # Mehrere Treffer - zeige den Hilfetext an
+                print("\n\033[90mMatching commands: " + ", ".join(matches) + "\033[0m")
+                print("\nhicloud> " + line, end="", flush=True)
+                
+                # Gemeinsames Präfix finden
+                common = self._get_common_prefix(matches)
+                if common and len(common) > len(cmd):
+                    return common
+            return None
+        
+        # Unterbefehl vervollständigen
+        if cmd in self.commands:
+            # Zeige den Hilfetext für den Hauptbefehl an
+            if len(parts) == 1 and line.endswith(' '):
+                print(f"\n\033[90m{self.commands[cmd]['help']}\033[0m")
+                print("\nhicloud> " + line, end="", flush=True)
+                return None
+            
+            # Unterbefehl-Vervollständigung    
+            if 'subcommands' in self.commands[cmd] and len(parts) >= 2:
+                # Hier ist text der zu vervollständigende Teil, nicht parts[-1]
+                # Es kann unterschiedlich sein, wenn der Benutzer mehrere Teile hat
+                subcmd_part = text
+                
+                # Zeige den Hilfetext für den Hauptbefehl an
+                print(f"\n\033[90m{self.commands[cmd]['help']}\033[0m")
+                print("\nhicloud> " + line, end="", flush=True)
+                
+                # Passende Unterbefehle finden
+                matches = [sc for sc in self.commands[cmd]['subcommands'] 
+                        if sc.startswith(subcmd_part)]
+                        
+                if len(matches) == 1:
+                    # Für readline muss die Rückgabe genau dem zu ersetzenden Text entsprechen
+                    # Daher geben wir den kompletten Treffer zurück, nicht nur den Rest
+                    return matches[0]
+                
+                # Gemeinsames Präfix finden
+                if len(matches) > 1:
+                    common = self._get_common_prefix(matches)
+                    if common and len(common) > len(subcmd_part):
+                        # Gleiches gilt hier: vollständiges gemeinsames Präfix zurückgeben
+                        return common
+                        
+        return None
+    
     def _show_command_help(self, cmd):
         """Zeigt Hilfe für einen Hauptbefehl an"""
         if cmd in self.commands and 'help' in self.commands[cmd]:
@@ -449,8 +414,6 @@ class InteractiveConsole:
                     self.pricing_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "project":
                     self.project_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "info":
-                    self.project_commands.show_info()
                 elif main_cmd == "history":
                     if len(parts) > 1 and parts[1].lower() == "clear":
                         self._clean_history()
@@ -472,49 +435,49 @@ class InteractiveConsole:
         help_text = """
 Available commands:
 
-  vm commands:
-    vm list                           - list all vms
-    vm info <id>                      - show detailed information about a vm
-    vm create                         - create a new vm (interactive)
-    vm start <id>                     - start a vm
-    vm stop <id>                      - stop a vm
-    vm delete <id>                    - delete a vm by id
+  VM Commands:
+    vm list                           - List all VMs
+    vm info <id>                      - Show detailed information about a VM
+    vm create                         - Create a new VM (interactive)
+    vm start <id>                     - Start a VM
+    vm stop <id>                      - Stop a VM
+    vm delete <id>                    - Delete a VM by ID
     
-  snapshot commands:
-    snapshot list                     - list all snapshots or for specific vm
-    snapshot create                   - create a snapshot for a vm
-    snapshot delete <id>              - delete a snapshot by id
-    snapshot delete all               - delete all snapshots for a vm
-    snapshot rebuild <id> <sv>        - rebuild a server from a snapshot
+  Snapshot Commands:
+    snapshot list                     - List all snapshots or for specific VM
+    snapshot create                   - Create a snapshot for a VM
+    snapshot delete <id>              - Delete a snapshot by ID
+    snapshot delete all               - Delete all snapshots for a VM
+    snapshot rebuild <id> <sv>        - Rebuild a server from a snapshot
     
-  backup commands:
-    backup list                       - list all backups or for specific vm
-    backup enable <id> [window]       - enable automatic backups for a vm
-    backup disable <id>               - disable automatic backups for a vm
-    backup delete <id>                - delete a backup by id
+  Backup Commands:
+    backup list                       - List all backups or for specific VM
+    backup enable <id> [WINDOW]       - Enable automatic backups for a VM
+    backup disable <id>               - Disable automatic backups for a VM
+    backup delete <id>                - Delete a backup by ID
     
-  monitoring commands:
-    metrics list <id>                 - list available metrics for a server
-    metrics cpu <id> [--hours=24]     - show cpu utilization metrics
-    metrics traffic <id> [--days=7]   - show network traffic metrics
+  Monitoring Commands:
+    metrics list <id>                 - List available metrics for a server
+    metrics cpu <id> [--hours=24]     - Show CPU utilization metrics
+    metrics traffic <id> [--days=7]   - Show network traffic metrics
     
-  project commands:
-    project list                      - list all available projects
-    project switch <n>                - switch to a different project
-    project resources                 - show all resources in the current project
-    info                              - show current project information
+  Project Commands:
+    project list                      - List all available projects
+    project switch <n>                - Switch to a different project
+    project resources                 - Show all resources in the current project
+    project info                      - Show current project information
     
-  pricing commands:
-    pricing list                      - show pricing table for all resources
-    pricing calculate                 - calculate monthly costs for current resources
+  Pricing Commands:
+    pricing list                      - Show pricing table for all resources
+    pricing calculate                 - Calculate monthly costs for current resources
     
-  general commands:
-    keys list                         - list all ssh keys
-    keys delete <id>                  - delete an ssh key by id
-    history                           - show command history
-    history clear                     - clear command history
-    clear, reset                      - clear screen
-    help                              - show this help message
-    exit, quit, q                     - exit the program
+  General Commands:
+    keys list                         - List all SSH keys
+    keys delete <id>                  - Delete an SSH key by ID
+    history                           - Show command history
+    history clear                     - Clear command history
+    clear, reset                      - Clear screen
+    help                              - Show this help message
+    exit, quit, q                     - Exit the program
 """
         print(help_text)
