@@ -119,14 +119,19 @@ class InteractiveConsole:
         # Command completion einrichten
         self.commands = {
             "vm": {
-                "help": "VM commands: list, info <id>, create, start <id>, stop <id>, delete <id>",
+                "help": "VM commands: list, info <id>, create, start <id>, stop <id>, delete <id>, resize <id> <type>, rename <id> <n>, rescue <id>, reset-password <id>, image <id> <n>",
                 "subcommands": {
                     "list": {"help": "List all VMs"},
                     "info": {"help": "Show detailed information about a VM: vm info <id>"},
                     "create": {"help": "Create a new VM (interactive)"},
                     "start": {"help": "Start a VM: vm start <id>"},
                     "stop": {"help": "Stop a VM: vm stop <id>"},
-                    "delete": {"help": "Delete a VM: vm delete <id>"}
+                    "delete": {"help": "Delete a VM: vm delete <id>"},
+                    "resize": {"help": "Change server type: vm resize <id> <new_type>"},
+                    "rename": {"help": "Rename a VM: vm rename <id> <new_name>"},
+                    "rescue": {"help": "Enable rescue mode: vm rescue <id>"},
+                    "reset-password": {"help": "Reset root password: vm reset-password <id>"},
+                    "image": {"help": "Create custom image: vm image <id> <n>"}
                 }
             },
             "snapshot": {
@@ -442,6 +447,11 @@ Available commands:
     vm start <id>                     - Start a VM
     vm stop <id>                      - Stop a VM
     vm delete <id>                    - Delete a VM by ID
+    vm resize <id> <type>             - Change server type
+    vm rename <id> <name>             - Rename a VM
+    vm rescue <id>                    - Enable rescue mode
+    vm reset-password <id>            - Reset root password
+    vm image <id> <name>              - Create custom image from VM
     
   Snapshot Commands:
     snapshot list                     - List all snapshots or for specific VM

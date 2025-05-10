@@ -14,7 +14,7 @@ class VMCommands:
     def handle_command(self, args: List[str]):
         """Handle VM-related commands"""
         if not args:
-            print("Missing VM subcommand. Use 'vm list|info|create|start|stop|delete'")
+            print("Missing VM subcommand. Use 'vm list|info|create|start|stop|delete|resize|rename|rescue|reset-password|image'")
             return
             
         subcommand = args[0].lower()
@@ -31,6 +31,16 @@ class VMCommands:
             self.stop_vm(args[1:])
         elif subcommand == "delete":
             self.delete_vm(args[1:])
+        elif subcommand == "resize":
+            self.resize_vm(args[1:])
+        elif subcommand == "rename":
+            self.rename_vm(args[1:])
+        elif subcommand == "rescue":
+            self.rescue_vm(args[1:])
+        elif subcommand == "reset-password":
+            self.reset_password(args[1:])
+        elif subcommand == "image":
+            self.create_image(args[1:])
         else:
             print(f"Unknown VM subcommand: {subcommand}")
     
@@ -43,7 +53,7 @@ class VMCommands:
             return
             
         # Daten für die Tabelle vorbereiten
-        headers = ["ID", "Name", "Status", "Type", "IP", "Location"]
+        headers = ["ID", "Name", "Status", "Type", "IP", "DC"]
         rows = []
         
         for server in servers:
@@ -401,6 +411,8 @@ class VMCommands:
                 # Bei direkter API-Anfrage bekommen wir das Passwort zurück
                 # Aber in diesem Fall verwenden wir die create_server-Methode, die das Passwort nicht zurückgibt
                 print("\nCheck your email or Hetzner Cloud Console for the root password.")
+                print("\nYou can use: “vm list” to display all vms.")
+
         else:
             print(f"Failed to create VM")
     
@@ -489,3 +501,304 @@ class VMCommands:
             print(f"VM {vm_id} deleted successfully")
         else:
             print(f"Failed to delete VM {vm_id}")
+    
+    def resize_vm(self, args: List[str]):
+        """Change the server type of a VM"""
+        if len(args) < 2:
+            print("Missing parameters. Use 'vm resize <id> <new_type>'")
+            return
+            
+        try:
+            vm_id = int(args[0])
+        except ValueError:
+            print("Invalid VM ID. Must be an integer.")
+            return
+            
+        new_type = args[1]
+        
+        # Get server details
+        server = self.hetzner.get_server_by_id(vm_id)
+        if not server:
+            return
+            
+        # Get available server types
+        status_code, response = self.hetzner._make_request("GET", "server_types")
+        if status_code != 200:
+            print("Failed to get server types")
+            return
+            
+        server_types = response.get("server_types", [])
+        type_names = [st["name"] for st in server_types]
+        
+        # Validate the new type
+        if new_type not in type_names:
+            print(f"Invalid server type: {new_type}")
+            print("Available types:")
+            for type_name in sorted(type_names):
+                print(f"  - {type_name}")
+            return
+            
+        # Show warning about upgrade/downgrade implications
+        current_type = server.get("server_type", {}).get("name", "unknown")
+        print(f"\nWARNING:")
+        print(f"You are about to change the server type of VM '{server.get('name')}' (ID: {vm_id})")
+        print(f"from {current_type} to {new_type}.")
+        print("\nThis operation requires the server to be powered off.")
+        print("All your data will be preserved, but the server will be unavailable during the operation.")
+        print("This may take several minutes to complete.")
+        
+        # Security check
+        confirm = input(f"\nAre you sure you want to resize VM '{server.get('name')}' (ID: {vm_id}) to {new_type}? [y/N]: ")
+        if confirm.lower() != 'y':
+            print("Operation cancelled")
+            return
+            
+        # Check if server is running and needs to be powered off
+        if server.get("status") == "running":
+            print(f"VM '{server.get('name')}' is currently running and needs to be powered off.")
+            confirm_stop = input("Do you want to power off the VM now? [y/N]: ")
+            if confirm_stop.lower() != 'y':
+                print("Operation cancelled")
+                return
+                
+            # Stop the server
+            print(f"Stopping VM {vm_id}...")
+            if not self.hetzner.stop_server(vm_id):
+                print("Failed to stop VM. Operation cancelled.")
+                return
+                
+            # Wait a bit for the server to be fully stopped
+            print("Waiting for VM to stop completely...")
+            import time
+            time.sleep(5)
+            
+        # Resize the server
+        print(f"Resizing VM '{server.get('name')}' to {new_type}...")
+        if self.hetzner.resize_server(vm_id, new_type):
+            print(f"VM {vm_id} successfully resized to {new_type}")
+            
+            # Ask if user wants to start the server again
+            start_again = input("Do you want to start the VM now? [y/N]: ")
+            if start_again.lower() == 'y':
+                print(f"Starting VM {vm_id}...")
+                if self.hetzner.start_server(vm_id):
+                    print(f"VM {vm_id} started successfully")
+                else:
+                    print(f"Failed to start VM {vm_id}")
+        else:
+            print(f"Failed to resize VM {vm_id}")
+    
+    def rename_vm(self, args: List[str]):
+        """Rename a VM"""
+        if len(args) < 2:
+            print("Missing parameters. Use 'vm rename <id> <new_name>'")
+            return
+            
+        try:
+            vm_id = int(args[0])
+        except ValueError:
+            print("Invalid VM ID. Must be an integer.")
+            return
+            
+        new_name = args[1]
+        
+        # Get server details
+        server = self.hetzner.get_server_by_id(vm_id)
+        if not server:
+            return
+            
+        # Security check
+        old_name = server.get("name", "unknown")
+        confirm = input(f"Are you sure you want to rename VM '{old_name}' (ID: {vm_id}) to '{new_name}'? [y/N]: ")
+        if confirm.lower() != 'y':
+            print("Operation cancelled")
+            return
+            
+        # Rename the server
+        print(f"Renaming VM '{old_name}' to '{new_name}'...")
+        if self.hetzner.rename_server(vm_id, new_name):
+            print(f"VM {vm_id} successfully renamed to '{new_name}'")
+        else:
+            print(f"Failed to rename VM {vm_id}")
+    
+    def rescue_vm(self, args: List[str]):
+        """Enable rescue mode for a VM"""
+        if not args:
+            print("Missing VM ID. Use 'vm rescue <id>'")
+            return
+            
+        try:
+            vm_id = int(args[0])
+        except ValueError:
+            print("Invalid VM ID. Must be an integer.")
+            return
+            
+        # Get server details
+        server = self.hetzner.get_server_by_id(vm_id)
+        if not server:
+            return
+            
+        # Check if server needs to be powered off
+        if server.get("status") == "running":
+            print(f"WARNING: VM '{server.get('name')}' is currently running.")
+            print("Enabling rescue mode does not automatically reboot the server.")
+            print("You will need to trigger a reboot manually after rescue mode is enabled.")
+            
+        # Show rescue mode options
+        print("\nRescue Mode Options:")
+        print("1. linux64 (Default)")
+        print("2. linux32")
+        print("3. freebsd64")
+        
+        mode_choice = input("\nSelect rescue mode (number, default: 1): ").strip()
+        rescue_type = "linux64"  # Default
+        
+        if mode_choice == "2":
+            rescue_type = "linux32"
+        elif mode_choice == "3":
+            rescue_type = "freebsd64"
+            
+        # Security check
+        confirm = input(f"\nAre you sure you want to enable {rescue_type} rescue mode for VM '{server.get('name')}' (ID: {vm_id})? [y/N]: ")
+        if confirm.lower() != 'y':
+            print("Operation cancelled")
+            return
+            
+        # Enable rescue mode
+        print(f"Enabling {rescue_type} rescue mode for VM {vm_id}...")
+        rescue_result = self.hetzner.enable_rescue_mode(vm_id, rescue_type)
+        
+        if rescue_result and "root_password" in rescue_result:
+            print(f"Rescue mode enabled successfully for VM {vm_id}")
+            print(f"Root password: {rescue_result['root_password']}")
+            print("\nIMPORTANT: Save this password, it will not be shown again!")
+            print("To enter rescue mode, you need to reboot the server.")
+            
+            # Ask if user wants to reboot now
+            reboot = input("\nDo you want to reboot the VM now to enter rescue mode? [y/N]: ")
+            if reboot.lower() == 'y':
+                print(f"Rebooting VM {vm_id}...")
+                if self.hetzner.reboot_server(vm_id):
+                    print(f"VM {vm_id} is rebooting into rescue mode")
+                else:
+                    print(f"Failed to reboot VM {vm_id}")
+        else:
+            print(f"Failed to enable rescue mode for VM {vm_id}")
+    
+    def reset_password(self, args: List[str]):
+        """Reset the root password of a VM"""
+        if not args:
+            print("Missing VM ID. Use 'vm reset-password <id>'")
+            return
+            
+        try:
+            vm_id = int(args[0])
+        except ValueError:
+            print("Invalid VM ID. Must be an integer.")
+            return
+            
+        # Get server details
+        server = self.hetzner.get_server_by_id(vm_id)
+        if not server:
+            return
+            
+        # Security check
+        print("\nWARNING:")
+        print("Resetting the root password will generate a new random password.")
+        print("Any existing password will no longer work.")
+        print("The server needs to be powered on for this operation.")
+        
+        confirm = input(f"Are you sure you want to reset the root password for VM '{server.get('name')}' (ID: {vm_id})? [y/N]: ")
+        if confirm.lower() != 'y':
+            print("Operation cancelled")
+            return
+            
+        # Check if server is powered on
+        if server.get("status") != "running":
+            print(f"VM '{server.get('name')}' is not running. Starting it now...")
+            if not self.hetzner.start_server(vm_id):
+                print("Failed to start VM. Cannot reset password.")
+                return
+                
+            # Wait a bit for the server to start
+            print("Waiting for VM to start completely...")
+            import time
+            time.sleep(10)
+            
+        # Reset password
+        print(f"Resetting root password for VM {vm_id}...")
+        password_result = self.hetzner.reset_server_password(vm_id)
+        
+        if password_result and "root_password" in password_result:
+            print(f"Root password reset successful for VM {vm_id}")
+            print(f"New root password: {password_result['root_password']}")
+            print("\nIMPORTANT: Save this password, it will not be shown again!")
+        else:
+            print(f"Failed to reset root password for VM {vm_id}")
+    
+    def create_image(self, args: List[str]):
+        """Create a custom image from a server"""
+        if len(args) < 2:
+            print("Missing parameters. Use 'vm image <id> <name>'")
+            return
+            
+        try:
+            vm_id = int(args[0])
+        except ValueError:
+            print("Invalid VM ID. Must be an integer.")
+            return
+            
+        image_name = args[1]
+        
+        # Get server details
+        server = self.hetzner.get_server_by_id(vm_id)
+        if not server:
+            return
+            
+        # Security check
+        print("\nWARNING:")
+        print(f"Creating an image from VM '{server.get('name')}' (ID: {vm_id})")
+        print("This operation could take a while depending on the server's disk size.")
+        print("It is recommended to shut down the server before creating an image to ensure data consistency.")
+        
+        # Check if server is running
+        if server.get("status") == "running":
+            shut_down = input("VM is currently running. Do you want to shut it down before creating the image? [Y/n]: ")
+            if shut_down.lower() != 'n':
+                print(f"Stopping VM {vm_id}...")
+                if not self.hetzner.stop_server(vm_id):
+                    print("Failed to stop VM.")
+                    continue_anyway = input("Continue with image creation anyway? [y/N]: ")
+                    if continue_anyway.lower() != 'y':
+                        print("Operation cancelled")
+                        return
+                else:
+                    # Wait a bit for the server to stop
+                    print("Waiting for VM to stop completely...")
+                    import time
+                    time.sleep(5)
+        
+        # Final confirmation
+        confirm = input(f"Create image '{image_name}' from VM '{server.get('name')}' (ID: {vm_id})? [y/N]: ")
+        if confirm.lower() != 'y':
+            print("Operation cancelled")
+            return
+            
+        # Create image
+        print(f"Creating image '{image_name}' from VM {vm_id}...")
+        image_result = self.hetzner.create_image(vm_id, image_name)
+        
+        if image_result and "id" in image_result:
+            print(f"Image created successfully with ID {image_result['id']}")
+            
+            # Ask if user wants to start the server again
+            if server.get("status") == "off":
+                start_again = input("Do you want to start the VM now? [y/N]: ")
+                if start_again.lower() == 'y':
+                    print(f"Starting VM {vm_id}...")
+                    if self.hetzner.start_server(vm_id):
+                        print(f"VM {vm_id} started successfully")
+                    else:
+                        print(f"Failed to start VM {vm_id}")
+        else:
+            print(f"Failed to create image from VM {vm_id}")

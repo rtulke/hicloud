@@ -404,6 +404,146 @@ class HetznerCloudManager:
         return True
     
     # VM Management Functions
+
+    def resize_server(self, server_id: int, server_type: str) -> bool:
+        """Change the server type of a server"""
+        data = {
+            "server_type": server_type,
+            "upgrade_disk": True  # Vergrößere auch die Festplatte, wenn möglich
+        }
+        
+        status_code, response = self._make_request(
+            "POST", f"servers/{server_id}/actions/change_type", data
+        )
+        
+        if status_code != 201:
+            print(f"Error resizing server: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+            
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for resize operation to complete...")
+            return self._wait_for_action(action_id)
+            
+        return True
+
+    def rename_server(self, server_id: int, name: str) -> bool:
+        """Rename a server"""
+        data = {
+            "name": name
+        }
+        
+        status_code, response = self._make_request(
+            "PUT", f"servers/{server_id}", data
+        )
+        
+        if status_code != 200:
+            print(f"Error renaming server: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+            
+        return True
+
+    def enable_rescue_mode(self, server_id: int, rescue_type: str = "linux64") -> Dict:
+        """
+        Enable rescue mode for a server
+        
+        rescue_type can be one of:
+        - linux64 (default)
+        - linux32
+        - freebsd64
+        """
+        data = {
+            "type": rescue_type
+        }
+        
+        status_code, response = self._make_request(
+            "POST", f"servers/{server_id}/actions/enable_rescue", data
+        )
+        
+        if status_code != 201:
+            print(f"Error enabling rescue mode: {response.get('error', {}).get('message', 'Unknown error')}")
+            return {}
+            
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for rescue mode enablement to complete...")
+            if not self._wait_for_action(action_id):
+                return {}
+                
+        # Return the root password
+        return {
+            "root_password": response.get("root_password", "")
+        }
+
+    def reset_server_password(self, server_id: int) -> Dict:
+        """Reset the root password of a server"""
+        status_code, response = self._make_request(
+            "POST", f"servers/{server_id}/actions/reset_password", {}
+        )
+        
+        if status_code != 201:
+            print(f"Error resetting password: {response.get('error', {}).get('message', 'Unknown error')}")
+            return {}
+            
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for password reset to complete...")
+            if not self._wait_for_action(action_id):
+                return {}
+                
+        # Return the root password
+        return {
+            "root_password": response.get("root_password", "")
+        }
+
+    def reboot_server(self, server_id: int) -> bool:
+        """Reboot a server"""
+        status_code, response = self._make_request(
+            "POST", f"servers/{server_id}/actions/reboot", {}
+        )
+        
+        if status_code != 201:
+            print(f"Error rebooting server: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+            
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for server to reboot...")
+            return self._wait_for_action(action_id)
+            
+        return True
+
+    def create_image(self, server_id: int, description: str = "") -> Dict:
+        """Create a custom image from a server"""
+        data = {
+            "description": description,
+            "type": "snapshot"  # Immer als Snapshot erstellen
+        }
+        
+        status_code, response = self._make_request(
+            "POST", f"servers/{server_id}/actions/create_image", data
+        )
+        
+        if status_code != 201:
+            print(f"Error creating image: {response.get('error', {}).get('message', 'Unknown error')}")
+            return {}
+            
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for image creation to complete...")
+            if not self._wait_for_action(action_id):
+                return {}
+                
+        # Return the image details
+        return response.get("image", {})
+    
+    
+    
     def list_servers(self) -> List[Dict]:
         """List all servers in the project"""
         status_code, response = self._make_request("GET", "servers")

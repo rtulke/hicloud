@@ -89,6 +89,11 @@ VM Commands:
   vm start <id>              - Start a VM
   vm stop <id>               - Stop a VM
   vm delete <id>             - Delete a VM by ID
+  vm resize <id> <type>      - Change server type
+  vm rename <id> <name>      - Rename a VM
+  vm rescue <id>             - Enable rescue mode
+  vm reset-password <id>     - Reset root password
+  vm image <id> <name>       - Create custom image from VM
   
 Snapshot Commands:
   snapshot list              - List all snapshots or for specific VM
