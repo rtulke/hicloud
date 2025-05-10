@@ -114,23 +114,23 @@ Monitoring Commands:
   metrics traffic <id> [--days=7]   - Show network traffic metrics
   
 Project Commands:
-  project list               - List all available projects
-  project switch <n>         - Switch to a different project
-  project resources          - Show all resources in the current project
-  project info               - Show current project information
+  project list                      - List all available projects
+  project switch <n>                - Switch to a different project
+  project resources                 - Show all resources in the current project
+  project info                      - Show current project information
   
 Pricing Commands:
-  pricing list               - Show pricing table for all resources
-  pricing calculate          - Calculate monthly costs for current resources
+  pricing list                      - Show pricing table for all resources
+  pricing calculate                 - Calculate monthly costs for current resources
   
 General Commands:
-  keys list                  - List all SSH keys
-  keys delete <id>           - Delete an SSH key by ID
-  history                    - Show command history
-  history clear              - Clear command history
-  clear                      - Clear screen
-  help                       - Show this help message
-  exit, quit, q              - Exit the program
+  keys list                          - List all SSH keys
+  keys delete <id>                   - Delete an SSH key by ID
+  history                            - Show command history
+  history clear                      - Clear command history
+  clear                              - Clear screen
+  help                               - Show this help message
+  exit, quit, q                      - Exit the program
 ```
 
 ## Development
