@@ -53,20 +53,29 @@ class VMCommands:
             return
             
         # Daten für die Tabelle vorbereiten
-        headers = ["ID", "Name", "Status", "Type", "IP", "DC"]
+        headers = ["ID", "Name", "Status", "Type", "IP", "DC", "City", "Country"]
         rows = []
-        
+    
         for server in servers:
             ip = server.get("public_net", {}).get("ipv4", {}).get("ip", "N/A")
+            
+            # Detailliertere Standortinformationen
+            dc_name = server.get('datacenter', {}).get('location', {}).get('name', 'N/A')
+            location = server.get('datacenter', {}).get('location', {})
+            city = location.get('city', location.get('description', 'N/A'))
+            country = location.get('country', 'N/A')
+            
             rows.append([
                 server['id'],
                 server['name'],
                 server['status'],
                 server['server_type']['name'],
                 ip,
-                server['datacenter']['location']['name']
+                dc_name,
+                city,
+                country
             ])
-            
+                
         # Tabelle drucken
         self.console.print_table(headers, rows, "Virtual Machines")
     

@@ -192,16 +192,20 @@ class ProjectCommands:
                 print(f"  VMs: {server_count} total, {running_servers} running")
                 print(f"  Snapshots: {snapshot_count}")
 
-                # Datacenters anzeigen
+                # Datacenters anzeigen            
                 datacenters = response.get("datacenters", [])
                 if datacenters:
                     datacenter_count = len(datacenters)
                     print(f"  Datacenters: {datacenter_count}")
                     print("  Available Locations:")
                     for dc in datacenters:
-                        print(f"    - {dc['name']} ({dc['location']['name']})")
-
-                # Verbundene Netzwerke zählen
+                        location = dc.get('location', {})
+                        location_name = location.get('name', 'N/A')
+                        location_city = location.get('city', location.get('description', 'N/A'))
+                        location_country = location.get('country', 'N/A')
+                        print(f"    - {dc['name']} ({location_name}): {location_city}, {location_country}")
+                        
+                    # Verbundene Netzwerke zählen
                 try:
                     status_code, networks = self.hetzner._make_request("GET", "networks")
                     if status_code == 200:

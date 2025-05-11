@@ -9,3 +9,4 @@ from commands.metrics import MetricsCommands
 from commands.project import ProjectCommands
 from commands.pricing import PricingCommands
 from commands.keys import KeysCommands
+from commands.batch import BatchCommands

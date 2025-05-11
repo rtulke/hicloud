@@ -19,7 +19,7 @@ from commands.metrics import MetricsCommands
 from commands.project import ProjectCommands
 from commands.pricing import PricingCommands
 from commands.keys import KeysCommands
-
+from commands.batch import BatchCommands
 
 class InteractiveConsole:
     """Interactive console for hicloud"""
@@ -47,6 +47,7 @@ class InteractiveConsole:
         self.project_commands = ProjectCommands(self)
         self.pricing_commands = PricingCommands(self)
         self.keys_commands = KeysCommands(self)
+        self.batch_commands = BatchCommands(self)
         
         # Konfiguriere readline für History-Unterstützung
         self._setup_readline()
@@ -159,6 +160,15 @@ class InteractiveConsole:
                     "list": {"help": "List available metrics for a server: metrics list <id>"},
                     "cpu": {"help": "Show CPU utilization metrics: metrics cpu <id> [--hours=24]"},
                     "traffic": {"help": "Show network traffic metrics: metrics traffic <id> [--days=7]"}
+                }
+            },
+            "batch": {
+                "help": "Batch commands: start <id1,id2,id3...>, stop <id1,id2,id3...>, delete <id1,id2,id3...>, snapshot <id1,id2,id3...>",
+                "subcommands": {
+                    "start": {"help": "Start multiple servers: batch start <id1,id2,id3...>"},
+                    "stop": {"help": "Stop multiple servers: batch stop <id1,id2,id3...>"},
+                    "delete": {"help": "Delete multiple servers: batch delete <id1,id2,id3...>"},
+                    "snapshot": {"help": "Create snapshots for multiple servers: batch snapshot <id1,id2,id3...>"}
                 }
             },
             "project": {
@@ -415,6 +425,8 @@ class InteractiveConsole:
                     self.keys_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "metrics":
                     self.metrics_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                elif main_cmd == "batch":
+                    self.batch_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "pricing":
                     self.pricing_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "project":
@@ -470,7 +482,13 @@ Available commands:
     metrics list <id>                 - List available metrics for a server
     metrics cpu <id> [--hours=24]     - Show CPU utilization metrics
     metrics traffic <id> [--days=7]   - Show network traffic metrics
-    
+
+  Batch Commands:
+    batch start <id1,id2,id3...>      - Start multiple servers
+    batch stop <id1,id2,id3...>       - Stop multiple servers
+    batch delete <id1,id2,id3...>     - Delete multiple servers
+    batch snapshot <id1,id2,id3...>   - Create snapshots for multiple servers
+
   Project Commands:
     project list                      - List all available projects
     project switch <n>                - Switch to a different project

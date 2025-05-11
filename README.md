@@ -83,54 +83,60 @@ Once in the interactive console, type `help` to see all available commands:
 
 ```
 VM Commands:
-  vm list                    - List all VMs
-  vm info <id>               - Show detailed information about a VM
-  vm create                  - Create a new VM (interactive)
-  vm start <id>              - Start a VM
-  vm stop <id>               - Stop a VM
-  vm delete <id>             - Delete a VM by ID
-  vm resize <id> <type>      - Change server type
-  vm rename <id> <name>      - Rename a VM
-  vm rescue <id>             - Enable rescue mode
-  vm reset-password <id>     - Reset root password
-  vm image <id> <name>       - Create custom image from VM
+  vm list                           :x- List all VMs
+  vm info <id>                      - Show detailed information about a VM
+  vm create                         - Create a new VM (interactive)
+  vm start <id>                     - Start a VM
+  vm stop <id>                      - Stop a VM
+  vm delete <id>                    - Delete a VM by ID
+  vm resize <id> <type>             - Change server type
+  vm rename <id> <name>             - Rename a VM
+  vm rescue <id>                    - Enable rescue mode
+  vm reset-password <id>            - Reset root password
+  vm image <id> <name>              - Create custom image from VM
   
 Snapshot Commands:
-  snapshot list              - List all snapshots or for specific VM
-  snapshot create            - Create a snapshot for a VM
-  snapshot delete <id>       - Delete a snapshot by ID
-  snapshot delete all        - Delete all snapshots for a VM
-  snapshot rebuild <id> <sv> - Rebuild a server from a snapshot
+  snapshot list                     - List all snapshots or for specific VM
+  snapshot create                   - Create a snapshot for a VM
+  snapshot delete <id>              - Delete a snapshot by ID
+  snapshot delete all               - Delete all snapshots for a VM
+  snapshot rebuild <id> <sv>        - Rebuild a server from a snapshot
   
 Backup Commands:
-  backup list                - List all backups or for specific VM
-  backup enable <id> [WINDOW] - Enable automatic backups for a VM
-  backup disable <id>        - Disable automatic backups for a VM
-  backup delete <id>         - Delete a backup by ID
+  backup list                       - List all backups or for specific VM
+  backup enable <id> [WINDOW]       - Enable automatic backups for a VM
+  backup disable <id>               - Disable automatic backups for a VM
+  backup delete <id>                - Delete a backup by ID
   
 Monitoring Commands:
-  metrics list <id>          - List available metrics for a server
-  metrics cpu <id> [--hours=24] - Show CPU utilization metrics
-  metrics traffic <id> [--days=7] - Show network traffic metrics
+  metrics list <id>                 - List available metrics for a server
+  metrics cpu <id> [--hours=24]     - Show CPU utilization metrics
+  metrics traffic <id> [--days=7]   - Show network traffic metrics
   
 Project Commands:
-  project list               - List all available projects
-  project switch <n>         - Switch to a different project
-  project resources          - Show all resources in the current project
-  project info               - Show current project information
+  project list                      - List all available projects
+  project switch <n>                - Switch to a different project
+  project resources                 - Show all resources in the current project
+  project info                      - Show current project information
   
+Batch Commands:
+  batch start <id1,id2,id3...>      - Start multiple servers
+  batch stop <id1,id2,id3...>       - Stop multiple servers
+  batch delete <id1,id2,id3...>     - Delete multiple servers
+  batch snapshot <id1,id2,id3...>   - Create snapshots for multiple servers
+
 Pricing Commands:
-  pricing list               - Show pricing table for all resources
-  pricing calculate          - Calculate monthly costs for current resources
+  pricing list                      - Show pricing table for all resources
+  pricing calculate                 - Calculate monthly costs for current resources
   
 General Commands:
-  keys list                  - List all SSH keys
-  keys delete <id>           - Delete an SSH key by ID
-  history                    - Show command history
-  history clear              - Clear command history
-  clear                      - Clear screen
-  help                       - Show this help message
-  exit, quit, q              - Exit the program
+  keys list                         - List all SSH keys
+  keys delete <id>                  - Delete an SSH key by ID
+  history                           - Show command history
+  history clear                     - Clear command history
+  clear                             - Clear screen
+  help                              - Show this help message
+  exit, quit, q                     - Exit the program
 ```
 
 ## Development
