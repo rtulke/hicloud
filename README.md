@@ -4,13 +4,16 @@ hicloud is a command-line tool for managing Hetzner Cloud resources. It provides
 
 ## Features
 
-- **VM Management**: Create, list, start, stop, and delete virtual machines
-- **Snapshot Management**: Create, list, and delete snapshots
-- **Backup Management**: Enable/disable automatic backups, list and delete backups
-- **Metrics Monitoring**: View CPU usage, network traffic, and other metrics
-- **Project Management**: Switch between projects, list available projects
-- **Pricing Information**: View pricing tables and calculate estimated costs
-- **SSH Key Management**: List and delete SSH keys
+- **CLI Command Line Console with Autocompletion**
+- **Manage Multiple Hetzner Projects**
+- **VM Management**
+- **Snapshot Management**
+- **Backup Management**
+- **Metrics Monitoring**
+- **Project Management**
+- **Pricing Information**
+- **SSH Key Management**
+- **BATCH Processing**
 
 ## Installation
 
