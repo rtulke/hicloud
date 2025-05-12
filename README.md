@@ -86,7 +86,7 @@ Once in the interactive console, type `help` to see all available commands:
 
 ```
 VM Commands:
-  vm list                           :x- List all VMs
+  vm list                           - List all VMs
   vm info <id>                      - Show detailed information about a VM
   vm create                         - Create a new VM (interactive)
   vm start <id>                     - Start a VM
