@@ -53,7 +53,7 @@ class VMCommands:
             return
             
         # Daten für die Tabelle vorbereiten
-        headers = ["ID", "Name", "Status", "Type", "IP", "DC", "City", "Country"]
+        headers = ["ID", "Server Name", "Status", "Type", "IP", "DC", "City", "Country"]
         rows = []
     
         for server in servers:
@@ -201,9 +201,9 @@ class VMCommands:
     def create_vm(self):
         """Create a new VM (interactive)"""
         print("Create a new VM:")
-        name = input("Name: ")
+        name = input("Server Name or Alias: ")
         if not name:
-            print("Name is required")
+            print("Server Name is required")
             return
             
         # Get available server types
