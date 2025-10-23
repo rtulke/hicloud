@@ -748,20 +748,205 @@ class HetznerCloudManager:
         start_time = time.time()
         while time.time() - start_time < timeout:
             status_code, response = self._make_request("GET", f"actions/{action_id}")
-            
+
             if status_code != 200:
                 print(f"Error checking action status: {response.get('error', 'Unknown error')}")
                 return False
-                
+
             status = response.get("action", {}).get("status")
             if status == "success":
                 return True
             elif status == "error":
                 print(f"Action failed: {response.get('action', {}).get('error', {}).get('message', 'Unknown error')}")
                 return False
-                
+
             print(".", end="", flush=True)
             time.sleep(5)
-            
+
         print(f"\nTimeout waiting for action {action_id} to complete")
         return False
+
+    # Volume Management Functions
+    def list_volumes(self) -> List[Dict]:
+        """List all volumes in the project"""
+        status_code, response = self._make_request("GET", "volumes")
+
+        if status_code != 200:
+            print(f"Error listing volumes: {response.get('error', 'Unknown error')}")
+            return []
+
+        return response.get("volumes", [])
+
+    def get_volume_by_id(self, volume_id: int) -> Dict:
+        """Get volume details by ID"""
+        status_code, response = self._make_request("GET", f"volumes/{volume_id}")
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Volume with ID {volume_id} not found")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error getting volume: {error_message}")
+            return {}
+
+        return response.get("volume", {})
+
+    def create_volume(self, name: str, size: int, location: str = None,
+                     server_id: int = None, format_volume: str = None,
+                     labels: Dict = None) -> Dict:
+        """
+        Create a new volume
+
+        Args:
+            name: Volume name
+            size: Volume size in GB (minimum 10)
+            location: Location name (e.g. 'nbg1') - required if server_id not provided
+            server_id: Server ID to attach to (optional)
+            format_volume: Filesystem format ('xfs' or 'ext4') - only if server_id provided
+            labels: Optional labels as dict
+        """
+        data = {
+            "name": name,
+            "size": size
+        }
+
+        if location:
+            data["location"] = location
+
+        if server_id:
+            data["server"] = server_id
+
+        if format_volume:
+            data["format"] = format_volume
+
+        if labels:
+            data["labels"] = labels
+
+        status_code, response = self._make_request("POST", "volumes", data)
+
+        if status_code != 201:
+            print(f"Error creating volume: {response.get('error', {}).get('message', 'Unknown error')}")
+            return {}
+
+        # Wait for the action to complete if there is one
+        action = response.get("action")
+        if action:
+            action_id = action.get("id")
+            if action_id:
+                print("Waiting for volume creation to complete...")
+                if not self._wait_for_action(action_id):
+                    return {}
+
+        return response.get("volume", {})
+
+    def delete_volume(self, volume_id: int) -> bool:
+        """Delete a volume by ID"""
+        status_code, response = self._make_request("DELETE", f"volumes/{volume_id}")
+
+        if status_code not in [200, 204]:
+            if not self.debug:
+                print(f"Failed to delete volume {volume_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error deleting volume: {error_message}")
+            return False
+
+        return True
+
+    def attach_volume(self, volume_id: int, server_id: int, automount: bool = False) -> bool:
+        """Attach a volume to a server"""
+        data = {
+            "server": server_id,
+            "automount": automount
+        }
+
+        status_code, response = self._make_request(
+            "POST", f"volumes/{volume_id}/actions/attach", data
+        )
+
+        if status_code != 201:
+            print(f"Error attaching volume: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for volume attachment to complete...")
+            return self._wait_for_action(action_id)
+
+        return True
+
+    def detach_volume(self, volume_id: int) -> bool:
+        """Detach a volume from its server"""
+        status_code, response = self._make_request(
+            "POST", f"volumes/{volume_id}/actions/detach", {}
+        )
+
+        if status_code != 201:
+            print(f"Error detaching volume: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for volume detachment to complete...")
+            return self._wait_for_action(action_id)
+
+        return True
+
+    def resize_volume(self, volume_id: int, size: int) -> bool:
+        """
+        Resize a volume
+
+        Args:
+            volume_id: Volume ID
+            size: New size in GB (must be larger than current size)
+        """
+        data = {
+            "size": size
+        }
+
+        status_code, response = self._make_request(
+            "POST", f"volumes/{volume_id}/actions/resize", data
+        )
+
+        if status_code != 201:
+            print(f"Error resizing volume: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for volume resize to complete...")
+            return self._wait_for_action(action_id)
+
+        return True
+
+    def change_volume_protection(self, volume_id: int, delete: bool = None) -> bool:
+        """
+        Change volume protection settings
+
+        Args:
+            volume_id: Volume ID
+            delete: Enable/disable delete protection
+        """
+        data = {}
+
+        if delete is not None:
+            data["delete"] = delete
+
+        status_code, response = self._make_request(
+            "POST", f"volumes/{volume_id}/actions/change_protection", data
+        )
+
+        if status_code != 201:
+            print(f"Error changing volume protection: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for protection change to complete...")
+            return self._wait_for_action(action_id)
+
+        return True

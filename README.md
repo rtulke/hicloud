@@ -13,6 +13,7 @@ hicloud is a interactive CLI console for managing Hetzner Cloud resources. It pr
 - **Project Management**
 - **Pricing Information**
 - **SSH Key Management**
+- **Volume Management**
 - **BATCH Processing**
 
 ## Installation
@@ -128,6 +129,16 @@ Batch Commands:
   batch delete <id1,id2,id3...>     - Delete multiple servers
   batch snapshot <id1,id2,id3...>   - Create snapshots for multiple servers
 
+Volume Commands:
+  volume list                       - List all volumes
+  volume info <id>                  - Show detailed information about a volume
+  volume create                     - Create a new volume (interactive)
+  volume delete <id>                - Delete a volume by ID
+  volume attach <vid> <sid>         - Attach volume to server
+  volume detach <id>                - Detach volume from server
+  volume resize <id> <size>         - Resize a volume (increase only)
+  volume protect <id> <e|d>         - Enable/disable volume protection
+
 Pricing Commands:
   pricing list                      - Show pricing table for all resources
   pricing calculate                 - Calculate monthly costs for current resources
@@ -165,7 +176,9 @@ hicloud/
 │   ├── metrics.py           # Metrics commands
 │   ├── project.py           # Project commands
 │   ├── pricing.py           # Pricing commands
-│   └── keys.py              # SSH key commands
+│   ├── keys.py              # SSH key commands
+│   ├── volume.py            # Volume commands
+│   └── batch.py             # Batch commands
 │
 └── utils/                   # Utility modules
     ├── __init__.py

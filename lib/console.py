@@ -20,6 +20,7 @@ from commands.project import ProjectCommands
 from commands.pricing import PricingCommands
 from commands.keys import KeysCommands
 from commands.batch import BatchCommands
+from commands.volume import VolumeCommands
 
 class InteractiveConsole:
     """Interactive console for hicloud"""
@@ -48,6 +49,7 @@ class InteractiveConsole:
         self.pricing_commands = PricingCommands(self)
         self.keys_commands = KeysCommands(self)
         self.batch_commands = BatchCommands(self)
+        self.volume_commands = VolumeCommands(self)
         
         # Konfiguriere readline für History-Unterstützung
         self._setup_readline()
@@ -192,6 +194,19 @@ class InteractiveConsole:
                 "subcommands": {
                     "list": {"help": "List all SSH keys"},
                     "delete": {"help": "Delete an SSH key: keys delete <id>"}
+                }
+            },
+            "volume": {
+                "help": "Volume commands: list, info <id>, create, delete <id>, attach <vid> <sid>, detach <id>, resize <id> <size>, protect <id> <enable|disable>",
+                "subcommands": {
+                    "list": {"help": "List all volumes"},
+                    "info": {"help": "Show detailed information about a volume: volume info <id>"},
+                    "create": {"help": "Create a new volume (interactive)"},
+                    "delete": {"help": "Delete a volume: volume delete <id>"},
+                    "attach": {"help": "Attach volume to server: volume attach <volume_id> <server_id>"},
+                    "detach": {"help": "Detach volume from server: volume detach <id>"},
+                    "resize": {"help": "Resize a volume: volume resize <id> <new_size_gb>"},
+                    "protect": {"help": "Enable/disable volume protection: volume protect <id> <enable|disable>"}
                 }
             },
             "history": {
@@ -431,6 +446,8 @@ class InteractiveConsole:
                     self.pricing_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "project":
                     self.project_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                elif main_cmd == "volume":
+                    self.volume_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "history":
                     if len(parts) > 1 and parts[1].lower() == "clear":
                         self._clean_history()
@@ -498,7 +515,17 @@ Available commands:
   Pricing Commands:
     pricing list                      - Show pricing table for all resources
     pricing calculate                 - Calculate monthly costs for current resources
-    
+
+  Volume Commands:
+    volume list                       - List all volumes
+    volume info <id>                  - Show detailed information about a volume
+    volume create                     - Create a new volume (interactive)
+    volume delete <id>                - Delete a volume by ID
+    volume attach <vid> <sid>         - Attach volume to server
+    volume detach <id>                - Detach volume from server
+    volume resize <id> <size>         - Resize a volume (increase only)
+    volume protect <id> <e|d>         - Enable/disable volume protection
+
   General Commands:
     keys list                         - List all SSH keys
     keys delete <id>                  - Delete an SSH key by ID
