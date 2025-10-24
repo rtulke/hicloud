@@ -950,3 +950,117 @@ class HetznerCloudManager:
             return self._wait_for_action(action_id)
 
         return True
+
+    # ISO Management Functions
+    def list_isos(self) -> List[Dict]:
+        """List all available ISOs"""
+        status_code, response = self._make_request("GET", "isos")
+
+        if status_code != 200:
+            print(f"Error listing ISOs: {response.get('error', 'Unknown error')}")
+            return []
+
+        return response.get("isos", [])
+
+    def get_iso_by_id(self, iso_id: int) -> Dict:
+        """Get ISO details by ID"""
+        status_code, response = self._make_request("GET", f"isos/{iso_id}")
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"ISO with ID {iso_id} not found")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error getting ISO: {error_message}")
+            return {}
+
+        return response.get("iso", {})
+
+    def attach_iso_to_server(self, server_id: int, iso_id: int) -> bool:
+        """Attach an ISO to a server"""
+        data = {
+            "iso": iso_id
+        }
+
+        status_code, response = self._make_request(
+            "POST", f"servers/{server_id}/actions/attach_iso", data
+        )
+
+        if status_code != 201:
+            print(f"Error attaching ISO: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for ISO attachment to complete...")
+            return self._wait_for_action(action_id)
+
+        return True
+
+    def detach_iso_from_server(self, server_id: int) -> bool:
+        """Detach the ISO from a server"""
+        status_code, response = self._make_request(
+            "POST", f"servers/{server_id}/actions/detach_iso", {}
+        )
+
+        if status_code != 201:
+            print(f"Error detaching ISO: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for ISO detachment to complete...")
+            return self._wait_for_action(action_id)
+
+        return True
+
+    # Location & Datacenter Functions
+    def list_locations(self) -> List[Dict]:
+        """List all available locations"""
+        status_code, response = self._make_request("GET", "locations")
+
+        if status_code != 200:
+            print(f"Error listing locations: {response.get('error', 'Unknown error')}")
+            return []
+
+        return response.get("locations", [])
+
+    def get_location_by_id(self, location_id: int) -> Dict:
+        """Get location details by ID"""
+        status_code, response = self._make_request("GET", f"locations/{location_id}")
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Location with ID {location_id} not found")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error getting location: {error_message}")
+            return {}
+
+        return response.get("location", {})
+
+    def list_datacenters(self) -> List[Dict]:
+        """List all available datacenters"""
+        status_code, response = self._make_request("GET", "datacenters")
+
+        if status_code != 200:
+            print(f"Error listing datacenters: {response.get('error', 'Unknown error')}")
+            return []
+
+        return response.get("datacenters", [])
+
+    def get_datacenter_by_id(self, datacenter_id: int) -> Dict:
+        """Get datacenter details by ID"""
+        status_code, response = self._make_request("GET", f"datacenters/{datacenter_id}")
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Datacenter with ID {datacenter_id} not found")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error getting datacenter: {error_message}")
+            return {}
+
+        return response.get("datacenter", {})

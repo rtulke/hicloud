@@ -14,6 +14,8 @@ hicloud is a interactive CLI console for managing Hetzner Cloud resources. It pr
 - **Pricing Information**
 - **SSH Key Management**
 - **Volume Management**
+- **ISO Management**
+- **Location & Datacenter Information**
 - **BATCH Processing**
 
 ## Installation
@@ -25,7 +27,32 @@ hicloud is a interactive CLI console for managing Hetzner Cloud resources. It pr
 
 ### Dependencies
 
-Install the required dependencies using pip:
+#### Option 1: Using Virtual Environment (Recommended)
+
+Create and activate a virtual environment:
+
+```bash
+# Create virtual environment
+python3 -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate  # On Linux/macOS
+# OR
+.venv\Scripts\activate     # On Windows
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+Or use the provided activation script:
+
+```bash
+source activate_hicloud.sh
+```
+
+#### Option 2: Global Installation
+
+Install the required dependencies globally using pip:
 
 ```bash
 pip install -r requirements.txt
@@ -139,10 +166,22 @@ Volume Commands:
   volume resize <id> <size>         - Resize a volume (increase only)
   volume protect <id> <e|d>         - Enable/disable volume protection
 
+ISO Commands:
+  iso list                          - List all available ISOs
+  iso info <id>                     - Show detailed information about an ISO
+  iso attach <iso_id> <server_id>   - Attach ISO to server
+  iso detach <server_id>            - Detach ISO from server
+
+Location & Datacenter Commands:
+  location list                     - List all available locations
+  location info <id>                - Show detailed information about a location
+  datacenter list                   - List all available datacenters
+  datacenter info <id>              - Show detailed information about a datacenter
+
 Pricing Commands:
   pricing list                      - Show pricing table for all resources
   pricing calculate                 - Calculate monthly costs for current resources
-  
+
 General Commands:
   keys list                         - List all SSH keys
   keys delete <id>                  - Delete an SSH key by ID
@@ -151,6 +190,53 @@ General Commands:
   clear                             - Clear screen
   help                              - Show this help message
   exit, quit, q                     - Exit the program
+```
+
+## Examples
+
+### ISO Management
+
+Mount an ISO image to install a custom operating system:
+
+```bash
+hicloud> iso list                    # List all available ISOs
+hicloud> iso info 1234               # Show details about a specific ISO
+hicloud> iso attach 1234 5678        # Attach ISO 1234 to server 5678
+hicloud> iso detach 5678             # Detach ISO from server 5678
+```
+
+### Location & Datacenter Information
+
+View available locations and datacenters before creating resources:
+
+```bash
+hicloud> location list               # List all locations (nbg1, fsn1, hel1, etc.)
+hicloud> location info 1             # Show details: city, country, network zone
+hicloud> datacenter list             # List all datacenters
+hicloud> datacenter info 2           # Show datacenter details and supported server types
+```
+
+### Volume Management
+
+Create and manage persistent storage volumes:
+
+```bash
+hicloud> volume create               # Interactive volume creation wizard
+hicloud> volume list                 # List all volumes with attachment status
+hicloud> volume attach 1234 5678     # Attach volume 1234 to server 5678
+hicloud> volume resize 1234 50       # Increase volume size to 50 GB
+hicloud> volume detach 1234          # Detach volume from server
+```
+
+### Batch Operations
+
+Perform operations on multiple servers at once:
+
+```bash
+hicloud> batch start 1,2,3           # Start multiple servers
+hicloud> batch stop 1,2,3            # Stop multiple servers
+hicloud> batch snapshot 1,2,3        # Create snapshots for multiple servers
+hicloud> batch delete 1,2,3          # Delete multiple servers (with confirmation)
 ```
 
 ## Development
@@ -178,7 +264,9 @@ hicloud/
 │   ├── pricing.py           # Pricing commands
 │   ├── keys.py              # SSH key commands
 │   ├── volume.py            # Volume commands
-│   └── batch.py             # Batch commands
+│   ├── batch.py             # Batch commands
+│   ├── iso.py               # ISO commands
+│   └── location.py          # Location & Datacenter commands
 │
 └── utils/                   # Utility modules
     ├── __init__.py

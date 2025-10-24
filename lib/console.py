@@ -21,6 +21,8 @@ from commands.pricing import PricingCommands
 from commands.keys import KeysCommands
 from commands.batch import BatchCommands
 from commands.volume import VolumeCommands
+from commands.iso import ISOCommands
+from commands.location import LocationCommands, DatacenterCommands
 
 class InteractiveConsole:
     """Interactive console for hicloud"""
@@ -50,6 +52,9 @@ class InteractiveConsole:
         self.keys_commands = KeysCommands(self)
         self.batch_commands = BatchCommands(self)
         self.volume_commands = VolumeCommands(self)
+        self.iso_commands = ISOCommands(self)
+        self.location_commands = LocationCommands(self)
+        self.datacenter_commands = DatacenterCommands(self)
         
         # Konfiguriere readline für History-Unterstützung
         self._setup_readline()
@@ -207,6 +212,29 @@ class InteractiveConsole:
                     "detach": {"help": "Detach volume from server: volume detach <id>"},
                     "resize": {"help": "Resize a volume: volume resize <id> <new_size_gb>"},
                     "protect": {"help": "Enable/disable volume protection: volume protect <id> <enable|disable>"}
+                }
+            },
+            "iso": {
+                "help": "ISO commands: list, info <id>, attach <iso_id> <server_id>, detach <server_id>",
+                "subcommands": {
+                    "list": {"help": "List all available ISOs"},
+                    "info": {"help": "Show detailed information about an ISO: iso info <id>"},
+                    "attach": {"help": "Attach ISO to server: iso attach <iso_id> <server_id>"},
+                    "detach": {"help": "Detach ISO from server: iso detach <server_id>"}
+                }
+            },
+            "location": {
+                "help": "Location commands: list, info <id>",
+                "subcommands": {
+                    "list": {"help": "List all available locations"},
+                    "info": {"help": "Show detailed information about a location: location info <id>"}
+                }
+            },
+            "datacenter": {
+                "help": "Datacenter commands: list, info <id>",
+                "subcommands": {
+                    "list": {"help": "List all available datacenters"},
+                    "info": {"help": "Show detailed information about a datacenter: datacenter info <id>"}
                 }
             },
             "history": {
@@ -448,6 +476,12 @@ class InteractiveConsole:
                     self.project_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "volume":
                     self.volume_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                elif main_cmd == "iso":
+                    self.iso_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                elif main_cmd == "location":
+                    self.location_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                elif main_cmd == "datacenter":
+                    self.datacenter_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "history":
                     if len(parts) > 1 and parts[1].lower() == "clear":
                         self._clean_history()
@@ -525,6 +559,18 @@ Available commands:
     volume detach <id>                - Detach volume from server
     volume resize <id> <size>         - Resize a volume (increase only)
     volume protect <id> <e|d>         - Enable/disable volume protection
+
+  ISO Commands:
+    iso list                          - List all available ISOs
+    iso info <id>                     - Show detailed information about an ISO
+    iso attach <iso_id> <server_id>   - Attach ISO to server
+    iso detach <server_id>            - Detach ISO from server
+
+  Location & Datacenter Commands:
+    location list                     - List all available locations
+    location info <id>                - Show detailed information about a location
+    datacenter list                   - List all available datacenters
+    datacenter info <id>              - Show detailed information about a datacenter
 
   General Commands:
     keys list                         - List all SSH keys
