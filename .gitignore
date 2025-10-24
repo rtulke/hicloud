@@ -176,3 +176,11 @@ cython_debug/
 # project rules
 *_old*
 *_backup
+
+# hicloud specific
+.hicloud.toml
+.tmp/
+*.swp
+*.swo
+*~
+.DS_Store
