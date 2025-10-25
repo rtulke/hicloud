@@ -37,25 +37,28 @@ class KeysCommands:
     def list_keys(self):
         """List all SSH keys"""
         ssh_keys = self.hetzner.list_ssh_keys()
-        
+
         if not ssh_keys:
             print("No SSH keys found")
             return
-            
-        print("\nSSH Keys:")
-        print(f"{'ID':<10} {'Name':<30} {'Fingerprint':<50} {'Created':<20}")
-        print("-" * 110)
-        
+
+        # Prepare data for table
+        headers = ["ID", "Name", "Fingerprint", "Created"]
+        rows = []
+
         # Sort keys alphabetically by name
         for key in sorted(ssh_keys, key=lambda x: x.get('name', '').lower()):
             fingerprint = key.get('fingerprint', 'N/A')
             created = key.get('created', 'N/A')
-            
+
             # Format the creation date if it exists
             if created != 'N/A':
                 created = created.split('T')[0]
-                
-            print(f"{key['id']:<10} {key['name']:<30} {fingerprint:<50} {created:<20}")
+
+            rows.append([key['id'], key['name'], fingerprint, created])
+
+        # Print table with dynamic column widths
+        self.console.print_table(headers, rows, "SSH Keys")
     
     def delete_key(self, args: List[str]):
         """Delete SSH key by ID"""

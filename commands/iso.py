@@ -39,9 +39,9 @@ class ISOCommands:
             print("No ISOs found")
             return
 
-        print("\nAvailable ISOs:")
-        print(f"{'ID':<10} {'Name':<50} {'Type':<15} {'Architecture':<15}")
-        print("-" * 90)
+        # Prepare data for table
+        headers = ["ID", "Name", "Type", "Architecture"]
+        rows = []
 
         # Sort ISOs by name
         for iso in sorted(isos, key=lambda x: x.get('name', '').lower()):
@@ -50,7 +50,10 @@ class ISOCommands:
             iso_type = iso.get('type', 'N/A')
             architecture = iso.get('architecture', 'N/A')
 
-            print(f"{iso_id:<10} {name:<50} {iso_type:<15} {architecture:<15}")
+            rows.append([iso_id, name, iso_type, architecture])
+
+        # Print table with dynamic column widths
+        self.console.print_table(headers, rows, "Available ISOs")
 
     def iso_info(self, args: List[str]):
         """Show detailed information about an ISO"""

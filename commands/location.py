@@ -34,9 +34,9 @@ class LocationCommands:
             print("No locations found")
             return
 
-        print("\nAvailable Locations:")
-        print(f"{'ID':<10} {'Name':<15} {'City':<20} {'Country':<15} {'Network Zone':<15}")
-        print("-" * 75)
+        # Prepare data for table
+        headers = ["ID", "Name", "City", "Country", "Network Zone"]
+        rows = []
 
         # Sort locations by name
         for location in sorted(locations, key=lambda x: x.get('name', '')):
@@ -46,7 +46,10 @@ class LocationCommands:
             country = location.get('country', 'N/A')
             network_zone = location.get('network_zone', 'N/A')
 
-            print(f"{loc_id:<10} {name:<15} {city:<20} {country:<15} {network_zone:<15}")
+            rows.append([loc_id, name, city, country, network_zone])
+
+        # Print table with dynamic column widths
+        self.console.print_table(headers, rows, "Available Locations")
 
     def location_info(self, args: List[str]):
         """Show detailed information about a location"""
@@ -108,9 +111,9 @@ class DatacenterCommands:
             print("No datacenters found")
             return
 
-        print("\nAvailable Datacenters:")
-        print(f"{'ID':<10} {'Name':<20} {'Description':<40} {'Location':<15}")
-        print("-" * 85)
+        # Prepare data for table
+        headers = ["ID", "Name", "Description", "Location"]
+        rows = []
 
         # Sort datacenters by name
         for dc in sorted(datacenters, key=lambda x: x.get('name', '')):
@@ -119,11 +122,10 @@ class DatacenterCommands:
             description = dc.get('description', 'N/A')
             location_name = dc.get('location', {}).get('name', 'N/A')
 
-            # Truncate description if too long
-            if len(description) > 40:
-                description = description[:37] + "..."
+            rows.append([dc_id, name, description, location_name])
 
-            print(f"{dc_id:<10} {name:<20} {description:<40} {location_name:<15}")
+        # Print table with dynamic column widths
+        self.console.print_table(headers, rows, "Available Datacenters")
 
     def datacenter_info(self, args: List[str]):
         """Show detailed information about a datacenter"""
