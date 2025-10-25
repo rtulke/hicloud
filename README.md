@@ -139,11 +139,12 @@ Backup Commands:
   backup disable <id>               - Disable automatic backups for a VM
   backup delete <id>                - Delete a backup by ID 
   
-Monitoring Commands:  
+Monitoring Commands:
   metrics list <id>                 - List available metrics for a server
   metrics cpu <id> [--hours=24]     - Show CPU utilization metrics
   metrics traffic <id> [--days=7]   - Show network traffic metrics
-  
+  metrics disk <id> [--days=1]      - Show disk I/O metrics
+
 Project Commands:
   project list                      - List all available projects
   project switch <n>                - Switch to a different project
@@ -165,6 +166,18 @@ Volume Commands:
   volume detach <id>                - Detach volume from server
   volume resize <id> <size>         - Resize a volume (increase only)
   volume protect <id> <e|d>         - Enable/disable volume protection
+
+Network Commands:
+  network list                      - List all private networks
+  network info <id>                 - Show detailed information about a network
+  network create                    - Create a new private network (interactive)
+  network update <id>               - Update network metadata (name, labels)
+  network delete <id>               - Delete a network by ID
+  network attach <nid> <sid> [ip]   - Attach server to network
+  network detach <nid> <sid>        - Detach server from network
+  network subnet add <id>           - Add a subnet to network
+  network subnet delete <id> <ip>   - Remove a subnet from network
+  network protect <id> <e|d>        - Enable/disable network protection
 
 ISO Commands:
   iso list                          - List all available ISOs
