@@ -178,6 +178,7 @@ cython_debug/
 *_backup
 
 # hicloud specific
+.hicloud
 .hicloud.toml
 .tmp/
 *.swp

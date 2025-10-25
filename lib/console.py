@@ -195,9 +195,12 @@ class InteractiveConsole:
                 }
             },
             "keys": {
-                "help": "SSH key commands: list, delete <id>",
+                "help": "SSH key commands: list, info <id>, create, update <id>, delete <id>",
                 "subcommands": {
                     "list": {"help": "List all SSH keys"},
+                    "info": {"help": "Show detailed information about an SSH key: keys info <id>"},
+                    "create": {"help": "Create/upload a new SSH key: keys create [name] [file]"},
+                    "update": {"help": "Update SSH key metadata: keys update <id>"},
                     "delete": {"help": "Delete an SSH key: keys delete <id>"}
                 }
             },
@@ -574,6 +577,9 @@ Available commands:
 
   General Commands:
     keys list                         - List all SSH keys
+    keys info <id>                    - Show detailed information about an SSH key
+    keys create [name] [file]         - Create/upload a new SSH key
+    keys update <id>                  - Update SSH key metadata (name, labels)
     keys delete <id>                  - Delete an SSH key by ID
     history                           - Show command history
     history clear                     - Clear command history

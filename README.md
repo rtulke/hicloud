@@ -184,6 +184,9 @@ Pricing Commands:
 
 General Commands:
   keys list                         - List all SSH keys
+  keys info <id>                    - Show detailed information about an SSH key
+  keys create [name] [file]         - Create/upload a new SSH key
+  keys update <id>                  - Update SSH key metadata (name, labels)
   keys delete <id>                  - Delete an SSH key by ID
   history                           - Show command history
   history clear                     - Clear command history
@@ -226,6 +229,18 @@ hicloud> volume list                 # List all volumes with attachment status
 hicloud> volume attach 1234 5678     # Attach volume 1234 to server 5678
 hicloud> volume resize 1234 50       # Increase volume size to 50 GB
 hicloud> volume detach 1234          # Detach volume from server
+```
+
+### SSH Key Management
+
+Manage SSH keys for secure server access:
+
+```bash
+hicloud> keys list                   # List all SSH keys with fingerprints
+hicloud> keys info 12345             # Show detailed key information
+hicloud> keys create mykey ~/.ssh/id_rsa.pub  # Upload SSH key from file
+hicloud> keys update 12345           # Update key name or labels
+hicloud> keys delete 12345           # Delete an SSH key
 ```
 
 ### Batch Operations

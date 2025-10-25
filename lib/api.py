@@ -318,7 +318,7 @@ class HetznerCloudManager:
     def delete_ssh_key(self, key_id: int) -> bool:
         """Delete an SSH key by ID"""
         status_code, response = self._make_request("DELETE", f"ssh_keys/{key_id}")
-        
+
         if status_code not in [200, 204]:
             if not self.debug:
                 # In user mode no technical details
@@ -328,9 +328,57 @@ class HetznerCloudManager:
                 error_message = response.get('error', {}).get('message', 'Unknown error')
                 print(f"Error deleting SSH key: {error_message}")
             return False
-            
+
         return True
-    
+
+    def create_ssh_key(self, name: str, public_key: str, labels: Dict = None) -> Dict:
+        """Create/upload a new SSH key"""
+        data = {
+            "name": name,
+            "public_key": public_key
+        }
+
+        if labels:
+            data["labels"] = labels
+
+        status_code, response = self._make_request("POST", "ssh_keys", data)
+
+        if status_code != 201:
+            if not self.debug:
+                print(f"Failed to create SSH key '{name}'")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error creating SSH key: {error_message}")
+            return {}
+
+        return response.get("ssh_key", {})
+
+    def update_ssh_key(self, key_id: int, name: str = None, labels: Dict = None) -> Dict:
+        """Update SSH key metadata (name and/or labels)"""
+        data = {}
+
+        if name is not None:
+            data["name"] = name
+
+        if labels is not None:
+            data["labels"] = labels
+
+        if not data:
+            print("No updates provided")
+            return {}
+
+        status_code, response = self._make_request("PUT", f"ssh_keys/{key_id}", data)
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Failed to update SSH key {key_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error updating SSH key: {error_message}")
+            return {}
+
+        return response.get("ssh_key", {})
+
     # Backup Management Functions
     def list_backups(self, server_id: Optional[int] = None) -> List[Dict]:
         """List all backups, optionally filtered by server ID"""

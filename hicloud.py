@@ -6,6 +6,11 @@
 import os
 import sys
 import argparse
+import warnings
+
+# Suppress urllib3 NotOpenSSLWarning on macOS (uses LibreSSL instead of OpenSSL)
+# This warning is harmless and does not affect functionality
+warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
 
 from lib.api import HetznerCloudManager
 from lib.config import ConfigManager
