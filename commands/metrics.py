@@ -14,17 +14,19 @@ class MetricsCommands:
     def handle_command(self, args: List[str]):
         """Handle metrics-related commands"""
         if not args:
-            print("Missing metrics subcommand. Use 'metrics list|cpu|traffic'")
+            print("Missing metrics subcommand. Use 'metrics list|cpu|traffic|disk'")
             return
-            
+
         subcommand = args[0].lower()
-        
+
         if subcommand == "list":
             self.list_metrics(args[1:])
         elif subcommand == "cpu":
             self.show_cpu_metrics(args[1:])
         elif subcommand == "traffic":
             self.show_traffic_metrics(args[1:])
+        elif subcommand == "disk":
+            self.show_disk_metrics(args[1:])
         else:
             print(f"Unknown metrics subcommand: {subcommand}")
     
@@ -216,3 +218,110 @@ class MetricsCommands:
             
         except Exception as e:
             print(f"Error processing network metrics: {str(e)}")
+
+    def show_disk_metrics(self, args: List[str]):
+        """Show disk I/O metrics for a server"""
+        if not args:
+            print("Missing server ID. Use 'metrics disk <id> [--days=1]'")
+            return
+
+        try:
+            server_id = int(args[0])
+        except ValueError:
+            print("Invalid server ID. Must be an integer.")
+            return
+
+        # Parse options
+        days = 1  # Default
+        for arg in args[1:]:
+            if arg.startswith("--days="):
+                try:
+                    days = int(arg.split("=")[1])
+                except (ValueError, IndexError):
+                    print("Invalid days value. Must be an integer.")
+                    return
+
+        # Überprüfe, ob der Server existiert
+        server = self.hetzner.get_server_by_id(server_id)
+        if not server:
+            print(f"Server with ID {server_id} not found")
+            return
+
+        print(f"\nDisk I/O metrics for server '{server.get('name')}' (ID: {server_id}) over the last {days} day(s):")
+        print("-" * 80)
+
+        metrics = self.hetzner.get_disk_metrics(server_id, days)
+        if not metrics:
+            print("No disk metrics available for this server.")
+            return
+
+        # Metriken auswerten und anzeigen
+        try:
+            # Disk-Daten extrahieren
+            timestamps = metrics.get("time_series", {}).get("values", [])
+
+            # Disk I/O in bytes (read/write)
+            disk_read_bytes = metrics.get("metrics", {}).get("disk", {}).get("0", {}).get("bandwidth", {}).get("read", {}).get("values", [])
+            disk_write_bytes = metrics.get("metrics", {}).get("disk", {}).get("0", {}).get("bandwidth", {}).get("write", {}).get("values", [])
+
+            # Disk IOPS (read/write operations per second)
+            disk_read_iops = metrics.get("metrics", {}).get("disk", {}).get("0", {}).get("iops", {}).get("read", {}).get("values", [])
+            disk_write_iops = metrics.get("metrics", {}).get("disk", {}).get("0", {}).get("iops", {}).get("write", {}).get("values", [])
+
+            if not timestamps:
+                print("No disk metrics data available.")
+                return
+
+            # Berechne Gesamtwerte für Bandwidth (Bytes)
+            if disk_read_bytes and disk_write_bytes:
+                read_bytes_values = [float(v) if v is not None else 0 for v in disk_read_bytes]
+                write_bytes_values = [float(v) if v is not None else 0 for v in disk_write_bytes]
+
+                total_read_bytes = sum(read_bytes_values)
+                total_write_bytes = sum(write_bytes_values)
+
+                # In MB/GB umrechnen
+                def format_bytes(bytes_val):
+                    if bytes_val > 1024*1024*1024:
+                        return f"{bytes_val/(1024*1024*1024):.2f} GB"
+                    elif bytes_val > 1024*1024:
+                        return f"{bytes_val/(1024*1024):.2f} MB"
+                    else:
+                        return f"{bytes_val/1024:.2f} KB"
+
+                print("Disk Bandwidth:")
+                print(f"  Total read:  {format_bytes(total_read_bytes)}")
+                print(f"  Total write: {format_bytes(total_write_bytes)}")
+
+                # Durchschnittliche Bandwidth
+                avg_read_bps = sum(read_bytes_values) / len(read_bytes_values) if read_bytes_values else 0
+                avg_write_bps = sum(write_bytes_values) / len(write_bytes_values) if write_bytes_values else 0
+
+                print(f"\n  Avg read:  {format_bytes(avg_read_bps)}/s")
+                print(f"  Avg write: {format_bytes(avg_write_bps)}/s")
+
+            # Berechne Gesamtwerte für IOPS
+            if disk_read_iops and disk_write_iops:
+                read_iops_values = [float(v) if v is not None else 0 for v in disk_read_iops]
+                write_iops_values = [float(v) if v is not None else 0 for v in disk_write_iops]
+
+                # Durchschnittliche IOPS
+                avg_read_iops = sum(read_iops_values) / len(read_iops_values) if read_iops_values else 0
+                avg_write_iops = sum(write_iops_values) / len(write_iops_values) if write_iops_values else 0
+
+                print(f"\nDisk IOPS (Operations per second):")
+                print(f"  Avg read:  {avg_read_iops:.1f} IOPS")
+                print(f"  Avg write: {avg_write_iops:.1f} IOPS")
+
+                # Max IOPS
+                max_read_iops = max(read_iops_values) if read_iops_values else 0
+                max_write_iops = max(write_iops_values) if write_iops_values else 0
+
+                print(f"\n  Max read:  {max_read_iops:.1f} IOPS")
+                print(f"  Max write: {max_write_iops:.1f} IOPS")
+
+            if not disk_read_bytes and not disk_read_iops:
+                print("No disk metrics data available.")
+
+        except Exception as e:
+            print(f"Error processing disk metrics: {str(e)}")

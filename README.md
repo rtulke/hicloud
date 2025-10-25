@@ -231,6 +231,20 @@ hicloud> volume resize 1234 50       # Increase volume size to 50 GB
 hicloud> volume detach 1234          # Detach volume from server
 ```
 
+### Network Management
+
+Create and manage private networks for secure server communication:
+
+```bash
+hicloud> network list                # List all private networks
+hicloud> network info 12345          # Show detailed network information
+hicloud> network create              # Create new private network (interactive wizard)
+hicloud> network attach 12345 5678   # Attach server 5678 to network 12345
+hicloud> network detach 12345 5678   # Detach server from network
+hicloud> network subnet add 12345    # Add a subnet to network
+hicloud> network protect 12345 enable # Enable delete protection
+```
+
 ### SSH Key Management
 
 Manage SSH keys for secure server access:

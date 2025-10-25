@@ -23,6 +23,7 @@ from commands.batch import BatchCommands
 from commands.volume import VolumeCommands
 from commands.iso import ISOCommands
 from commands.location import LocationCommands, DatacenterCommands
+from commands.network import NetworkCommands
 
 class InteractiveConsole:
     """Interactive console for hicloud"""
@@ -55,6 +56,7 @@ class InteractiveConsole:
         self.iso_commands = ISOCommands(self)
         self.location_commands = LocationCommands(self)
         self.datacenter_commands = DatacenterCommands(self)
+        self.network_commands = NetworkCommands(self)
         
         # Konfiguriere readline für History-Unterstützung
         self._setup_readline()
@@ -162,11 +164,12 @@ class InteractiveConsole:
                 }
             },
             "metrics": {
-                "help": "Metrics commands: list <id>, cpu <id> [--hours=24], traffic <id> [--days=7]",
+                "help": "Metrics commands: list <id>, cpu <id> [--hours=24], traffic <id> [--days=7], disk <id> [--days=1]",
                 "subcommands": {
                     "list": {"help": "List available metrics for a server: metrics list <id>"},
                     "cpu": {"help": "Show CPU utilization metrics: metrics cpu <id> [--hours=24]"},
-                    "traffic": {"help": "Show network traffic metrics: metrics traffic <id> [--days=7]"}
+                    "traffic": {"help": "Show network traffic metrics: metrics traffic <id> [--days=7]"},
+                    "disk": {"help": "Show disk I/O metrics: metrics disk <id> [--days=1]"}
                 }
             },
             "batch": {
@@ -215,6 +218,20 @@ class InteractiveConsole:
                     "detach": {"help": "Detach volume from server: volume detach <id>"},
                     "resize": {"help": "Resize a volume: volume resize <id> <new_size_gb>"},
                     "protect": {"help": "Enable/disable volume protection: volume protect <id> <enable|disable>"}
+                }
+            },
+            "network": {
+                "help": "Network commands: list, info <id>, create, update <id>, delete <id>, attach <nid> <sid>, detach <nid> <sid>, subnet add|delete, protect <id> <enable|disable>",
+                "subcommands": {
+                    "list": {"help": "List all networks"},
+                    "info": {"help": "Show detailed information about a network: network info <id>"},
+                    "create": {"help": "Create a new network (interactive)"},
+                    "update": {"help": "Update network metadata: network update <id>"},
+                    "delete": {"help": "Delete a network: network delete <id>"},
+                    "attach": {"help": "Attach server to network: network attach <network_id> <server_id> [ip]"},
+                    "detach": {"help": "Detach server from network: network detach <network_id> <server_id>"},
+                    "subnet": {"help": "Manage subnets: network subnet add|delete <network_id> ..."},
+                    "protect": {"help": "Enable/disable network protection: network protect <id> <enable|disable>"}
                 }
             },
             "iso": {
@@ -479,6 +496,8 @@ class InteractiveConsole:
                     self.project_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "volume":
                     self.volume_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                elif main_cmd == "network":
+                    self.network_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "iso":
                     self.iso_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                 elif main_cmd == "location":
@@ -536,6 +555,7 @@ Available commands:
     metrics list <id>                 - List available metrics for a server
     metrics cpu <id> [--hours=24]     - Show CPU utilization metrics
     metrics traffic <id> [--days=7]   - Show network traffic metrics
+    metrics disk <id> [--days=1]      - Show disk I/O metrics
 
   Batch Commands:
     batch start <id1,id2,id3...>      - Start multiple servers
@@ -562,6 +582,18 @@ Available commands:
     volume detach <id>                - Detach volume from server
     volume resize <id> <size>         - Resize a volume (increase only)
     volume protect <id> <e|d>         - Enable/disable volume protection
+
+  Network Commands:
+    network list                      - List all private networks
+    network info <id>                 - Show detailed information about a network
+    network create                    - Create a new private network (interactive)
+    network update <id>               - Update network metadata (name, labels)
+    network delete <id>               - Delete a network by ID
+    network attach <nid> <sid> [ip]   - Attach server to network
+    network detach <nid> <sid>        - Detach server from network
+    network subnet add <id>           - Add a subnet to network
+    network subnet delete <id> <ip>   - Remove a subnet from network
+    network protect <id> <e|d>        - Enable/disable network protection
 
   ISO Commands:
     iso list                          - List all available ISOs

@@ -95,34 +95,37 @@ class HetznerCloudManager:
     def get_cpu_metrics(self, server_id: int, hours: int = 24) -> Dict:
         """Gets CPU metrics for a server for the specified number of hours"""
         # Berechne Start- und Endzeitpunkt basierend auf Stunden
-        end_time = datetime.now().isoformat()
-        start_time = (datetime.now() - timedelta(hours=hours)).isoformat()
-        
+        # Hetzner API erwartet ISO 8601 mit Timezone (Z für UTC)
+        end_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_time = (datetime.utcnow() - timedelta(hours=hours)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
         # Für längere Zeiträume größere Schritte verwenden
         step = "60" if hours <= 6 else "300" if hours <= 48 else "3600"
-        
+
         return self.get_server_metrics(server_id, "cpu", start_time, end_time, step)
-    
+
     def get_network_metrics(self, server_id: int, days: int = 7) -> Dict:
         """Gets network metrics for a server for the specified number of days"""
         # Berechne Start- und Endzeitpunkt basierend auf Tagen
-        end_time = datetime.now().isoformat()
-        start_time = (datetime.now() - timedelta(days=days)).isoformat()
-        
+        # Hetzner API erwartet ISO 8601 mit Timezone (Z für UTC)
+        end_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_time = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
         # Für längere Zeiträume größere Schritte verwenden
         step = "300" if days <= 1 else "3600" if days <= 7 else "86400"
-        
+
         return self.get_server_metrics(server_id, "network", start_time, end_time, step)
-    
+
     def get_disk_metrics(self, server_id: int, days: int = 1) -> Dict:
         """Gets disk metrics for a server for the specified number of days"""
         # Berechne Start- und Endzeitpunkt basierend auf Tagen
-        end_time = datetime.now().isoformat()
-        start_time = (datetime.now() - timedelta(days=days)).isoformat()
-        
+        # Hetzner API erwartet ISO 8601 mit Timezone (Z für UTC)
+        end_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_time = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
         # Feste Schrittweite für Festplattenmetriken
         step = "60"
-        
+
         return self.get_server_metrics(server_id, "disk", start_time, end_time, step)
     
     def get_available_metrics(self, server_id: int) -> List[str]:
@@ -1063,6 +1066,211 @@ class HetznerCloudManager:
             return self._wait_for_action(action_id)
 
         return True
+
+    # Network Management Functions
+    def list_networks(self) -> List[Dict]:
+        """List all networks in the project"""
+        status_code, response = self._make_request("GET", "networks")
+
+        if status_code != 200:
+            print(f"Error listing networks: {response.get('error', 'Unknown error')}")
+            return []
+
+        return response.get("networks", [])
+
+    def get_network_by_id(self, network_id: int) -> Dict:
+        """Get network by ID"""
+        status_code, response = self._make_request("GET", f"networks/{network_id}")
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Network with ID {network_id} not found")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error getting network: {error_message}")
+            return {}
+
+        return response.get("network", {})
+
+    def create_network(self, name: str, ip_range: str, subnets: List[Dict] = None, labels: Dict = None) -> Dict:
+        """Create a new network"""
+        data = {
+            "name": name,
+            "ip_range": ip_range
+        }
+
+        if subnets:
+            data["subnets"] = subnets
+
+        if labels:
+            data["labels"] = labels
+
+        status_code, response = self._make_request("POST", "networks", data)
+
+        if status_code != 201:
+            if not self.debug:
+                print(f"Failed to create network '{name}'")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error creating network: {error_message}")
+            return {}
+
+        return response.get("network", {})
+
+    def delete_network(self, network_id: int) -> bool:
+        """Delete a network by ID"""
+        status_code, response = self._make_request("DELETE", f"networks/{network_id}")
+
+        if status_code not in [200, 204]:
+            if not self.debug:
+                print(f"Failed to delete network {network_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error deleting network: {error_message}")
+            return False
+
+        return True
+
+    def update_network(self, network_id: int, name: str = None, labels: Dict = None) -> Dict:
+        """Update network metadata (name and/or labels)"""
+        data = {}
+
+        if name is not None:
+            data["name"] = name
+
+        if labels is not None:
+            data["labels"] = labels
+
+        if not data:
+            print("No updates provided")
+            return {}
+
+        status_code, response = self._make_request("PUT", f"networks/{network_id}", data)
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Failed to update network {network_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error updating network: {error_message}")
+            return {}
+
+        return response.get("network", {})
+
+    def attach_server_to_network(self, network_id: int, server_id: int, ip: str = None, alias_ips: List[str] = None) -> bool:
+        """Attach a server to a network"""
+        data = {
+            "network": network_id
+        }
+
+        if ip:
+            data["ip"] = ip
+
+        if alias_ips:
+            data["alias_ips"] = alias_ips
+
+        status_code, response = self._make_request("POST", f"servers/{server_id}/actions/attach_to_network", data)
+
+        if status_code != 201:
+            if not self.debug:
+                print(f"Failed to attach server {server_id} to network {network_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error attaching to network: {error_message}")
+            return False
+
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for network attachment to complete...")
+            return self._wait_for_action(action_id)
+
+        return True
+
+    def detach_server_from_network(self, network_id: int, server_id: int) -> bool:
+        """Detach a server from a network"""
+        data = {
+            "network": network_id
+        }
+
+        status_code, response = self._make_request("POST", f"servers/{server_id}/actions/detach_from_network", data)
+
+        if status_code != 201:
+            if not self.debug:
+                print(f"Failed to detach server {server_id} from network {network_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error detaching from network: {error_message}")
+            return False
+
+        # Wait for the action to complete
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            print("Waiting for network detachment to complete...")
+            return self._wait_for_action(action_id)
+
+        return True
+
+    def add_subnet_to_network(self, network_id: int, network_zone: str, ip_range: str, type: str = "cloud") -> Dict:
+        """Add a subnet to a network"""
+        data = {
+            "network_zone": network_zone,
+            "ip_range": ip_range,
+            "type": type
+        }
+
+        status_code, response = self._make_request("POST", f"networks/{network_id}/actions/add_subnet", data)
+
+        if status_code != 201:
+            if not self.debug:
+                print(f"Failed to add subnet to network {network_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error adding subnet: {error_message}")
+            return {}
+
+        return response.get("network", {})
+
+    def delete_subnet_from_network(self, network_id: int, ip_range: str) -> bool:
+        """Delete a subnet from a network"""
+        data = {
+            "ip_range": ip_range
+        }
+
+        status_code, response = self._make_request("POST", f"networks/{network_id}/actions/delete_subnet", data)
+
+        if status_code != 201:
+            if not self.debug:
+                print(f"Failed to delete subnet from network {network_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error deleting subnet: {error_message}")
+            return False
+
+        return True
+
+    def change_network_protection(self, network_id: int, delete: bool = None) -> Dict:
+        """Change network protection settings"""
+        data = {}
+
+        if delete is not None:
+            data["delete"] = delete
+
+        if not data:
+            print("No protection changes provided")
+            return {}
+
+        status_code, response = self._make_request("POST", f"networks/{network_id}/actions/change_protection", data)
+
+        if status_code != 201:
+            if not self.debug:
+                print(f"Failed to change protection for network {network_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error changing protection: {error_message}")
+            return {}
+
+        return response.get("network", {})
 
     # Location & Datacenter Functions
     def list_locations(self) -> List[Dict]:
