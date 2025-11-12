@@ -205,7 +205,7 @@ General Commands:
   history clear                     - Clear command history
   clear                             - Clear screen
   help                              - Show this help message
-  exit, quit, q                     - Exit the program
+  exit, quit, q, Ctrl-D             - Exit the program
 ```
 
 ## Examples

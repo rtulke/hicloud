@@ -4,6 +4,8 @@
 import os
 import platform
 import readline
+import sys
+from contextlib import contextmanager
 
 from typing import Dict, List
 from utils.constants import HISTORY_DIR, HISTORY_FILE, HISTORY_MAX_LINES, VERSION
@@ -11,6 +13,13 @@ from utils.constants import HISTORY_DIR, HISTORY_FILE, HISTORY_MAX_LINES, VERSIO
 from utils.formatting import get_terminal_width as _get_terminal_width
 from utils.formatting import horizontal_line as _horizontal_line
 from utils.formatting import print_table as _print_table
+
+# ANSI color helpers for the prompt
+RGB_PROMPT_TEXT = (80, 80, 120)  # Slightly lighter dark blue-gray for "hicloud"
+RGB_PROMPT_ARROW = (64, 64, 64)  # Dark gray for the ">" symbol
+ANSI_RESET = "\033[0m"
+PROMPT_TEXT_COLOR = f"\033[38;2;{RGB_PROMPT_TEXT[0]};{RGB_PROMPT_TEXT[1]};{RGB_PROMPT_TEXT[2]}m"
+PROMPT_ARROW_COLOR = f"\033[38;2;{RGB_PROMPT_ARROW[0]};{RGB_PROMPT_ARROW[1]};{RGB_PROMPT_ARROW[2]}m"
 
 from commands.vm import VMCommands
 from commands.snapshot import SnapshotCommands
@@ -25,6 +34,61 @@ from commands.iso import ISOCommands
 from commands.location import LocationCommands, DatacenterCommands
 from commands.network import NetworkCommands
 
+
+class _LeadingNewlineWriter:
+    """Normalize leading/trailing whitespace around a command response."""
+
+    def __init__(self, stream):
+        self.stream = stream
+        self.leading = True
+        self.pending_newlines = ""
+
+    def write(self, data):
+        if not data:
+            return
+
+        chunk = data
+
+        if self.leading:
+            chunk = chunk.lstrip("\n")
+            if chunk:
+                self.stream.write("\n")
+                self.leading = False
+            else:
+                return
+
+        if not chunk:
+            return
+
+        if self.pending_newlines:
+            chunk = self.pending_newlines + chunk
+            self.pending_newlines = ""
+
+        trailing_len = len(chunk) - len(chunk.rstrip("\n"))
+        body = chunk[:-trailing_len] if trailing_len else chunk
+
+        if body:
+            self.stream.write(body)
+
+        if trailing_len:
+            self.pending_newlines = "\n" * trailing_len
+
+    def finalize(self):
+        if self.pending_newlines:
+            self.stream.write("\n")
+            self.pending_newlines = ""
+        elif not self.leading:
+            self.stream.write("\n")
+        else:
+            self.stream.write("\n")
+        self.stream.flush()
+
+    def flush(self):
+        self.stream.flush()
+
+    def isatty(self):
+        return hasattr(self.stream, "isatty") and self.stream.isatty()
+
 class InteractiveConsole:
     """Interactive console for hicloud"""
     
@@ -34,6 +98,8 @@ class InteractiveConsole:
         self.debug = debug
         self.running = True
         self.history = []
+        self.prompt_label = f"{PROMPT_TEXT_COLOR}hicloud{ANSI_RESET}{PROMPT_ARROW_COLOR}>{ANSI_RESET}"
+        self.prompt_string = f"\n{self.prompt_label} "
         
         # Stelle sicher, dass das History-Verzeichnis existiert
         if not os.path.exists(HISTORY_DIR):
@@ -60,6 +126,22 @@ class InteractiveConsole:
         
         # Konfiguriere readline für History-Unterstützung
         self._setup_readline()
+        
+    def _print_prompt_with_line(self, line: str = "") -> None:
+        """Render the colored prompt optionally followed by existing buffer contents"""
+        print(f"\n{self.prompt_label} {line}", end="", flush=True)
+
+    @contextmanager
+    def _command_output(self):
+        """Ensure every command response starts with exactly one blank line."""
+        original_stdout = sys.stdout
+        wrapper = _LeadingNewlineWriter(original_stdout)
+        try:
+            sys.stdout = wrapper
+            yield
+        finally:
+            sys.stdout = original_stdout
+            wrapper.finalize()
         
     # Formatierungsfunktionen als Methodenwrapper
     def get_terminal_width(self):
@@ -286,7 +368,7 @@ class InteractiveConsole:
         if not parts:
             # Zeige die Liste der Hauptbefehle an
             print("\n\033[90mAvailable commands: " + ", ".join(sorted(self.commands.keys())) + "\033[0m")
-            print("\nhicloud> " + line, end="", flush=True)
+            self._print_prompt_with_line(line)
             return None
         
         # Hauptbefehl
@@ -301,7 +383,7 @@ class InteractiveConsole:
             elif len(matches) > 0:
                 # Mehrere Treffer - zeige den Hilfetext an
                 print("\n\033[90mMatching commands: " + ", ".join(matches) + "\033[0m")
-                print("\nhicloud> " + line, end="", flush=True)
+                self._print_prompt_with_line(line)
                 
                 # Gemeinsames Präfix finden
                 common = self._get_common_prefix(matches)
@@ -314,7 +396,7 @@ class InteractiveConsole:
             # Zeige den Hilfetext für den Hauptbefehl an
             if len(parts) == 1 and line.endswith(' '):
                 print(f"\n\033[90m{self.commands[cmd]['help']}\033[0m")
-                print("\nhicloud> " + line, end="", flush=True)
+                self._print_prompt_with_line(line)
                 return None
             
             # Unterbefehl-Vervollständigung    
@@ -325,7 +407,7 @@ class InteractiveConsole:
                 
                 # Zeige den Hilfetext für den Hauptbefehl an
                 print(f"\n\033[90m{self.commands[cmd]['help']}\033[0m")
-                print("\nhicloud> " + line, end="", flush=True)
+                self._print_prompt_with_line(line)
                 
                 # Passende Unterbefehle finden
                 matches = [sc for sc in self.commands[cmd]['subcommands'] 
@@ -350,7 +432,7 @@ class InteractiveConsole:
         if cmd in self.commands and 'help' in self.commands[cmd]:
             # Zeige die Hilfe über dem Prompt
             print(f"\n\033[90m{self.commands[cmd]['help']}\033[0m")
-            print("\nhicloud> ", end="", flush=True)
+            self._print_prompt_with_line()
             
     def _get_common_prefix(self, strings):
         """Findet das gemeinsame Präfix aller Strings in der Liste"""
@@ -375,7 +457,7 @@ class InteractiveConsole:
         if cmd in self.commands and 'subcommands' in self.commands[cmd]:
             if subcmd in self.commands[cmd]['subcommands'] and 'help' in self.commands[cmd]['subcommands'][subcmd]:
                 print(f"\n\033[90m{self.commands[cmd]['subcommands'][subcmd]['help']}\033[0m")
-                print("\nhicloud> ", end="", flush=True)
+                self._print_prompt_with_line()
     
     def _save_history(self):
         """Save command history to file"""
@@ -464,54 +546,58 @@ class InteractiveConsole:
         
         while self.running:
             try:
-                command = input("\nhicloud> ").strip()
+                command = input(self.prompt_string).strip()
                 if not command:
                     continue
                     
-                parts = command.split()
-                main_cmd = parts[0].lower()
-                
-                if main_cmd in ["exit", "quit", "q"]:
-                    self.running = False
-                elif main_cmd == "help":
-                    self.show_help()
-                elif main_cmd in ["clear", "reset"]:
-                    self._clear_screen()
-                    self._display_welcome_screen()
-                elif main_cmd == "snapshot":
-                    self.snapshot_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "backup":
-                    self.backup_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "vm" or main_cmd == "server":
-                    self.vm_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "keys":
-                    self.keys_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "metrics":
-                    self.metrics_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "batch":
-                    self.batch_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "pricing":
-                    self.pricing_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "project":
-                    self.project_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "volume":
-                    self.volume_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "network":
-                    self.network_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "iso":
-                    self.iso_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "location":
-                    self.location_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "datacenter":
-                    self.datacenter_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                elif main_cmd == "history":
-                    if len(parts) > 1 and parts[1].lower() == "clear":
-                        self._clean_history()
-                    else:
-                        self._display_history()
-                else:
-                    print(f"Unknown command: {main_cmd}")
+                with self._command_output():
+                    parts = command.split()
+                    main_cmd = parts[0].lower()
                     
+                    if main_cmd in ["exit", "quit", "q"]:
+                        self.running = False
+                    elif main_cmd == "help":
+                        self.show_help()
+                    elif main_cmd in ["clear", "reset"]:
+                        self._clear_screen()
+                        self._display_welcome_screen()
+                    elif main_cmd == "snapshot":
+                        self.snapshot_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "backup":
+                        self.backup_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "vm" or main_cmd == "server":
+                        self.vm_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "keys":
+                        self.keys_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "metrics":
+                        self.metrics_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "batch":
+                        self.batch_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "pricing":
+                        self.pricing_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "project":
+                        self.project_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "volume":
+                        self.volume_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "network":
+                        self.network_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "iso":
+                        self.iso_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "location":
+                        self.location_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "datacenter":
+                        self.datacenter_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "history":
+                        if len(parts) > 1 and parts[1].lower() == "clear":
+                            self._clean_history()
+                        else:
+                            self._display_history()
+                    else:
+                        print(f"Unknown command: {main_cmd}")
+                    
+            except EOFError:
+                print("\nExiting on Ctrl-D")
+                self.running = False
             except KeyboardInterrupt:
                 print("\nOperation cancelled")
             except Exception as e:
@@ -617,6 +703,6 @@ Available commands:
     history clear                     - Clear command history
     clear, reset                      - Clear screen
     help                              - Show this help message
-    exit, quit, q                     - Exit the program
+    exit, quit, q, Ctrl-D             - Exit the program
 """
         print(help_text)
