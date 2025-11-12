@@ -186,3 +186,5 @@ cython_debug/
 *.swo
 *~
 .DS_Store
+AGENTS.md
+TODO.md
