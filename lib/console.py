@@ -728,10 +728,10 @@ Available commands:
     keys create [name] [file]         - Create/upload a new SSH key
     keys update <id>                  - Update SSH key metadata (name, labels)
     keys delete <id>                  - Delete an SSH key by ID
-  history                           - Show command history
-  history clear                     - Clear command history
-  clear, reset                      - Clear screen
-  help [command]                    - Show general or command-specific help
-  exit, quit, q, Ctrl-D             - Exit the program
+    history                           - Show command history
+    history clear                     - Clear command history
+    clear, reset                      - Clear screen
+    help [command]                    - Show general or command-specific help
+    exit, quit, q, Ctrl-D             - Exit the program
 """
         print(help_text)
