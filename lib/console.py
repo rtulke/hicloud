@@ -459,6 +459,28 @@ class InteractiveConsole:
                 print(f"\n\033[90m{self.commands[cmd]['subcommands'][subcmd]['help']}\033[0m")
                 self._print_prompt_with_line()
     
+    def _show_detailed_help(self, cmd_name: str):
+        """Renders a detailed help section for a specific command"""
+        cmd_info = self.commands.get(cmd_name)
+        if not cmd_info:
+            print(f"No help available for '{cmd_name}'.")
+            return
+
+        header = cmd_info.get('help', f"{cmd_name} commands")
+        print(f"\n  {header}")
+
+        subcommands = cmd_info.get('subcommands')
+        if not subcommands:
+            return
+
+        command_names = [f"{cmd_name} {name}" for name in subcommands.keys()]
+        max_len = max(len(name) for name in command_names) if command_names else len(cmd_name)
+
+        for sub_name, meta in subcommands.items():
+            label = f"{cmd_name} {sub_name}"
+            description = meta.get('help', 'No description provided')
+            print(f"    {label:<{max_len}}  - {description}")
+    
     def _save_history(self):
         """Save command history to file"""
         try:
@@ -557,7 +579,10 @@ class InteractiveConsole:
                     if main_cmd in ["exit", "quit", "q"]:
                         self.running = False
                     elif main_cmd == "help":
-                        self.show_help()
+                        if len(parts) > 1:
+                            self.show_help(parts[1])
+                        else:
+                            self.show_help()
                     elif main_cmd in ["clear", "reset"]:
                         self._clear_screen()
                         self._display_welcome_screen()
@@ -606,8 +631,12 @@ class InteractiveConsole:
         # Beim Beenden die Historie speichern
         self._save_history()
     
-    def show_help(self):
+    def show_help(self, command: str = None):
         """Show help information"""
+        if command:
+            self._show_detailed_help(command.lower())
+            return
+
         help_text = """
 Available commands:
 
@@ -699,10 +728,10 @@ Available commands:
     keys create [name] [file]         - Create/upload a new SSH key
     keys update <id>                  - Update SSH key metadata (name, labels)
     keys delete <id>                  - Delete an SSH key by ID
-    history                           - Show command history
-    history clear                     - Clear command history
-    clear, reset                      - Clear screen
-    help                              - Show this help message
-    exit, quit, q, Ctrl-D             - Exit the program
+  history                           - Show command history
+  history clear                     - Clear command history
+  clear, reset                      - Clear screen
+  help [command]                    - Show general or command-specific help
+  exit, quit, q, Ctrl-D             - Exit the program
 """
         print(help_text)

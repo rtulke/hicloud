@@ -204,7 +204,7 @@ General Commands:
   history                           - Show command history
   history clear                     - Clear command history
   clear                             - Clear screen
-  help                              - Show this help message
+  help [command]                    - Show help or detailed info about a command
   exit, quit, q, Ctrl-D             - Exit the program
 ```
 
