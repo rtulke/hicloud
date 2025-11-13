@@ -5,10 +5,19 @@ import os
 import platform
 import readline
 import sys
+import time
+import toml
 from contextlib import contextmanager
 
-from typing import Dict, List
-from utils.constants import HISTORY_DIR, HISTORY_FILE, HISTORY_MAX_LINES, VERSION
+from typing import Dict, List, Optional
+from utils.constants import (
+    HISTORY_DIR,
+    HISTORY_FILE,
+    HISTORY_MAX_LINES,
+    VERSION,
+    DEFAULT_CONFIG_PATH,
+)
+from lib.config import ConfigManager
 # Korrekte Imports für die Formatierungsfunktionen
 from utils.formatting import get_terminal_width as _get_terminal_width
 from utils.formatting import horizontal_line as _horizontal_line
@@ -98,6 +107,7 @@ class InteractiveConsole:
         self.debug = debug
         self.running = True
         self.history = []
+        self._completion_cache = {}
         self.prompt_label = f"{PROMPT_TEXT_COLOR}hicloud{ANSI_RESET}{PROMPT_ARROW_COLOR}>{ANSI_RESET}"
         self.prompt_string = f"\n{self.prompt_label} "
         
@@ -214,44 +224,130 @@ class InteractiveConsole:
                 "help": "VM commands: list, info <id>, create, start <id>, stop <id>, delete <id>, resize <id> <type>, rename <id> <n>, rescue <id>, reset-password <id>, image <id> <n>",
                 "subcommands": {
                     "list": {"help": "List all VMs"},
-                    "info": {"help": "Show detailed information about a VM: vm info <id>"},
+                    "info": {
+                        "help": "Show detailed information about a VM: vm info <id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
                     "create": {"help": "Create a new VM (interactive)"},
-                    "start": {"help": "Start a VM: vm start <id>"},
-                    "stop": {"help": "Stop a VM: vm stop <id>"},
-                    "delete": {"help": "Delete a VM: vm delete <id>"},
-                    "resize": {"help": "Change server type: vm resize <id> <new_type>"},
-                    "rename": {"help": "Rename a VM: vm rename <id> <new_name>"},
-                    "rescue": {"help": "Enable rescue mode: vm rescue <id>"},
-                    "reset-password": {"help": "Reset root password: vm reset-password <id>"},
-                    "image": {"help": "Create custom image: vm image <id> <n>"}
+                    "start": {
+                        "help": "Start a VM: vm start <id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "stop": {
+                        "help": "Stop a VM: vm stop <id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "delete": {
+                        "help": "Delete a VM: vm delete <id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "resize": {
+                        "help": "Change server type: vm resize <id> <new_type>",
+                        "arguments": [
+                            {"name": "server_id", "provider": "server_ids"},
+                            {"name": "server_type"},
+                        ],
+                    },
+                    "rename": {
+                        "help": "Rename a VM: vm rename <id> <new_name>",
+                        "arguments": [
+                            {"name": "server_id", "provider": "server_ids"},
+                            {"name": "new_name"},
+                        ],
+                    },
+                    "rescue": {
+                        "help": "Enable rescue mode: vm rescue <id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "reset-password": {
+                        "help": "Reset root password: vm reset-password <id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "image": {
+                        "help": "Create custom image: vm image <id> <n>",
+                        "arguments": [
+                            {"name": "server_id", "provider": "server_ids"},
+                            {"name": "description"},
+                        ],
+                    }
                 }
             },
             "snapshot": {
                 "help": "Snapshot commands: list, create, delete <id>, delete all, rebuild <id>",
                 "subcommands": {
-                    "list": {"help": "List all snapshots or for specific VM"},
-                    "create": {"help": "Create a snapshot for a VM"},
-                    "delete": {"help": "Delete a snapshot: snapshot delete <id>"},
+                    "list": {
+                        "help": "List all snapshots or for specific VM",
+                        "arguments": [
+                            {"name": "server_id", "provider": "server_ids", "optional": True}
+                        ],
+                    },
+                    "create": {
+                        "help": "Create a snapshot for a VM",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "delete": {
+                        "help": "Delete a snapshot: snapshot delete <id>",
+                        "arguments": [{"name": "snapshot_id", "provider": "snapshot_ids"}],
+                    },
                     "all": {"help": "Delete all snapshots for a VM: snapshot delete all"},
-                    "rebuild": {"help": "Rebuild a server from a snapshot: snapshot rebuild <id> <server_id>"}
+                    "rebuild": {
+                        "help": "Rebuild a server from a snapshot: snapshot rebuild <id> <server_id>",
+                        "arguments": [
+                            {"name": "snapshot_id", "provider": "snapshot_ids"},
+                            {"name": "server_id", "provider": "server_ids"},
+                        ],
+                    }
                 }
             },
             "backup": {
                 "help": "Backup commands: list, enable <id> [WINDOW], disable <id>, delete <id>",
                 "subcommands": {
-                    "list": {"help": "List all backups or for specific VM"},
-                    "enable": {"help": "Enable automatic backups for a VM: backup enable <id> [WINDOW]"},
-                    "disable": {"help": "Disable automatic backups for a VM: backup disable <id>"},
-                    "delete": {"help": "Delete a backup: backup delete <id>"}
+                    "list": {
+                        "help": "List all backups or for specific VM",
+                        "arguments": [
+                            {"name": "server_id", "provider": "server_ids", "optional": True}
+                        ],
+                    },
+                    "enable": {
+                        "help": "Enable automatic backups for a VM: backup enable <id> [WINDOW]",
+                        "arguments": [
+                            {"name": "server_id", "provider": "server_ids"},
+                            {
+                                "name": "window",
+                                "provider": "backup_windows",
+                                "optional": True,
+                            },
+                        ],
+                    },
+                    "disable": {
+                        "help": "Disable automatic backups for a VM: backup disable <id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "delete": {
+                        "help": "Delete a backup: backup delete <id>",
+                        "arguments": [{"name": "backup_id", "provider": "backup_ids"}],
+                    }
                 }
             },
             "metrics": {
                 "help": "Metrics commands: list <id>, cpu <id> [--hours=24], traffic <id> [--days=7], disk <id> [--days=1]",
                 "subcommands": {
-                    "list": {"help": "List available metrics for a server: metrics list <id>"},
-                    "cpu": {"help": "Show CPU utilization metrics: metrics cpu <id> [--hours=24]"},
-                    "traffic": {"help": "Show network traffic metrics: metrics traffic <id> [--days=7]"},
-                    "disk": {"help": "Show disk I/O metrics: metrics disk <id> [--days=1]"}
+                    "list": {
+                        "help": "List available metrics for a server: metrics list <id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "cpu": {
+                        "help": "Show CPU utilization metrics: metrics cpu <id> [--hours=24]",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "traffic": {
+                        "help": "Show network traffic metrics: metrics traffic <id> [--days=7]",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "disk": {
+                        "help": "Show disk I/O metrics: metrics disk <id> [--days=1]",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    }
                 }
             },
             "batch": {
@@ -267,7 +363,10 @@ class InteractiveConsole:
                 "help": "Project commands: list, switch <n>, resources, info",
                 "subcommands": {
                     "list": {"help": "List all available projects"},
-                    "switch": {"help": "Switch to a different project: project switch <n>"},
+                    "switch": {
+                        "help": "Switch to a different project: project switch <n>",
+                        "arguments": [{"name": "project_name", "provider": "project_names"}],
+                    },
                     "resources": {"help": "Show all resources in the current project"},
                     "info": {"help": "Show detailed information about the current project"}
                 }
@@ -283,60 +382,132 @@ class InteractiveConsole:
                 "help": "SSH key commands: list, info <id>, create, update <id>, delete <id>",
                 "subcommands": {
                     "list": {"help": "List all SSH keys"},
-                    "info": {"help": "Show detailed information about an SSH key: keys info <id>"},
+                    "info": {
+                        "help": "Show detailed information about an SSH key: keys info <id>",
+                        "arguments": [{"name": "ssh_key_id", "provider": "ssh_key_ids"}],
+                    },
                     "create": {"help": "Create/upload a new SSH key: keys create [name] [file]"},
-                    "update": {"help": "Update SSH key metadata: keys update <id>"},
-                    "delete": {"help": "Delete an SSH key: keys delete <id>"}
+                    "update": {
+                        "help": "Update SSH key metadata: keys update <id>",
+                        "arguments": [{"name": "ssh_key_id", "provider": "ssh_key_ids"}],
+                    },
+                    "delete": {
+                        "help": "Delete an SSH key: keys delete <id>",
+                        "arguments": [{"name": "ssh_key_id", "provider": "ssh_key_ids"}],
+                    }
                 }
             },
             "volume": {
                 "help": "Volume commands: list, info <id>, create, delete <id>, attach <vid> <sid>, detach <id>, resize <id> <size>, protect <id> <enable|disable>",
                 "subcommands": {
                     "list": {"help": "List all volumes"},
-                    "info": {"help": "Show detailed information about a volume: volume info <id>"},
+                    "info": {
+                        "help": "Show detailed information about a volume: volume info <id>",
+                        "arguments": [{"name": "volume_id", "provider": "volume_ids"}],
+                    },
                     "create": {"help": "Create a new volume (interactive)"},
-                    "delete": {"help": "Delete a volume: volume delete <id>"},
-                    "attach": {"help": "Attach volume to server: volume attach <volume_id> <server_id>"},
-                    "detach": {"help": "Detach volume from server: volume detach <id>"},
-                    "resize": {"help": "Resize a volume: volume resize <id> <new_size_gb>"},
-                    "protect": {"help": "Enable/disable volume protection: volume protect <id> <enable|disable>"}
+                    "delete": {
+                        "help": "Delete a volume: volume delete <id>",
+                        "arguments": [{"name": "volume_id", "provider": "volume_ids"}],
+                    },
+                    "attach": {
+                        "help": "Attach volume to server: volume attach <volume_id> <server_id>",
+                        "arguments": [
+                            {"name": "volume_id", "provider": "volume_ids"},
+                            {"name": "server_id", "provider": "server_ids"},
+                        ],
+                    },
+                    "detach": {
+                        "help": "Detach volume from server: volume detach <id>",
+                        "arguments": [{"name": "volume_id", "provider": "volume_ids"}],
+                    },
+                    "resize": {
+                        "help": "Resize a volume: volume resize <id> <new_size_gb>",
+                        "arguments": [{"name": "volume_id", "provider": "volume_ids"}],
+                    },
+                    "protect": {
+                        "help": "Enable/disable volume protection: volume protect <id> <enable|disable>",
+                        "arguments": [{"name": "volume_id", "provider": "volume_ids"}],
+                    }
                 }
             },
             "network": {
                 "help": "Network commands: list, info <id>, create, update <id>, delete <id>, attach <nid> <sid>, detach <nid> <sid>, subnet add|delete, protect <id> <enable|disable>",
                 "subcommands": {
                     "list": {"help": "List all networks"},
-                    "info": {"help": "Show detailed information about a network: network info <id>"},
+                    "info": {
+                        "help": "Show detailed information about a network: network info <id>",
+                        "arguments": [{"name": "network_id", "provider": "network_ids"}],
+                    },
                     "create": {"help": "Create a new network (interactive)"},
-                    "update": {"help": "Update network metadata: network update <id>"},
-                    "delete": {"help": "Delete a network: network delete <id>"},
-                    "attach": {"help": "Attach server to network: network attach <network_id> <server_id> [ip]"},
-                    "detach": {"help": "Detach server from network: network detach <network_id> <server_id>"},
+                    "update": {
+                        "help": "Update network metadata: network update <id>",
+                        "arguments": [{"name": "network_id", "provider": "network_ids"}],
+                    },
+                    "delete": {
+                        "help": "Delete a network: network delete <id>",
+                        "arguments": [{"name": "network_id", "provider": "network_ids"}],
+                    },
+                    "attach": {
+                        "help": "Attach server to network: network attach <network_id> <server_id> [ip]",
+                        "arguments": [
+                            {"name": "network_id", "provider": "network_ids"},
+                            {"name": "server_id", "provider": "server_ids"},
+                        ],
+                    },
+                    "detach": {
+                        "help": "Detach server from network: network detach <network_id> <server_id>",
+                        "arguments": [
+                            {"name": "network_id", "provider": "network_ids"},
+                            {"name": "server_id", "provider": "server_ids"},
+                        ],
+                    },
                     "subnet": {"help": "Manage subnets: network subnet add|delete <network_id> ..."},
-                    "protect": {"help": "Enable/disable network protection: network protect <id> <enable|disable>"}
+                    "protect": {
+                        "help": "Enable/disable network protection: network protect <id> <enable|disable>",
+                        "arguments": [{"name": "network_id", "provider": "network_ids"}],
+                    }
                 }
             },
             "iso": {
                 "help": "ISO commands: list, info <id>, attach <iso_id> <server_id>, detach <server_id>",
                 "subcommands": {
                     "list": {"help": "List all available ISOs"},
-                    "info": {"help": "Show detailed information about an ISO: iso info <id>"},
-                    "attach": {"help": "Attach ISO to server: iso attach <iso_id> <server_id>"},
-                    "detach": {"help": "Detach ISO from server: iso detach <server_id>"}
+                    "info": {
+                        "help": "Show detailed information about an ISO: iso info <id>",
+                        "arguments": [{"name": "iso_id", "provider": "iso_ids"}],
+                    },
+                    "attach": {
+                        "help": "Attach ISO to server: iso attach <iso_id> <server_id>",
+                        "arguments": [
+                            {"name": "iso_id", "provider": "iso_ids"},
+                            {"name": "server_id", "provider": "server_ids"},
+                        ],
+                    },
+                    "detach": {
+                        "help": "Detach ISO from server: iso detach <server_id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    }
                 }
             },
             "location": {
                 "help": "Location commands: list, info <id>",
                 "subcommands": {
                     "list": {"help": "List all available locations"},
-                    "info": {"help": "Show detailed information about a location: location info <id>"}
+                    "info": {
+                        "help": "Show detailed information about a location: location info <id>",
+                        "arguments": [{"name": "location_id", "provider": "location_ids"}],
+                    }
                 }
             },
             "datacenter": {
                 "help": "Datacenter commands: list, info <id>",
                 "subcommands": {
                     "list": {"help": "List all available datacenters"},
-                    "info": {"help": "Show detailed information about a datacenter: datacenter info <id>"}
+                    "info": {
+                        "help": "Show detailed information about a datacenter: datacenter info <id>",
+                        "arguments": [{"name": "datacenter_id", "provider": "datacenter_ids"}],
+                    }
                 }
             },
             "history": {
@@ -347,84 +518,277 @@ class InteractiveConsole:
             },
             "clear": {"help": "Clear screen"},
             "reset": {"help": "Clear screen (alias for 'clear')"},
-            "help": {"help": "Show help information"},
+            "help": {
+                "help": "Show help information",
+                "arguments": [
+                    {"name": "command", "provider": "commands", "optional": True}
+                ],
+            },
             "exit": {"help": "Exit the program"},
             "quit": {"help": "Exit the program"},
             "q": {"help": "Exit the program"}
         }
+        
+        self.argument_providers = {
+            "commands": self._get_command_names,
+            "server_ids": self._get_server_ids,
+            "snapshot_ids": self._get_snapshot_ids,
+            "backup_ids": self._get_backup_ids,
+            "volume_ids": self._get_volume_ids,
+            "network_ids": self._get_network_ids,
+            "iso_ids": self._get_iso_ids,
+            "ssh_key_ids": self._get_ssh_key_ids,
+            "location_ids": self._get_location_ids,
+            "datacenter_ids": self._get_datacenter_ids,
+            "project_names": self._get_project_names,
+            "backup_windows": self._get_backup_windows,
+        }
+    
+    def _get_cached_values(self, key: str, fetcher, ttl: int = 10) -> List[str]:
+        """Return cached completion values for a provider"""
+        entry = self._completion_cache.get(key)
+        now = time.time()
+        if entry and now - entry["timestamp"] < ttl:
+            return entry["values"]
+        
+        try:
+            values = fetcher()
+        except Exception:
+            values = []
+        if not isinstance(values, list):
+            values = list(values or [])
+        self._completion_cache[key] = {"timestamp": now, "values": values}
+        return values
+    
+    def _get_argument_values(self, provider_key: str) -> List[str]:
+        """Resolve argument suggestions for a provider"""
+        provider = self.argument_providers.get(provider_key)
+        if not provider:
+            return []
+        try:
+            return provider()
+        except Exception:
+            return []
+    
+    def _get_command_names(self) -> List[str]:
+        """Return sorted list of top-level commands"""
+        return sorted(self.commands.keys())
+    
+    def _get_server_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "server_ids",
+            lambda: [str(server.get("id")) for server in self.hetzner.list_servers()],
+        )
+    
+    def _get_snapshot_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "snapshot_ids",
+            lambda: [str(snapshot.get("id")) for snapshot in self.hetzner.list_snapshots()],
+        )
+    
+    def _get_backup_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "backup_ids",
+            lambda: [str(backup.get("id")) for backup in self.hetzner.list_backups()],
+        )
+    
+    def _get_volume_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "volume_ids",
+            lambda: [str(volume.get("id")) for volume in self.hetzner.list_volumes()],
+        )
+    
+    def _get_network_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "network_ids",
+            lambda: [str(network.get("id")) for network in self.hetzner.list_networks()],
+        )
+    
+    def _get_iso_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "iso_ids",
+            lambda: [str(iso.get("id")) for iso in self.hetzner.list_isos()],
+        )
+    
+    def _get_ssh_key_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "ssh_key_ids",
+            lambda: [str(key.get("id")) for key in self.hetzner.list_ssh_keys()],
+        )
+    
+    def _get_location_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "location_ids",
+            lambda: [str(loc.get("id")) for loc in self.hetzner.list_locations()],
+        )
+    
+    def _get_datacenter_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "datacenter_ids",
+            lambda: [str(dc.get("id")) for dc in self.hetzner.list_datacenters()],
+        )
+    
+    def _get_project_names(self) -> List[str]:
+        if not os.path.exists(DEFAULT_CONFIG_PATH):
+            return []
+        if not ConfigManager.check_file_permissions(DEFAULT_CONFIG_PATH):
+            return []
+        try:
+            data = toml.load(DEFAULT_CONFIG_PATH)
+            return sorted(data.keys())
+        except Exception:
+            return []
+    
+    def _get_backup_windows(self) -> List[str]:
+        return ["22-02", "02-06", "06-10", "10-14", "14-18", "18-22"]
     
     def _command_completer(self, text, state):
-        """Vereinfachter Command Completer"""
+        """Context-aware command completer built from command metadata"""
         buffer = readline.get_line_buffer()
         line = buffer.lstrip()
+        ends_with_space = line.endswith(" ")
         
-        # Wenn wir das zweite Mal Tab drücken (state > 0), nix tun
         if state > 0:
             return None
-                
-        # Teile die Eingabe in Wörter auf
-        parts = line.split()
         
+        parts = line.split()
         if not parts:
-            # Zeige die Liste der Hauptbefehle an
-            print("\n\033[90mAvailable commands: " + ", ".join(sorted(self.commands.keys())) + "\033[0m")
+            return self._complete_main_command(text, line)
+        
+        if len(parts) == 1 and not ends_with_space:
+            return self._complete_main_command(text, line)
+        
+        cmd_name = parts[0]
+        cmd_info = self.commands.get(cmd_name)
+        if not cmd_info:
+            return None
+        
+        subcommands = cmd_info.get("subcommands")
+        if subcommands:
+            if len(parts) == 1 and ends_with_space:
+                self._show_command_help(cmd_name)
+                return None
+            
+            if len(parts) == 2 and not ends_with_space:
+                return self._complete_subcommand(cmd_name, text, line)
+            
+            if len(parts) >= 2:
+                subcmd_name = parts[1]
+                if subcmd_name not in subcommands:
+                    return self._complete_subcommand(cmd_name, text, line)
+                
+                if len(parts) == 2 and ends_with_space and not subcommands[subcmd_name].get("arguments"):
+                    return None
+                
+                return self._complete_arguments(cmd_name, subcmd_name, parts, text, line, ends_with_space)
+        
+        # Commands without subcommands but with arguments
+        if cmd_info.get("arguments"):
+            return self._complete_arguments(cmd_name, None, parts, text, line, ends_with_space)
+        
+        return None
+    
+    def _complete_main_command(self, prefix: str, line: str) -> Optional[str]:
+        commands = self._get_command_names()
+        if not prefix:
+            print("\n\033[90mAvailable commands: " + ", ".join(commands) + "\033[0m")
             self._print_prompt_with_line(line)
             return None
         
-        # Hauptbefehl
-        cmd = parts[0]
-        
-        # Hauptbefehl vervollständigen
-        if len(parts) == 1 and not line.endswith(' '):
-            matches = [c for c in self.commands.keys() if c.startswith(cmd)]
-            if len(matches) == 1:
-                # Nur ein passender Befehl - vollständiger Befehl + Leerzeichen
-                return matches[0] + ' '
-            elif len(matches) > 0:
-                # Mehrere Treffer - zeige den Hilfetext an
-                print("\n\033[90mMatching commands: " + ", ".join(matches) + "\033[0m")
-                self._print_prompt_with_line(line)
-                
-                # Gemeinsames Präfix finden
-                common = self._get_common_prefix(matches)
-                if common and len(common) > len(cmd):
-                    return common
+        matches = [cmd for cmd in commands if cmd.startswith(prefix)]
+        if len(matches) == 1:
+            return matches[0] + " "
+        if matches:
+            print("\n\033[90mMatching commands: " + ", ".join(matches) + "\033[0m")
+            self._print_prompt_with_line(line)
+            common = self._get_common_prefix(matches)
+            if common and len(common) > len(prefix):
+                return common
+        return None
+    
+    def _complete_subcommand(self, cmd_name: str, prefix: str, line: str) -> Optional[str]:
+        subcommands = self.commands.get(cmd_name, {}).get("subcommands", {})
+        if not subcommands:
             return None
         
-        # Unterbefehl vervollständigen
-        if cmd in self.commands:
-            # Zeige den Hilfetext für den Hauptbefehl an
-            if len(parts) == 1 and line.endswith(' '):
-                print(f"\n\033[90m{self.commands[cmd]['help']}\033[0m")
-                self._print_prompt_with_line(line)
+        matches = [sub for sub in subcommands.keys() if sub.startswith(prefix)]
+        print(f"\n\033[90m{self.commands[cmd_name]['help']}\033[0m")
+        self._print_prompt_with_line(line)
+        
+        if len(matches) == 1:
+            return matches[0]
+        if matches:
+            common = self._get_common_prefix(matches)
+            if common and len(common) > len(prefix):
+                return common
+        return None
+    
+    def _complete_arguments(
+        self,
+        cmd_name: str,
+        subcmd_name: Optional[str],
+        parts: List[str],
+        text: str,
+        line: str,
+        ends_with_space: bool,
+    ) -> Optional[str]:
+        if subcmd_name:
+            arg_specs = (
+                self.commands.get(cmd_name, {})
+                .get("subcommands", {})
+                .get(subcmd_name, {})
+                .get("arguments", [])
+            )
+        else:
+            arg_specs = self.commands.get(cmd_name, {}).get("arguments", [])
+        
+        if not arg_specs:
+            return None
+        
+        consumed_tokens = 1 + (1 if subcmd_name else 0)
+        arg_index = len(parts) - consumed_tokens
+        if not ends_with_space:
+            arg_index -= 1
+        if arg_index < 0:
+            return None
+        if arg_index >= len(arg_specs):
+            spec = arg_specs[-1]
+            if not spec.get("variadic"):
                 return None
-            
-            # Unterbefehl-Vervollständigung    
-            if 'subcommands' in self.commands[cmd] and len(parts) >= 2:
-                # Hier ist text der zu vervollständigende Teil, nicht parts[-1]
-                # Es kann unterschiedlich sein, wenn der Benutzer mehrere Teile hat
-                subcmd_part = text
-                
-                # Zeige den Hilfetext für den Hauptbefehl an
-                print(f"\n\033[90m{self.commands[cmd]['help']}\033[0m")
-                self._print_prompt_with_line(line)
-                
-                # Passende Unterbefehle finden
-                matches = [sc for sc in self.commands[cmd]['subcommands'] 
-                        if sc.startswith(subcmd_part)]
-                        
-                if len(matches) == 1:
-                    # Für readline muss die Rückgabe genau dem zu ersetzenden Text entsprechen
-                    # Daher geben wir den kompletten Treffer zurück, nicht nur den Rest
-                    return matches[0]
-                
-                # Gemeinsames Präfix finden
-                if len(matches) > 1:
-                    common = self._get_common_prefix(matches)
-                    if common and len(common) > len(subcmd_part):
-                        # Gleiches gilt hier: vollständiges gemeinsames Präfix zurückgeben
-                        return common
-                        
+        else:
+            spec = arg_specs[arg_index]
+        
+        values = set()
+        provider_key = spec.get("provider")
+        if provider_key:
+            values.update(self._get_argument_values(provider_key))
+        if spec.get("choices"):
+            values.update(spec["choices"])
+        if spec.get("literals"):
+            values.update(spec["literals"])
+        
+        values = sorted([val for val in values if isinstance(val, str) and val])
+        if not values:
+            return None
+        
+        prefix = "" if ends_with_space else text
+        matches = [val for val in values if val.startswith(prefix)]
+        
+        if len(matches) == 1:
+            return matches[0] + " "
+        
+        label = spec.get("name", "value")
+        if matches:
+            preview = ", ".join(matches[:8])
+            if len(matches) > 8:
+                preview += ", ..."
+            print(f"\n\033[90mMatching {label}: {preview}\033[0m")
+        else:
+            preview = ", ".join(values[:8])
+            if len(values) > 8:
+                preview += ", ..."
+            print(f"\n\033[90m{label} options: {preview}\033[0m")
+        self._print_prompt_with_line(line)
         return None
     
     def _show_command_help(self, cmd):
