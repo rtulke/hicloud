@@ -208,6 +208,12 @@ General Commands:
   exit, quit, q, Ctrl-D             - Exit the program
 ```
 
+### Context-Aware Help & Completion
+
+- Use `help <command>` (for example `help vm`) to display all subcommands plus their syntax without leaving the console.
+- Press <kbd>TAB</kbd> at any position to auto-complete commands, subcommands, and even resource identifiers; suggestions are derived live from Hetzner (server IDs, volume IDs, ISO IDs, etc.).
+- When multiple options exist, hicloud prints the matching values above the prompt so you can keep typing without guessing argument order.
+
 ## Examples
 
 ### ISO Management
