@@ -9,4 +9,4 @@ HISTORY_DIR = os.path.expanduser("~/.tmp/hicloud")
 HISTORY_FILE = os.path.join(HISTORY_DIR, "history")
 HISTORY_MAX_LINES = 1000
 API_BASE_URL = "https://api.hetzner.cloud/v1"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
