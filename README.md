@@ -2,6 +2,8 @@
 
 hicloud is a interactive CLI console for managing Hetzner Cloud resources. It provides an interactive console with various commands for managing virtual machines, snapshots, backups, and more. And why? Because it's enough for most people and because it's faster than using complex commands a an argument since it works entirely with tab complition.
 
+> **Communication Note:** Project discussions and status updates are provided in German, but this README remains in English.
+
 ## Features
 
 - **CLI Command Line Console with Autocompletion**
@@ -125,6 +127,7 @@ VM Commands:
   vm rescue <id>                    - Enable rescue mode
   vm reset-password <id>            - Reset root password
   vm image <id> <name>              - Create custom image from VM
+  vm image import                   - Start guided custom image import wizard
   
 Snapshot Commands:
   snapshot list                     - List all snapshots or for specific VM
@@ -250,6 +253,16 @@ hicloud> volume resize 1234 50       # Increase volume size to 50 GB
 hicloud> volume detach 1234          # Detach volume from server
 ```
 
+### Custom Image Import
+
+Bring your own images hosted on HTTP(S) storage via the interactive wizard:
+
+```bash
+hicloud> vm image import
+```
+
+Optional: Provide a URL upfront (`hicloud> vm image import https://example.com/my-image.qcow2`) and the wizard pre-fills the first step before asking for name, architecture, and description. Mandatory fields (like the URL) are re-prompted until valid values are entered.
+
 ### Network Management
 
 Create and manage private networks for secure server communication:
@@ -321,6 +334,48 @@ hicloud/
     ├── formatting.py        # Formatting helpers
     └── constants.py         # Global constants
 ```
+
+## Troubleshooting
+
+### Auto-Completion Prints “Missing \<cmd> subcommand…”
+
+After you type a command followed by a space (for example `iso `), TAB completion already switches into “subcommand mode” and prints contextual help above the prompt. At that point hicloud expects you to provide a valid subcommand such as `list` or `info`. If you simply hit <kbd>Enter</kbd> or type the command name again, the handler treats the extra token as a subcommand, which results in messages such as:
+
+```
+Missing iso subcommand. Use 'iso list|info|attach|detach'
+Unknown iso subcommand: iso
+```
+
+These lines are not errors—they’re just a side effect of the “help first” auto-completion UX. As soon as you enter a valid subcommand after the first space, the console behaves normally.
+
+### macOS + iTerm2: Page Up/Down only print `~`
+
+macOS Terminal and hicloud support Page Up/Down out of the box. iTerm2, however, ships with the option *“Page up, page down, home and end scroll outside interactive apps”* enabled, which intercepts the keys so only a literal `~` reaches the prompt. Fix:
+
+1. Open iTerm2 → **Preferences** (`⌘+,`) → **Keys**.
+2. Either disable the above scrolling option or add explicit *Key Bindings* (press `+`) for `Page Up`, `Page Down`, `Home`, and `End` that **Send Escape Sequence** with `\[5~`, `\[6~`, `\[H`, `\[F`.
+
+Afterward, the keys behave like in macOS Terminal and hicloud regains history navigation (including `fn+↑/↓`).
+
+## Feature Tracker
+
+Use this tracker to align upcoming work with the current CLI surface. Status icons: ✅ shipped, 🟡 partial support, ⬜ not started.
+
+| ID | Category | Feature | Status | Coverage / Next Steps |
+|----|----------|---------|--------|------------------------|
+| 1 | Top Priority | Network Management | ✅ | `commands/network.py` already ships list/info/create/update/delete plus attach/detach/subnet/protect commands. |
+| 2 | Top Priority | Firewall Management | ⬜ | No `commands/firewall.py`; need CRUD + rule/attach workflows. |
+| 3 | Top Priority | Volume Management | ✅ | `commands/volume.py` implements list/info/create/delete/attach/detach/resize/protect. |
+| 4 | Top Priority | Load Balancer | ⬜ | Missing `commands/loadbalancer.py` and CLI verbs (`lb list|create|targets|delete`). |
+| 5 | Advanced | Floating IPs | ⬜ | No floating IP command module; need list/create/assign/unassign handlers. |
+| 6 | Advanced | Image Management | 🟡 | `vm image <id> <name>` plus `vm image import <url>` exist; list/share flows still outstanding. |
+| 7 | Advanced | Enhanced Monitoring | 🟡 | `commands/metrics.py` covers `metrics list|cpu|traffic|disk`; alerting/export flows still to implement. |
+| 8 | Advanced | Resource Overview | ⬜ | No `resource` command; implement overview/usage/limits/cleanup summary backed by Hetzner APIs. |
+| 9 | Infrastructure | ISO Management | ✅ | `commands/iso.py` delivers list/info/attach/detach plus CLI docs in README. |
+| 10 | Infrastructure | Placement Groups | ⬜ | No placement group module yet (`placement list|create|assign`). |
+| 11 | Infrastructure | Action Management | ⬜ | `action list/status/cancel/history` handling absent; would wrap Hetzner action endpoints. |
+| 12 | Business Intelligence | Enhanced Analytics | ⬜ | `commands/pricing.py` currently supports list/calculate only; add forecast/compare/optimization helpers. |
+| 13 | Business Intelligence | Backup Policies | 🟡 | `commands/backup.py` handles list/enable/disable/delete; policy view/restore/schedule flows to build. |
 
 ## License
 

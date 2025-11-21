@@ -22,13 +22,7 @@ from lib.config import ConfigManager
 from utils.formatting import get_terminal_width as _get_terminal_width
 from utils.formatting import horizontal_line as _horizontal_line
 from utils.formatting import print_table as _print_table
-
-# ANSI color helpers for the prompt
-RGB_PROMPT_TEXT = (80, 80, 120)  # Slightly lighter dark blue-gray for "hicloud"
-RGB_PROMPT_ARROW = (64, 64, 64)  # Dark gray for the ">" symbol
-ANSI_RESET = "\033[0m"
-PROMPT_TEXT_COLOR = f"\033[38;2;{RGB_PROMPT_TEXT[0]};{RGB_PROMPT_TEXT[1]};{RGB_PROMPT_TEXT[2]}m"
-PROMPT_ARROW_COLOR = f"\033[38;2;{RGB_PROMPT_ARROW[0]};{RGB_PROMPT_ARROW[1]};{RGB_PROMPT_ARROW[2]}m"
+from utils.colors import PROMPT_TEXT_COLOR, PROMPT_ARROW_COLOR, ANSI_RESET
 
 from commands.vm import VMCommands
 from commands.snapshot import SnapshotCommands
@@ -179,12 +173,45 @@ class InteractiveConsole:
         else:
             # Unix/Mac Konfiguration
             try:
-                if platform.system() == 'Darwin':  # macOS
-                    # macOS-spezifische Readline-Bindung
+                doc = (readline.__doc__ or "").lower()
+                is_libedit = "libedit" in doc
+
+                if is_libedit or platform.system() == 'Darwin':
+                    # macOS/libedit bindings
                     readline.parse_and_bind("bind ^I rl_complete")
+                    libedit_bindings = [
+                        '"\\e[5~": ed-prev-history',
+                        '"\\e[6~": ed-next-history',
+                        '"\\e[5;2~": ed-prev-history',
+                        '"\\e[6;2~": ed-next-history',
+                        '"\\e[5;5~": ed-prev-history',
+                        '"\\e[6;5~": ed-next-history',
+                        '"\\e[5;6~": ed-prev-history',
+                        '"\\e[6;6~": ed-next-history',
+                    ]
+                    for binding in libedit_bindings:
+                        try:
+                            readline.parse_and_bind(binding)
+                        except Exception:
+                            continue
                 else:
-                    # Linux und andere Unix-Systeme
+                    # Linux and other GNU readline environments
                     readline.parse_and_bind("tab: complete")
+                    bindings = [
+                        '"\\e[5~": previous-history',
+                        '"\\e[6~": next-history',
+                        '"\\e[5;2~": previous-history',
+                        '"\\e[6;2~": next-history',
+                        '"\\e[5;5~": previous-history',
+                        '"\\e[6;5~": next-history',
+                        '"\\e[5;6~": previous-history',
+                        '"\\e[6;6~": next-history',
+                    ]
+                    for binding in bindings:
+                        try:
+                            readline.parse_and_bind(binding)
+                        except Exception:
+                            continue
             except Exception as e:
                 print(f"Warning: Could not configure readline: {str(e)}")
         
@@ -982,7 +1009,7 @@ class InteractiveConsole:
                         else:
                             self._display_history()
                     else:
-                        print(f"Unknown command: {main_cmd}")
+                        print(f"Unknown command: {main_cmd}. Tip: type 'help' to list all available commands.")
                     
             except EOFError:
                 print("\nExiting on Ctrl-D")

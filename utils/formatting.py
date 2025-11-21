@@ -4,6 +4,8 @@
 import shutil
 from typing import List, Dict, Any
 
+from utils.colors import TABLE_HEADER_COLOR, TABLE_ROW_COLOR, PROMPT_TEXT_COLOR, ANSI_RESET
+
 def format_size(size_gb: float) -> str:
     """Format size in GB or MB with 2 decimal places"""
     if size_gb >= 1:
@@ -108,12 +110,15 @@ def print_table(headers: List[str], rows: List[List[Any]], title: str = None) ->
     # Zeige Titel an, falls vorhanden
     if title:
         print(f"\n{title}:")
+        print()  # Blank line between the title and the table body
     
-    # Zeige Header an
-    print(format_str.format(*headers))
+    # Zeige Header in gelber Schrift an
+    header_line = format_str.format(*headers)
+    print(f"{TABLE_HEADER_COLOR}{header_line}{ANSI_RESET}")
     
-    # Zeige Trennlinie an
-    print(horizontal_line("-")[:total_width])
+    # Zeige Trennlinie in Prompt-Farbe an
+    separator = horizontal_line("-")[:total_width]
+    print(f"{PROMPT_TEXT_COLOR}{separator}{ANSI_RESET}")
     
     # Zeige Daten an
     for row in rows:
@@ -121,4 +126,5 @@ def print_table(headers: List[str], rows: List[List[Any]], title: str = None) ->
         padded_row = row + [""] * (len(headers) - len(row))
         # Wandle alle Werte in Strings um
         str_row = [str(cell) for cell in padded_row]
-        print(format_str.format(*str_row[:len(headers)]))
+        row_line = format_str.format(*str_row[:len(headers)])
+        print(f"{TABLE_ROW_COLOR}{row_line}{ANSI_RESET}")

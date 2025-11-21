@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # commands/vm.py - VM-related commands for hicloud
 
+import time
 from typing import List
+
+from utils.spinner import DotsSpinner
 
 class VMCommands:
     """VM-related commands for Interactive Console"""
@@ -40,7 +43,7 @@ class VMCommands:
         elif subcommand == "reset-password":
             self.reset_password(args[1:])
         elif subcommand == "image":
-            self.create_image(args[1:])
+            self.handle_image_command(args[1:])
         else:
             print(f"Unknown VM subcommand: {subcommand}")
     
@@ -279,7 +282,9 @@ class VMCommands:
             if type_index < 0 or type_index >= len(type_options):
                 print("Invalid selection")
                 return
-            server_type = type_options[type_index]["name"]
+            selected_type = type_options[type_index]
+            server_type = selected_type["name"]
+            server_architecture = selected_type.get("architecture", "x86").lower()
         except ValueError:
             print("Invalid input")
             return
@@ -291,11 +296,33 @@ class VMCommands:
             return
 
         images = response.get("images", [])
-        system_images = [img for img in images if img.get("type") == "system"]
+        system_images = [
+            img for img in images
+            if img.get("type") == "system" and not img.get("deprecated", False)
+        ]
+
+        matching_arch = [
+            img for img in system_images
+            if (img.get("architecture") or "x86").lower() == server_architecture
+        ]
+
+        if matching_arch:
+            system_images = matching_arch
+        else:
+            print(f"\nNo images found for architecture '{server_architecture}'. Showing all available images.")
+
+        system_images.sort(
+            key=lambda img: (
+                img.get("description", "").lower(),
+                img.get("name", "")
+            )
+        )
 
         print("\nAvailable Images:")
         for i, img in enumerate(system_images):
-            print(f"{i+1}. {img['name']} ({img['description']})")
+            description = img.get("description") or img.get("name")
+            arch_label = (img.get("architecture") or server_architecture).upper()
+            print(f"{i+1}. {description} {arch_label}")
 
         image_choice = input("\nSelect image (number): ")
         try:
@@ -577,9 +604,8 @@ class VMCommands:
                 return
                 
             # Wait a bit for the server to be fully stopped
-            print("Waiting for VM to stop completely...")
-            import time
-            time.sleep(5)
+            with DotsSpinner("Waiting for VM to stop completely..."):
+                time.sleep(5)
             
         # Resize the server
         print(f"Resizing VM '{server.get('name')}' to {new_type}...")
@@ -730,9 +756,8 @@ class VMCommands:
                 return
                 
             # Wait a bit for the server to start
-            print("Waiting for VM to start completely...")
-            import time
-            time.sleep(10)
+            with DotsSpinner("Waiting for VM to start completely..."):
+                time.sleep(10)
             
         # Reset password
         print(f"Resetting root password for VM {vm_id}...")
@@ -745,6 +770,18 @@ class VMCommands:
         else:
             print(f"Failed to reset root password for VM {vm_id}")
     
+    def handle_image_command(self, args: List[str]):
+        """Dispatch image-related VM operations."""
+        if not args:
+            print("Missing image arguments. Use 'vm image <id> <name>' or 'vm image import <url> [--name <name>] [--architecture x86|arm] [--description \"text\"]'")
+            return
+
+        if args[0].lower() == "import":
+            self.import_image_from_url(args[1:])
+            return
+
+        self.create_image(args)
+
     def create_image(self, args: List[str]):
         """Create a custom image from a server"""
         if len(args) < 2:
@@ -783,9 +820,8 @@ class VMCommands:
                         return
                 else:
                     # Wait a bit for the server to stop
-                    print("Waiting for VM to stop completely...")
-                    import time
-                    time.sleep(5)
+                    with DotsSpinner("Waiting for VM to stop completely..."):
+                        time.sleep(5)
         
         # Final confirmation
         confirm = input(f"Create image '{image_name}' from VM '{server.get('name')}' (ID: {vm_id})? [y/N]: ")
@@ -811,3 +847,102 @@ class VMCommands:
                         print(f"Failed to start VM {vm_id}")
         else:
             print(f"Failed to create image from VM {vm_id}")
+
+    def import_image_from_url(self, args: List[str]):
+        """Wizard to import a custom image from a remote URL."""
+        print("\n=== Custom Image Import Wizard ===")
+
+        prefilled_url = ""
+        prefilled_name = ""
+        prefilled_description = ""
+        prefilled_arch = ""
+
+        # Allow passing first argument as URL for quick usage, but still run the wizard
+        for arg in args:
+            if arg.startswith("--"):
+                key, _, value = arg.partition("=")
+                key = key.lstrip("-").lower()
+                if key == "name":
+                    prefilled_name = value or prefilled_name
+                elif key in ("arch", "architecture"):
+                    prefilled_arch = value or prefilled_arch
+                elif key in ("desc", "description"):
+                    prefilled_description = value or prefilled_description
+                elif key == "url":
+                    prefilled_url = value or prefilled_url
+                else:
+                    print(f"Ignoring unknown option '{arg}'. Wizard input will be used.")
+            elif not prefilled_url:
+                prefilled_url = arg
+
+        # Required: URL
+        while True:
+            prompt = "Image URL (HTTP/HTTPS) "
+            if prefilled_url:
+                prompt += f"[{prefilled_url}]: "
+            else:
+                prompt += "(required): "
+            url_input = input(prompt).strip()
+            image_url = url_input or prefilled_url
+
+            if not image_url:
+                print("Image URL is required.")
+                continue
+
+            if not (image_url.startswith("http://") or image_url.startswith("https://")):
+                print("Invalid URL. Please provide a HTTP or HTTPS link.")
+                continue
+
+            break
+
+        # Optional: Name (defaults to filename)
+        default_name = prefilled_name or image_url.rstrip("/").split("/")[-1] or "custom-image"
+        default_name = default_name.split(".")[0] or default_name
+        name_input = input(f"Image name [{default_name}]: ").strip()
+        name = name_input or default_name
+
+        # Optional: Architecture (defaults to x86)
+        allowed_arch = {"x86": "x86", "x86_64": "x86", "amd64": "x86", "arm": "arm", "arm64": "arm"}
+        default_arch = prefilled_arch or "x86"
+        while True:
+            arch_input = input(f"Architecture [x86/arm] (default: {default_arch}): ").strip().lower()
+            arch_value = arch_input or default_arch
+            if arch_value in allowed_arch:
+                architecture = allowed_arch[arch_value]
+                break
+            print("Invalid architecture. Supported values: x86, x86_64, amd64, arm, arm64.")
+
+        # Optional: Description
+        desc_prompt = "Description (optional)"
+        if prefilled_description:
+            desc_prompt += f" [{prefilled_description}]"
+        desc_prompt += ": "
+        desc_input = input(desc_prompt).strip()
+        description = desc_input or prefilled_description
+
+        print("\nImport summary:")
+        print(f"  Name:         {name}")
+        print(f"  URL:          {image_url}")
+        print(f"  Architecture: {architecture}")
+        if description:
+            print(f"  Description:  {description}")
+        else:
+            print("  Description:  (not set)")
+
+        confirm = input("Start image import now? [y/N]: ").strip().lower()
+        if confirm != "y":
+            print("Operation cancelled")
+            return
+
+        print("Importing image. This can take several minutes depending on file size...")
+        image = self.hetzner.import_image_from_url(
+            name=name,
+            image_url=image_url,
+            architecture=architecture,
+            description=description
+        )
+
+        if image and image.get("id"):
+            print(f"Image import started successfully (ID: {image['id']}). The image will appear once Hetzner finishes processing.")
+        else:
+            print("Image import could not be started or failed immediately.")

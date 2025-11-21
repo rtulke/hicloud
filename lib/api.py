@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 
 from utils.constants import API_BASE_URL
+from utils.spinner import DotsSpinner
 
 
 class HetznerCloudManager:
@@ -286,8 +287,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for server rebuild to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for server rebuild to complete..."
+            )
             
         return True
     
@@ -431,8 +434,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for backup enablement to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for backup enablement to complete..."
+            )
             
         return True
     
@@ -449,8 +454,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for backup disablement to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for backup disablement to complete..."
+            )
             
         return True
     
@@ -474,8 +481,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for resize operation to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for resize operation to complete..."
+            )
             
         return True
 
@@ -519,8 +528,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for rescue mode enablement to complete...")
-            if not self._wait_for_action(action_id):
+            if not self._wait_for_action(
+                action_id,
+                message="Waiting for rescue mode enablement to complete..."
+            ):
                 return {}
                 
         # Return the root password
@@ -541,8 +552,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for password reset to complete...")
-            if not self._wait_for_action(action_id):
+            if not self._wait_for_action(
+                action_id,
+                message="Waiting for password reset to complete..."
+            ):
                 return {}
                 
         # Return the root password
@@ -563,8 +576,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for server to reboot...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for server to reboot..."
+            )
             
         return True
 
@@ -586,13 +601,61 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for image creation to complete...")
-            if not self._wait_for_action(action_id):
+            if not self._wait_for_action(
+                action_id,
+                message="Waiting for image creation to complete..."
+            ):
                 return {}
                 
         # Return the image details
         return response.get("image", {})
-    
+
+    def import_image_from_url(
+        self,
+        name: str,
+        image_url: str,
+        architecture: str = "x86",
+        description: str = "",
+        labels: Optional[Dict[str, str]] = None
+    ) -> Dict:
+        """Import a custom image hosted at a remote HTTP(S) URL."""
+        payload: Dict[str, Any] = {
+            "type": "system",
+            "name": name,
+            "architecture": architecture,
+            "url": image_url
+        }
+
+        if description:
+            payload["description"] = description
+        if labels:
+            payload["labels"] = labels
+
+        status_code, response = self._make_request("POST", "images/actions/import", payload)
+
+        if status_code not in [201, 202]:
+            error_message = response.get("error", {}).get("message", "Unknown error")
+            print(f"Error importing image: {error_message}")
+            return {}
+
+        action_id = response.get("action", {}).get("id")
+        if action_id:
+            if not self._wait_for_action(
+                action_id,
+                message="Importing image from remote URL..."
+            ):
+                return {}
+
+        image = response.get("image")
+        if image:
+            return image
+
+        image_id = response.get("image_id")
+        if image_id:
+            return {"id": image_id}
+
+        return {}
+
     
     
     def list_servers(self) -> List[Dict]:
@@ -673,8 +736,10 @@ class HetznerCloudManager:
         # Wait for action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for server to start...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for server to start..."
+            )
             
         return True
     
@@ -700,8 +765,10 @@ class HetznerCloudManager:
         # Wait for action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for server to stop...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for server to stop..."
+            )
             
         return True
     
@@ -766,8 +833,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for snapshot creation to complete...")
-            self._wait_for_action(action_id)
+            self._wait_for_action(
+                action_id,
+                message="Waiting for snapshot creation to complete..."
+            )
             
         # Get the newly created snapshot details
         snapshots = self.list_snapshots(server_id)
@@ -794,27 +863,36 @@ class HetznerCloudManager:
             
         return True
     
-    def _wait_for_action(self, action_id: int, timeout: int = 300) -> bool:
-        """Wait for an action to complete"""
+    def _wait_for_action(self, action_id: int, timeout: int = 300, message: Optional[str] = None) -> bool:
+        """Wait for an action to complete while rendering a spinner."""
         start_time = time.time()
+        spinner = DotsSpinner(message).start() if message else None
+
         while time.time() - start_time < timeout:
             status_code, response = self._make_request("GET", f"actions/{action_id}")
 
             if status_code != 200:
+                if spinner:
+                    spinner.stop(False)
                 print(f"Error checking action status: {response.get('error', 'Unknown error')}")
                 return False
 
             status = response.get("action", {}).get("status")
             if status == "success":
+                if spinner:
+                    spinner.stop(True)
                 return True
-            elif status == "error":
+            if status == "error":
+                if spinner:
+                    spinner.stop(False)
                 print(f"Action failed: {response.get('action', {}).get('error', {}).get('message', 'Unknown error')}")
                 return False
 
-            print(".", end="", flush=True)
             time.sleep(5)
 
-        print(f"\nTimeout waiting for action {action_id} to complete")
+        if spinner:
+            spinner.stop(False)
+        print(f"Timeout waiting for action {action_id} to complete")
         return False
 
     # Volume Management Functions
@@ -884,8 +962,10 @@ class HetznerCloudManager:
         if action:
             action_id = action.get("id")
             if action_id:
-                print("Waiting for volume creation to complete...")
-                if not self._wait_for_action(action_id):
+                if not self._wait_for_action(
+                    action_id,
+                    message="Waiting for volume creation to complete..."
+                ):
                     return {}
 
         return response.get("volume", {})
@@ -922,8 +1002,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for volume attachment to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for volume attachment to complete..."
+            )
 
         return True
 
@@ -940,8 +1022,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for volume detachment to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for volume detachment to complete..."
+            )
 
         return True
 
@@ -968,8 +1052,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for volume resize to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for volume resize to complete..."
+            )
 
         return True
 
@@ -997,8 +1083,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for protection change to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for protection change to complete..."
+            )
 
         return True
 
@@ -1044,8 +1132,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for ISO attachment to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for ISO attachment to complete..."
+            )
 
         return True
 
@@ -1062,8 +1152,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for ISO detachment to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for ISO detachment to complete..."
+            )
 
         return True
 
@@ -1182,8 +1274,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for network attachment to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for network attachment to complete..."
+            )
 
         return True
 
@@ -1206,8 +1300,10 @@ class HetznerCloudManager:
         # Wait for the action to complete
         action_id = response.get("action", {}).get("id")
         if action_id:
-            print("Waiting for network detachment to complete...")
-            return self._wait_for_action(action_id)
+            return self._wait_for_action(
+                action_id,
+                message="Waiting for network detachment to complete..."
+            )
 
         return True
 
