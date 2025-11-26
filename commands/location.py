@@ -38,8 +38,8 @@ class LocationCommands:
         headers = ["ID", "Name", "City", "Country", "Network Zone"]
         rows = []
 
-        # Sort locations by name
-        for location in sorted(locations, key=lambda x: x.get('name', '')):
+        # Sort locations by ID for predictable ordering
+        for location in sorted(locations, key=lambda x: x.get('id', 0)):
             loc_id = location.get('id', 'N/A')
             name = location.get('name', 'N/A')
             city = location.get('city', 'N/A')

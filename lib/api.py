@@ -32,10 +32,12 @@ class HetznerCloudManager:
                 response = requests.get(url, headers=self.headers)
             elif method == "POST":
                 response = requests.post(url, headers=self.headers, json=data)
+            elif method == "PUT":
+                response = requests.put(url, headers=self.headers, json=data)
             elif method == "DELETE":
                 response = requests.delete(url, headers=self.headers)
             else:
-                return 400, {"error": f"Unsupported method: {method}"}
+                return 400, {"error": {"message": f"Unsupported method: {method}"}}
                 
             if response.status_code in [200, 201, 202, 204]:
                 try:
@@ -53,12 +55,12 @@ class HetznerCloudManager:
                 try:
                     return response.status_code, response.json()
                 except json.JSONDecodeError:
-                    return response.status_code, {"error": error_msg}
+                    return response.status_code, {"error": {"message": error_msg}}
         except requests.exceptions.RequestException as e:
             error_msg = f"Request failed: {str(e)}"
             if self.debug:
                 print(error_msg)
-            return 500, {"error": error_msg}
+            return 500, {"error": {"message": error_msg}}
     
     # Metrics Management Functions
     def get_server_metrics(self, server_id: int, type: str, start: str, end: str, step: Optional[str] = None) -> Dict:
@@ -141,10 +143,23 @@ class HetznerCloudManager:
         status_code, response = self._make_request("GET", "pricing")
         
         if status_code != 200:
-            print(f"Error getting pricing information: {response.get('error', 'Unknown error')}")
+            error_message = response.get("error", {}).get("message", "Unknown error")
+            print(f"Error getting pricing information: {error_message}")
             return {}
             
         return response.get("pricing", {})
+
+    def list_server_types(self) -> List[Dict]:
+        """Return all server types with their specifications"""
+        status_code, response = self._make_request("GET", "server_types")
+
+        if status_code != 200:
+            if self.debug:
+                error_message = response.get("error", {}).get("message", "Unknown error")
+                print(f"Error listing server types: {error_message}")
+            return []
+
+        return response.get("server_types", [])
     
     def calculate_project_costs(self) -> Dict:
         """Calculates the estimated monthly costs for all resources in the project"""
@@ -152,6 +167,15 @@ class HetznerCloudManager:
         pricing = self.get_pricing()
         if not pricing:
             return {}
+
+        def _price_value(value: Any) -> float:
+            """Normalize price objects (gross/net or raw) to float."""
+            if isinstance(value, dict):
+                return float(value.get("gross") or value.get("net") or 0)
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return 0.0
             
         result = {
             "servers": {"count": 0, "cost": 0.0},
@@ -170,13 +194,10 @@ class HetznerCloudManager:
         for price_info in server_prices:
             try:
                 server_id = price_info.get("id")
-                price_data = price_info.get("prices", [{}])[0].get("price_monthly", {})
-                
-                if isinstance(price_data, dict):
-                    price = float(price_data.get("gross", 0))
-                else:
-                    price = float(price_data) if price_data else 0.0
-                    
+                price_entries = price_info.get("prices", [])
+                if not price_entries:
+                    continue
+                price = _price_value(price_entries[0].get("price_monthly", {}))
                 server_price_map[server_id] = price
             except (ValueError, TypeError) as e:
                 if self.debug:
@@ -195,11 +216,12 @@ class HetznerCloudManager:
             if status_code == 200:
                 volumes = volumes_response.get("volumes", [])
                 
-                price_data = pricing.get("volume", {}).get("prices", [{}])[0].get("price_monthly", {})
-                if isinstance(price_data, dict):
-                    volume_price_per_gb = float(price_data.get("gross", 0))
-                else:
-                    volume_price_per_gb = float(price_data) if price_data else 0.0
+                volume_pricing = pricing.get("volume", {})
+                volume_price_per_gb = _price_value(
+                    volume_pricing.get("price_per_gb_month", volume_pricing.get("price_monthly", {}))
+                )
+                if volume_price_per_gb == 0 and volume_pricing.get("prices"):
+                    volume_price_per_gb = _price_value(volume_pricing.get("prices", [{}])[0].get("price_monthly", {}))
                 
                 for volume in volumes:
                     result["volumes"]["count"] += 1
@@ -215,11 +237,10 @@ class HetznerCloudManager:
             if status_code == 200:
                 ips = ips_response.get("floating_ips", [])
                 
-                price_data = pricing.get("floating_ip", {}).get("prices", [{}])[0].get("price_monthly", {})
-                if isinstance(price_data, dict):
-                    ip_price = float(price_data.get("gross", 0))
-                else:
-                    ip_price = float(price_data) if price_data else 0.0
+                floating_pricing = pricing.get("floating_ip", {})
+                ip_price = _price_value(floating_pricing.get("price_monthly", {}))
+                if ip_price == 0 and floating_pricing.get("prices"):
+                    ip_price = _price_value(floating_pricing.get("prices", [{}])[0].get("price_monthly", {}))
                 
                 result["floating_ips"]["count"] = len(ips)
                 result["floating_ips"]["cost"] = len(ips) * ip_price
@@ -239,13 +260,10 @@ class HetznerCloudManager:
                 for lb_type in lb_types:
                     try:
                         lb_id = lb_type.get("id")
-                        price_data = lb_type.get("prices", [{}])[0].get("price_monthly", {})
-                        
-                        if isinstance(price_data, dict):
-                            price = float(price_data.get("gross", 0))
-                        else:
-                            price = float(price_data) if price_data else 0.0
-                            
+                        prices = lb_type.get("prices", [])
+                        if not prices:
+                            continue
+                        price = _price_value(prices[0].get("price_monthly", {}))
                         lb_price_map[lb_id] = price
                     except (ValueError, TypeError) as e:
                         if self.debug:

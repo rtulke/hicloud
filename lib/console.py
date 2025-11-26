@@ -401,7 +401,21 @@ class InteractiveConsole:
             "pricing": {
                 "help": "Pricing commands: list, calculate",
                 "subcommands": {
-                    "list": {"help": "Show pricing table for all resources"},
+                    "list": {
+                        "help": "Show pricing table (category/location optional): pricing list [server|backup|loadbalancer|storage|network|all] [location]",
+                        "arguments": [
+                            {
+                                "name": "category",
+                                "provider": "pricing_categories",
+                                "optional": True,
+                            },
+                            {
+                                "name": "location",
+                                "provider": "pricing_locations",
+                                "optional": True,
+                            },
+                        ],
+                    },
                     "calculate": {"help": "Calculate estimated monthly costs for current resources"}
                 }
             },
@@ -569,6 +583,8 @@ class InteractiveConsole:
             "datacenter_ids": self._get_datacenter_ids,
             "project_names": self._get_project_names,
             "backup_windows": self._get_backup_windows,
+            "pricing_categories": self._get_pricing_categories,
+            "pricing_locations": self._get_pricing_locations,
         }
     
     def _get_cached_values(self, key: str, fetcher, ttl: int = 10) -> List[str]:
@@ -668,6 +684,39 @@ class InteractiveConsole:
     
     def _get_backup_windows(self) -> List[str]:
         return ["22-02", "02-06", "06-10", "10-14", "14-18", "18-22"]
+
+    def _get_pricing_categories(self) -> List[str]:
+        """Return pricing categories for list command"""
+        return ["server", "backup", "loadbalancer", "storage", "network", "all"]
+
+    def _get_pricing_locations(self) -> List[str]:
+        """Return available pricing locations from the pricing API"""
+        try:
+            pricing = self.hetzner.get_pricing()
+        except Exception:
+            return []
+
+        locations = set()
+
+        def collect(items):
+            for item in items or []:
+                for price in item.get("prices", []):
+                    loc = price.get("location")
+                    if loc:
+                        locations.add(str(loc).lower())
+
+        collect(pricing.get("server_types", []))
+        collect(pricing.get("load_balancer_types", []))
+        if pricing.get("volume", {}).get("prices"):
+            collect([{"prices": pricing["volume"]["prices"]}])
+        if pricing.get("snapshot", {}).get("prices"):
+            collect([{"prices": pricing["snapshot"]["prices"]}])
+        if pricing.get("traffic", {}).get("prices"):
+            collect([{"prices": pricing["traffic"]["prices"]}])
+        if pricing.get("floating_ip", {}).get("prices"):
+            collect([{"prices": pricing["floating_ip"]["prices"]}])
+
+        return sorted(locations)
     
     def _command_completer(self, text, state):
         """Context-aware command completer built from command metadata"""
@@ -1076,7 +1125,7 @@ Available commands:
     project info                      - Show current project information
     
   Pricing Commands:
-    pricing list                      - Show pricing table for all resources
+    pricing list [category] [loc]     - Show pricing for server|backup|loadbalancer|storage|network|all (optional location filter)
     pricing calculate                 - Calculate monthly costs for current resources
 
   Volume Commands:
