@@ -2,8 +2,6 @@
 
 hicloud is a interactive CLI console for managing Hetzner Cloud resources. It provides an interactive console with various commands for managing virtual machines, snapshots, backups, and more. And why? Because it's enough for most people and because it's faster than using complex commands a an argument since it works entirely with tab complition.
 
-> **Communication Note:** Project discussions and status updates are provided in German, but this README remains in English.
-
 ## Features
 
 - **CLI Command Line Console with Autocompletion**
