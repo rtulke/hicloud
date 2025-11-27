@@ -100,6 +100,8 @@ class DatacenterCommands:
             self.list_datacenters()
         elif subcommand == "info":
             self.datacenter_info(args[1:])
+        elif subcommand == "resources":
+            self.datacenter_resources(args[1:])
         else:
             print(f"Unknown datacenter subcommand: {subcommand}")
 
@@ -115,8 +117,8 @@ class DatacenterCommands:
         headers = ["ID", "Name", "Description", "Location"]
         rows = []
 
-        # Sort datacenters by name
-        for dc in sorted(datacenters, key=lambda x: x.get('name', '')):
+        # Sort datacenters by ID for predictable ordering
+        for dc in sorted(datacenters, key=lambda x: x.get('id', 0)):
             dc_id = dc.get('id', 'N/A')
             name = dc.get('name', 'N/A')
             description = dc.get('description', 'N/A')
@@ -173,3 +175,125 @@ class DatacenterCommands:
         network_zones = datacenter.get('network_zones', [])
         if network_zones:
             print(f"\n  Network Zones: {', '.join(network_zones)}")
+
+    def datacenter_resources(self, args: List[str]):
+        """Show resource counts per datacenter (optional filter by ID or location name)"""
+        datacenters = self.hetzner.list_datacenters()
+        if not datacenters:
+            print("No datacenters found")
+            return
+
+        filter_token = args[0].lower() if args else None
+
+        # Build lookup maps
+        dc_map = {}
+        location_to_dc_ids = {}
+        selected_ids = set()
+
+        for dc in datacenters:
+            dc_id = dc.get("id")
+            location = dc.get("location", {})
+            location_id = location.get("id")
+            location_name = location.get("name", "").lower()
+            city = location.get("city", "").lower()
+
+            dc_map[dc_id] = {
+                "name": dc.get("name", "N/A"),
+                "location": location.get("name", "N/A"),
+                "location_id": location_id,
+                "city": location.get("city", "N/A"),
+                "servers": 0,
+                "volumes": 0,
+                "floating_ips": 0,
+                "load_balancers": 0,
+                "server_ids": [],
+                "volume_ids": [],
+                "floating_ip_ids": [],
+                "load_balancer_ids": [],
+            }
+
+            if location_id is not None:
+                location_to_dc_ids.setdefault(location_id, set()).add(dc_id)
+
+            if filter_token:
+                if str(dc_id) == filter_token or dc.get("name", "").lower() == filter_token:
+                    selected_ids.add(dc_id)
+                elif location_name == filter_token or city == filter_token:
+                    selected_ids.add(dc_id)
+
+        if filter_token and not selected_ids:
+            print(f"No datacenter found matching '{filter_token}'")
+            return
+
+        target_ids = selected_ids if selected_ids else set(dc_map.keys())
+
+        # Collect resources
+        servers = self.hetzner.list_servers()
+        for server in servers:
+            dc_id = server.get("datacenter", {}).get("id")
+            if dc_id in target_ids:
+                info = dc_map.get(dc_id)
+                info["servers"] += 1
+                info["server_ids"].append(str(server.get("id")))
+
+        # Volumes (grouped by location -> datacenter)
+        volumes = self.hetzner.list_volumes()
+        for volume in volumes:
+            loc_id = volume.get("location", {}).get("id")
+            if loc_id in location_to_dc_ids:
+                for dc_id in location_to_dc_ids[loc_id]:
+                    if dc_id in target_ids:
+                        info = dc_map.get(dc_id)
+                        info["volumes"] += 1
+                        info["volume_ids"].append(str(volume.get("id")))
+
+        # Floating IPs (home_location)
+        status_code, fip_resp = self.hetzner._make_request("GET", "floating_ips")
+        if status_code == 200:
+            for fip in fip_resp.get("floating_ips", []):
+                loc_id = fip.get("home_location", {}).get("id")
+                if loc_id in location_to_dc_ids:
+                    for dc_id in location_to_dc_ids[loc_id]:
+                        if dc_id in target_ids:
+                            info = dc_map.get(dc_id)
+                            info["floating_ips"] += 1
+                            info["floating_ip_ids"].append(str(fip.get("id")))
+
+        # Load balancers
+        status_code, lb_resp = self.hetzner._make_request("GET", "load_balancers")
+        if status_code == 200:
+            for lb in lb_resp.get("load_balancers", []):
+                loc_id = lb.get("location", {}).get("id")
+                if loc_id in location_to_dc_ids:
+                    for dc_id in location_to_dc_ids[loc_id]:
+                        if dc_id in target_ids:
+                            info = dc_map.get(dc_id)
+                            info["load_balancers"] += 1
+                            info["load_balancer_ids"].append(str(lb.get("id")))
+
+        # Build table
+        headers = ["ID", "Name", "Location", "Servers", "Volumes", "Floating IPs", "Load Balancers"]
+        rows = []
+        for dc_id in sorted(target_ids):
+            info = dc_map[dc_id]
+            rows.append([
+                dc_id,
+                info["name"],
+                info["location"],
+                info["servers"],
+                info["volumes"],
+                info["floating_ips"],
+                info["load_balancers"],
+            ])
+
+        self.console.print_table(headers, rows, "Datacenter Resources")
+
+        # Detailed lists if a single DC was requested
+        if len(target_ids) == 1:
+            dc_id = next(iter(target_ids))
+            info = dc_map[dc_id]
+            print("\nDetails:")
+            print(f"  Servers:        {', '.join(info['server_ids']) if info['server_ids'] else '-'}")
+            print(f"  Volumes:        {', '.join(info['volume_ids']) if info['volume_ids'] else '-'}")
+            print(f"  Floating IPs:   {', '.join(info['floating_ip_ids']) if info['floating_ip_ids'] else '-'}")
+            print(f"  Load Balancers: {', '.join(info['load_balancer_ids']) if info['load_balancer_ids'] else '-'}")

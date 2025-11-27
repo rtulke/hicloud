@@ -542,13 +542,19 @@ class InteractiveConsole:
                 }
             },
             "datacenter": {
-                "help": "Datacenter commands: list, info <id>",
+                "help": "Datacenter commands: list, info <id>, resources [id|location]",
                 "subcommands": {
                     "list": {"help": "List all available datacenters"},
                     "info": {
                         "help": "Show detailed information about a datacenter: datacenter info <id>",
                         "arguments": [{"name": "datacenter_id", "provider": "datacenter_ids"}],
-                    }
+                    },
+                    "resources": {
+                        "help": "Show resources per datacenter: datacenter resources [id|location]",
+                        "arguments": [
+                            {"name": "id_or_location", "provider": "datacenter_ids", "optional": True}
+                        ],
+                    },
                 }
             },
             "history": {
@@ -1161,6 +1167,7 @@ Available commands:
     location info <id>                - Show detailed information about a location
     datacenter list                   - List all available datacenters
     datacenter info <id>              - Show detailed information about a datacenter
+    datacenter resources [id|loc]     - Show resources grouped by datacenter (optional filter)
 
   General Commands:
     keys list                         - List all SSH keys
