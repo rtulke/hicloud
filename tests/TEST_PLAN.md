@@ -35,13 +35,26 @@ Updated: 2026-02-28
 
 | API Area | Test File | Test Count | Status |
 |----------|-----------|------------|--------|
+| API Core / Request Handling | `tests/lib/test_api_core.py` | 3 | ✅ |
+| VM API | `tests/lib/test_api_vm.py` | 20 | ✅ |
+| Snapshot API | `tests/lib/test_api_snapshot.py` | 9 | ✅ |
+| Backup API | `tests/lib/test_api_backup.py` | 9 | ✅ |
+| Batch-related API paths | `tests/lib/test_api_batch.py` | 4 | ✅ |
+| Volume API | `tests/lib/test_api_volume.py` | 8 | ✅ |
+| Network API | `tests/lib/test_api_network.py` | 9 | ✅ |
+| ISO API | `tests/lib/test_api_iso.py` | 5 | ✅ |
+| SSH Key API | `tests/lib/test_api_keys.py` | 6 | ✅ |
+| Location/Datacenter/ServerType API | `tests/lib/test_api_location.py` | 5 | ✅ |
+| Metrics API | `tests/lib/test_api_metrics.py` | 6 | ✅ |
+| Pricing API | `tests/lib/test_api_pricing.py` | 3 | ✅ |
+| Project-related API paths | `tests/lib/test_api_project.py` | 4 | ✅ |
 | Firewall API | `tests/lib/test_api_firewall.py` | 8 | ✅ |
 | Load Balancer API | `tests/lib/test_api_loadbalancer.py` | 13 | ✅ |
 | Image API | `tests/lib/test_api_image.py` | 10 | ✅ |
 | Floating IP API | `tests/lib/test_api_floating_ip.py` | 14 | ✅ |
 | Primary IP API | `tests/lib/test_api_primary_ip.py` | 13 | ✅ |
 
-Note: for other API areas (like VM, Network, Volume, Backup, Snapshot), there are currently no dedicated `tests/lib/test_api_*.py` files.
+Note: `commands/config.py` does not use `HetznerCloudManager` API methods directly, so it has command-level tests only.
 
 ---
 
@@ -64,8 +77,8 @@ Recommended inside the venv:
 ```
 
 Latest run in this repo:
-- Result: `355 passed`
-- Runtime: `0.15s`
+- Result: `446 passed`
+- Runtime: `0.23s`
 
 Note: running global `pytest -q` without venv can fail during collection because of missing deps (`toml`, `requests`).
 
