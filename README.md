@@ -413,14 +413,14 @@ hicloud/
 │   ├── config.py            # ConfigManager — TOML loading, permission validation
 │   └── console.py           # InteractiveConsole — REPL, tab completion, dispatch
 │
-├── commands/                # One class per resource
+├── commands/                # Resource command handlers
 │   ├── vm.py                # VMCommands
 │   ├── snapshot.py          # SnapshotCommands
 │   ├── backup.py            # BackupCommands
 │   ├── metrics.py           # MetricsCommands
 │   ├── project.py           # ProjectCommands
 │   ├── pricing.py           # PricingCommands
-│   ├── keys.py              # SSHKeyCommands
+│   ├── keys.py              # KeysCommands
 │   ├── volume.py            # VolumeCommands
 │   ├── network.py           # NetworkCommands
 │   ├── firewall.py          # FirewallCommands
@@ -431,7 +431,7 @@ hicloud/
 │   ├── config.py            # ConfigCommands
 │   ├── batch.py             # BatchCommands
 │   ├── iso.py               # ISOCommands
-│   └── location.py          # LocationCommands + ServerTypeCommands
+│   └── location.py          # LocationCommands + DatacenterCommands + ServerTypeCommands
 │
 ├── utils/
 │   ├── formatting.py        # Table layout, terminal width helpers
@@ -440,8 +440,45 @@ hicloud/
 │   └── spinner.py           # DotsSpinner — threaded progress indicator
 │
 └── tests/
-    ├── commands/            # Unit tests for command handlers
-    └── lib/                 # Unit tests for API layer
+    ├── TEST_PLAN.md         # Current test status and open test tasks
+    ├── commands/            # Unit tests for command handlers (test_<command>.py)
+    │   ├── test_vm.py
+    │   ├── test_snapshot.py
+    │   ├── test_backup.py
+    │   ├── test_metrics.py
+    │   ├── test_project.py
+    │   ├── test_pricing.py
+    │   ├── test_keys.py
+    │   ├── test_volume.py
+    │   ├── test_network.py
+    │   ├── test_firewall.py
+    │   ├── test_loadbalancer.py
+    │   ├── test_floating_ip.py
+    │   ├── test_primary_ip.py
+    │   ├── test_image.py
+    │   ├── test_config.py
+    │   ├── test_batch.py
+    │   ├── test_iso.py
+    │   └── test_location_servertype.py
+    └── lib/                 # Unit tests for API layer (HetznerCloudManager)
+        ├── test_api_core.py
+        ├── test_api_vm.py
+        ├── test_api_snapshot.py
+        ├── test_api_backup.py
+        ├── test_api_batch.py
+        ├── test_api_volume.py
+        ├── test_api_network.py
+        ├── test_api_iso.py
+        ├── test_api_keys.py
+        ├── test_api_location.py
+        ├── test_api_metrics.py
+        ├── test_api_pricing.py
+        ├── test_api_project.py
+        ├── test_api_firewall.py
+        ├── test_api_loadbalancer.py
+        ├── test_api_floating_ip.py
+        ├── test_api_primary_ip.py
+        └── test_api_image.py
 ```
 
 ## Troubleshooting
