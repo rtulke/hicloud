@@ -111,94 +111,94 @@ Type `help` inside the console to see all available commands:
 
 ```
 VM Commands:
-  vm list                           - List all VMs
-  vm info <id>                      - Show detailed information about a VM
-  vm create                         - Create a new VM (interactive wizard)
-  vm start <id>                     - Start a VM
-  vm stop <id>                      - Stop a VM
-  vm reboot <id>                    - Reboot a VM
-  vm delete <id>                    - Delete a VM by ID
-  vm resize <id> <type>             - Change server type
-  vm rename <id> <name>             - Rename a VM
-  vm rescue <id>                    - Enable rescue mode
-  vm reset-password <id>            - Reset root password
-  vm image <id> <name>              - Create custom image from VM
-  vm image import [url]             - Start guided custom image import wizard
+  vm list                              - List all VMs
+  vm info <id>                         - Show detailed information about a VM
+  vm create                            - Create a new VM (interactive wizard)
+  vm start <id>                        - Start a VM
+  vm stop <id>                         - Stop a VM
+  vm reboot <id>                       - Reboot a VM
+  vm delete <id>                       - Delete a VM by ID
+  vm resize <id> <type>                - Change server type
+  vm rename <id> <name>                - Rename a VM
+  vm rescue <id>                       - Enable rescue mode
+  vm reset-password <id>               - Reset root password
+  vm image <id> <name>                 - Create custom image from VM
+  vm image import [url]                - Start guided custom image import wizard
 
 Snapshot Commands:
-  snapshot list                     - List all snapshots
-  snapshot create                   - Create a snapshot for a VM
-  snapshot delete <id>              - Delete a snapshot by ID
-  snapshot delete all               - Delete all snapshots for a VM
-  snapshot rebuild <id> <sv>        - Rebuild a server from a snapshot
+  snapshot list                        - List all snapshots
+  snapshot create                      - Create a snapshot for a VM
+  snapshot delete <id>                 - Delete a snapshot by ID
+  snapshot delete all                  - Delete all snapshots for a VM
+  snapshot rebuild <id> <sv>           - Rebuild a server from a snapshot
 
 Backup Commands:
-  backup list                       - List all backups
-  backup enable <id> [WINDOW]       - Enable automatic backups for a VM
-  backup disable <id>               - Disable automatic backups for a VM
-  backup delete <id>                - Delete a backup by ID
+  backup list                          - List all backups
+  backup enable <id> [WINDOW]          - Enable automatic backups for a VM
+  backup disable <id>                  - Disable automatic backups for a VM
+  backup delete <id>                   - Delete a backup by ID
 
-Monitoring Commands:
-  metrics list <id>                 - List available metrics for a server
-  metrics cpu <id> [--hours=24]     - Show CPU utilization metrics
-  metrics traffic <id> [--days=7]   - Show network traffic metrics
-  metrics disk <id> [--days=1]      - Show disk I/O metrics
+Monitoring Commands:  
+  metrics list <id>                    - List available metrics for a server
+  metrics cpu <id> [--hours=24]        - Show CPU utilization metrics
+  metrics traffic <id> [--days=7]      - Show network traffic metrics
+  metrics disk <id> [--days=1]         - Show disk I/O metrics
 
 Image Commands:
-  image list [snapshot|backup|all]  - List custom images (default: snapshot)
-  image info <id>                   - Show detailed information about an image
-  image delete <id>                 - Delete a custom image (with confirmation)
-  image update <id>                 - Update image description/labels (interactive)
-  image import [url]                - Start guided custom image import wizard
+  image list [snapshot|backup|all]     - List custom images (default: snapshot)
+  image info <id>                      - Show detailed information about an image
+  image delete <id>                    - Delete a custom image (with confirmation)
+  image update <id>                    - Update image description/labels (interactive)
+  image import [url]                   - Start guided custom image import wizard
 
 Project Commands:
-  project list                      - List all available projects
-  project switch <n>                - Switch to a different project
-  project resources                 - Show all resources in the current project
-  project info                      - Show current project information
+  project list                         - List all available projects
+  project switch <n>                   - Switch to a different project
+  project resources                    - Show all resources in the current project
+  project info                         - Show current project information
 
 Batch Commands:
-  batch start <id1,id2,id3...>      - Start multiple servers
-  batch stop <id1,id2,id3...>       - Stop multiple servers
-  batch delete <id1,id2,id3...>     - Delete multiple servers
-  batch snapshot <id1,id2,id3...>   - Create snapshots for multiple servers
+  batch start <id1,id2,id3...>         - Start multiple servers
+  batch stop <id1,id2,id3...>          - Stop multiple servers
+  batch delete <id1,id2,id3...>        - Delete multiple servers
+  batch snapshot <id1,id2,id3...>      - Create snapshots for multiple servers
 
 Volume Commands:
-  volume list                       - List all volumes
-  volume info <id>                  - Show detailed information about a volume
-  volume create                     - Create a new volume (interactive wizard)
-  volume delete <id>                - Delete a volume by ID
-  volume attach <vid> <sid>         - Attach volume to server
-  volume detach <id>                - Detach volume from server
-  volume resize <id> <size>         - Resize a volume (increase only)
-  volume protect <id> <e|d>         - Enable/disable volume protection
+  volume list                          - List all volumes
+  volume info <id>                     - Show detailed information about a volume
+  volume create                        - Create a new volume (interactive wizard)
+  volume delete <id>                   - Delete a volume by ID
+  volume attach <vid> <sid>            - Attach volume to server
+  volume detach <id>                   - Detach volume from server
+  volume resize <id> <size>            - Resize a volume (increase only)
+  volume protect <id> <e|d>            - Enable/disable volume protection
 
 Network Commands:
-  network list                      - List all private networks
-  network info <id>                 - Show detailed information about a network
-  network create                    - Create a new private network (interactive)
-  network update <id>               - Update network metadata (name, labels)
-  network delete <id>               - Delete a network by ID
-  network attach <nid> <sid> [ip]   - Attach server to network
-  network detach <nid> <sid>        - Detach server from network
-  network subnet add <id>           - Add a subnet to network
-  network subnet delete <id> <ip>   - Remove a subnet from network
-  network protect <id> <e|d>        - Enable/disable network protection
+  network list                         - List all private networks
+  network info <id>                    - Show detailed information about a network
+  network create                       - Create a new private network (interactive)
+  network update <id>                  - Update network metadata (name, labels)
+  network delete <id>                  - Delete a network by ID
+  network attach <nid> <sid> [ip]      - Attach server to network
+  network detach <nid> <sid>           - Detach server from network
+  network subnet add <id>              - Add a subnet to network
+  network subnet delete <id> <ip>      - Remove a subnet from network
+  network protect <id> <e|d>           - Enable/disable network protection
 
 Firewall Commands:
-  firewall list                     - List all firewalls
-  firewall info <id>                - Show detailed information about a firewall
-  firewall create                   - Create a new firewall (interactive)
-  firewall update <id>              - Update firewall metadata
-  firewall delete <id>              - Delete a firewall by ID
-  firewall rules list <id>          - Show current rules for a firewall
-  firewall rules add <id>           - Append new rules to a firewall
-  firewall rules remove <id> <idx>  - Remove rules by 1-based index (comma-separated)
-  firewall rules set <id>           - Replace all rules for a firewall
-  firewall apply <fid> <sid[,..]>   - Apply firewall to one or more servers
-  firewall apply <fid> label <sel>  - Apply firewall to label selector targets
-  firewall remove <fid> <sid[,..]>  - Remove firewall from one or more servers
-  firewall remove <fid> label <sel> - Remove firewall from label selector targets
+  firewall list                        - List all firewalls
+  firewall info <id>                   - Show detailed information about a firewall
+  firewall create                      - Create a new firewall (interactive)
+  firewall update <id>                 - Update firewall metadata
+  firewall delete <id>                 - Delete a firewall by ID
+  firewall rules list <id>             - Show current rules for a firewall
+  firewall rules add <id>              - Append new rules to a firewall
+  firewall rules remove <id> <idx>     - Remove rules by 1-based index (comma-separated)
+  firewall rules set <id>              - Replace all rules for a firewall
+  firewall apply <fid> <sid[,..]>      - Apply firewall to one or more servers
+  firewall apply <fid> label <sel>     - Apply firewall to label selector targets
+  firewall remove <fid> <sid[,..]>     - Remove firewall from one or more servers
+  firewall remove <fid> label <sel>    - Remove firewall from label selector targets
 
 Load Balancer Commands:
   lb list                              - List all load balancers
@@ -212,69 +212,69 @@ Load Balancer Commands:
   lb targets <id> remove label <s>     - Remove label selector target
   lb service <id> list                 - Show services configured on a load balancer
   lb service <id> add                  - Add a new service (protocol, ports, health check wizard)
-  lb service <id> update <port>        - Update an existing service
+  lb service <id> update <port         - Update an existing service
   lb service <id> delete <port>        - Remove a service by listen port
   lb algorithm <id> <round_robin|least_connections>  - Change load balancing algorithm
 
-Floating IP Commands:
-  floating-ip list                  - List all floating IPs
-  floating-ip info <id>             - Show detailed information about a floating IP
-  floating-ip create                - Create a new floating IP (interactive wizard)
-  floating-ip update <id>           - Update name/description/labels (interactive)
-  floating-ip delete <id>           - Delete a floating IP (guarded: unassign & unprotect first)
-  floating-ip assign <id> <sid>     - Assign floating IP to a server
-  floating-ip unassign <id>         - Unassign floating IP from its server
-  floating-ip dns <id> <ip> <ptr>   - Set reverse DNS pointer (use "reset" to clear)
-  floating-ip protect <id> <e|d>    - Enable/disable delete protection
+Floating IP Commands: 
+  floating-ip list                     - List all floating IPs
+  floating-ip info <id>                - Show detailed information about a floating IP
+  floating-ip create                   - Create a new floating IP (interactive wizard)
+  floating-ip update <id>              - Update name/description/labels (interactive)
+  floating-ip delete <id>              - Delete a floating IP (guarded: unassign & unprotect first)
+  floating-ip assign <id> <sid>        - Assign floating IP to a server
+  floating-ip unassign <id>            - Unassign floating IP from its server
+  floating-ip dns <id> <ip> <ptr>      - Set reverse DNS pointer (use "reset" to clear)
+  floating-ip protect <id> <e|d>       - Enable/disable delete protection
 
 Primary IP Commands:
-  primary-ip list                   - List all primary IPs
-  primary-ip info <id>              - Show detailed information about a primary IP
-  primary-ip create                 - Create a new primary IP (interactive wizard)
-  primary-ip update <id>            - Update name/auto_delete/labels (interactive)
-  primary-ip delete <id>            - Delete a primary IP (guarded: unassign & unprotect first)
-  primary-ip assign <id> <sid>      - Assign primary IP to a server
-  primary-ip unassign <id>          - Unassign primary IP from its server
-  primary-ip dns <id> <ip> <ptr>    - Set reverse DNS pointer (use "reset" to clear)
-  primary-ip protect <id> <e|d>     - Enable/disable delete protection
+  primary-ip list                      - List all primary IPs
+  primary-ip info <id>                 - Show detailed information about a primary IP
+  primary-ip create                    - Create a new primary IP (interactive wizard)
+  primary-ip update <id>               - Update name/auto_delete/labels (interactive)
+  primary-ip delete <id>               - Delete a primary IP (guarded: unassign & unprotect first)
+  primary-ip assign <id> <sid>         - Assign primary IP to a server
+  primary-ip unassign <id>             - Unassign primary IP from its server
+  primary-ip dns <id> <ip> <ptr>       - Set reverse DNS pointer (use "reset" to clear)
+  primary-ip protect <id> <e|d>        - Enable/disable delete protection
 
 ISO Commands:
-  iso list                          - List all available ISOs
-  iso info <id>                     - Show detailed information about an ISO
-  iso attach <iso_id> <server_id>   - Attach ISO to server
-  iso detach <server_id>            - Detach ISO from server
+  iso list                             - List all available ISOs
+  iso info <id>                        - Show detailed information about an ISO
+  iso attach <iso_id> <server_id>      - Attach ISO to server
+  iso detach <server_id>               - Detach ISO from server
 
 Location & Datacenter Commands:
-  location list                     - List all available locations
-  location info <id>                - Show detailed information about a location
-  datacenter list                   - List all available datacenters
-  datacenter info <id>              - Show datacenter details and supported server types
+  location list                        - List all available locations
+  location info <id>                   - Show detailed information about a location
+  datacenter list                      - List all available datacenters
+  datacenter info <id>                 - Show datacenter details and supported server types
 
 Server Type Commands:
-  server-type list [location]       - List all server types, optionally filtered by location
-  server-type info <name|id>        - Show CPU, RAM, disk, architecture, and pricing
+  server-type list [location]          - List all server types, optionally filtered by location
+  server-type info <name|id>           - Show CPU, RAM, disk, architecture, and pricing
 
 Pricing Commands:
-  pricing list                      - Show pricing table for all resources
-  pricing calculate                 - Calculate monthly costs for current resources
+  pricing list                         - Show pricing table for all resources
+  pricing calculate                    - Calculate monthly costs for current resources
 
 Config Commands:
-  config validate                   - Validate config file (permissions, fields, token format)
-  config info                       - Show active config path and project sections
+  config validate                      - Validate config file (permissions, fields, token format)
+  config info                          - Show active config path and project sections
 
-SSH Key Commands:
-  keys list                         - List all SSH keys
-  keys info <id>                    - Show detailed information about an SSH key
-  keys create [name] [file]         - Create/upload a new SSH key
-  keys update <id>                  - Update SSH key metadata (name, labels)
-  keys delete <id>                  - Delete an SSH key by ID
+SSH Key Commands: 
+  keys list                            - List all SSH keys
+  keys info <id>                       - Show detailed information about an SSH key
+  keys create [name] [file]            - Create/upload a new SSH key
+  keys update <id>                     - Update SSH key metadata (name, labels)
+  keys delete <id>                     - Delete an SSH key by ID
 
-General Commands:
-  history                           - Show command history
-  history clear                     - Clear command history
-  clear                             - Clear screen
-  help [command]                    - Show help or detailed info about a command
-  exit, quit, q, Ctrl-D             - Exit the program
+General Commands: 
+  history                              - Show command history
+  history clear                        - Clear command history
+  clear                                - Clear screen
+  help [command]                       - Show help or detailed info about a command
+  exit, quit, q, Ctrl-D                - Exit the program
 ```
 
 ### Context-Aware Help & Completion
