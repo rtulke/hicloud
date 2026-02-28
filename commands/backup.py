@@ -54,29 +54,19 @@ class BackupCommands:
                 backup_groups[server_name] = []
             backup_groups[server_name].append(backup)
         
-        print("\nBackups:")
-        print(f"{'ID':<10} {'Name':<50} {'Created':<20} {'Size':<12} {'Server ID':<15}")
-        print("-" * 107)
-        
-        # Sortiere die Server-Namen alphabetisch
+        headers = ["ID", "Name", "Created", "Size", "Server ID"]
+
         for server_name in sorted(backup_groups.keys()):
             group_backups = backup_groups[server_name]
-            
-            # Sortiere Backups innerhalb der Gruppe nach Größe (absteigend)
             group_backups.sort(key=lambda x: x.get("image_size", 0), reverse=True)
-            
+
+            rows = []
             for backup in group_backups:
                 server_id = backup.get("created_from", {}).get("id", "N/A")
                 desc = f"{server_name} backup" if server_name != "Unknown" else backup.get("description", "N/A")
-                
-                # Formatiere Größe
-                size_gb = backup.get("image_size", 0)
-                formatted_size = format_size(size_gb)
-                
-                print(f"{backup['id']:<10} {desc:<50} {backup['created'][:19]:<20} {formatted_size:<12} {server_id:<15}")
-            
-            # Füge eine Leerzeile zwischen den Gruppen ein
-            print()
+                rows.append([backup["id"], desc, backup["created"][:19], format_size(backup.get("image_size", 0)), server_id])
+
+            self.console.print_table(headers, rows, server_name)
     
     def enable_backup(self, args: List[str]):
         """Enable automatic backups for a VM"""

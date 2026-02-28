@@ -54,31 +54,21 @@ class SnapshotCommands:
                 snapshot_groups[server_name] = []
             snapshot_groups[server_name].append(snapshot)
         
-        print("\nSnapshots:")
-        print(f"{'ID':<10} {'Name':<50} {'Created':<20} {'Size':<12} {'Server ID':<15}")
-        print("-" * 107)
-        
-        # Sortiere die Server-Namen alphabetisch
+        headers = ["ID", "Name", "Created", "Size", "Server ID"]
+
         for server_name in sorted(snapshot_groups.keys()):
             group_snapshots = snapshot_groups[server_name]
-            
-            # Sortiere Snapshots innerhalb der Gruppe nach Größe (absteigend)
             group_snapshots.sort(key=lambda x: x.get("image_size", 0), reverse=True)
-            
+
+            rows = []
             for snapshot in group_snapshots:
                 server_id = snapshot.get("created_from", {}).get("id", "N/A")
                 desc = snapshot.get("description", "N/A")
                 if desc == "N/A" and server_name != "Unknown":
                     desc = f"{server_name} snapshot"
-                
-                # Formatiere Größe
-                size_gb = snapshot.get("image_size", 0)
-                formatted_size = format_size(size_gb)
-                
-                print(f"{snapshot['id']:<10} {desc:<50} {snapshot['created'][:19]:<20} {formatted_size:<12} {server_id:<15}")
-            
-            # Füge eine Leerzeile zwischen den Gruppen ein
-            print()
+                rows.append([snapshot["id"], desc, snapshot["created"][:19], format_size(snapshot.get("image_size", 0)), server_id])
+
+            self.console.print_table(headers, rows, server_name)
     
     def create_snapshot(self, args: List[str]):
         """Create a snapshot for a VM"""

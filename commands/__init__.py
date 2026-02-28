@@ -11,3 +11,10 @@ from commands.pricing import PricingCommands
 from commands.keys import KeysCommands
 from commands.batch import BatchCommands
 from commands.volume import VolumeCommands
+from commands.firewall import FirewallCommands
+from commands.loadbalancer import LoadBalancerCommands
+from commands.image import ImageCommands
+from commands.config import ConfigCommands
+from commands.location import ServerTypeCommands
+from commands.floating_ip import FloatingIPCommands
+from commands.primary_ip import PrimaryIPCommands

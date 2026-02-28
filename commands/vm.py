@@ -17,7 +17,7 @@ class VMCommands:
     def handle_command(self, args: List[str]):
         """Handle VM-related commands"""
         if not args:
-            print("Missing VM subcommand. Use 'vm list|info|create|start|stop|delete|resize|rename|rescue|reset-password|image'")
+            print("Missing VM subcommand. Use 'vm list|info|create|start|stop|reboot|delete|resize|rename|rescue|reset-password|image'")
             return
             
         subcommand = args[0].lower()
@@ -32,6 +32,8 @@ class VMCommands:
             self.start_vm(args[1:])
         elif subcommand == "stop":
             self.stop_vm(args[1:])
+        elif subcommand == "reboot":
+            self.reboot_vm(args[1:])
         elif subcommand == "delete":
             self.delete_vm(args[1:])
         elif subcommand == "resize":
@@ -507,7 +509,35 @@ class VMCommands:
             print(f"VM {vm_id} stopped successfully")
         else:
             print(f"Failed to stop VM {vm_id}")
-    
+
+    def reboot_vm(self, args: List[str]):
+        """Reboot a VM by ID"""
+        if not args:
+            print("Missing VM ID. Use 'vm reboot <id>'")
+            return
+
+        try:
+            vm_id = int(args[0])
+        except ValueError:
+            print("Invalid VM ID. Must be an integer.")
+            return
+
+        server = self.hetzner.get_server_by_id(vm_id)
+
+        if not server:
+            print(f"VM with ID {vm_id} not found")
+            return
+
+        if server.get("status") == "off":
+            print(f"VM '{server.get('name')}' is currently off. Use 'vm start {vm_id}' instead.")
+            return
+
+        print(f"Rebooting VM '{server.get('name')}' (ID: {vm_id})...")
+        if self.hetzner.reboot_server(vm_id):
+            print(f"VM {vm_id} rebooted successfully")
+        else:
+            print(f"Failed to reboot VM {vm_id}")
+
     def delete_vm(self, args: List[str]):
         """Delete a VM by ID"""
         if not args:

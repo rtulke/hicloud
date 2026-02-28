@@ -34,8 +34,14 @@ from commands.keys import KeysCommands
 from commands.batch import BatchCommands
 from commands.volume import VolumeCommands
 from commands.iso import ISOCommands
-from commands.location import LocationCommands, DatacenterCommands
+from commands.location import LocationCommands, DatacenterCommands, ServerTypeCommands
 from commands.network import NetworkCommands
+from commands.firewall import FirewallCommands
+from commands.loadbalancer import LoadBalancerCommands
+from commands.image import ImageCommands
+from commands.config import ConfigCommands
+from commands.floating_ip import FloatingIPCommands
+from commands.primary_ip import PrimaryIPCommands
 
 
 class _LeadingNewlineWriter:
@@ -127,6 +133,13 @@ class InteractiveConsole:
         self.location_commands = LocationCommands(self)
         self.datacenter_commands = DatacenterCommands(self)
         self.network_commands = NetworkCommands(self)
+        self.firewall_commands = FirewallCommands(self)
+        self.load_balancer_commands = LoadBalancerCommands(self)
+        self.image_commands = ImageCommands(self)
+        self.config_commands = ConfigCommands(self)
+        self.server_type_commands = ServerTypeCommands(self)
+        self.floating_ip_commands = FloatingIPCommands(self)
+        self.primary_ip_commands = PrimaryIPCommands(self)
         
         # Konfiguriere readline für History-Unterstützung
         self._setup_readline()
@@ -262,6 +275,10 @@ class InteractiveConsole:
                     },
                     "stop": {
                         "help": "Stop a VM: vm stop <id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
+                    },
+                    "reboot": {
+                        "help": "Reboot a VM: vm reboot <id>",
                         "arguments": [{"name": "server_id", "provider": "server_ids"}],
                     },
                     "delete": {
@@ -510,6 +527,127 @@ class InteractiveConsole:
                     }
                 }
             },
+            "firewall": {
+                "help": "Firewall commands: list, info <id>, create, update <id>, delete <id>, rules list|add|remove|set <id>, apply/remove <id> [server|label] <target>",
+                "subcommands": {
+                    "list": {"help": "List all firewalls"},
+                    "info": {
+                        "help": "Show detailed firewall information: firewall info <id>",
+                        "arguments": [{"name": "firewall_id", "provider": "firewall_ids"}],
+                    },
+                    "create": {"help": "Create a new firewall (interactive)"},
+                    "update": {
+                        "help": "Update firewall metadata: firewall update <id>",
+                        "arguments": [{"name": "firewall_id", "provider": "firewall_ids"}],
+                    },
+                    "delete": {
+                        "help": "Delete a firewall: firewall delete <id>",
+                        "arguments": [{"name": "firewall_id", "provider": "firewall_ids"}],
+                    },
+                    "rules": {
+                        "help": "Manage rules: firewall rules list|add|remove|set <id> [index[,index...]]",
+                        "arguments": [
+                            {
+                                "name": "action",
+                                "literals": ["list", "add", "remove", "set"],
+                            },
+                            {"name": "firewall_id", "provider": "firewall_ids"},
+                        ],
+                    },
+                    "apply": {
+                        "help": "Apply firewall to targets: firewall apply <firewall_id> [server|label] <target>",
+                        "arguments": [
+                            {"name": "firewall_id", "provider": "firewall_ids"},
+                            {"name": "target_type", "literals": ["server", "label"]},
+                            {"name": "target", "provider": "server_ids"},
+                        ],
+                    },
+                    "remove": {
+                        "help": "Remove firewall from targets: firewall remove <firewall_id> [server|label] <target>",
+                        "arguments": [
+                            {"name": "firewall_id", "provider": "firewall_ids"},
+                            {"name": "target_type", "literals": ["server", "label"]},
+                            {"name": "target", "provider": "server_ids"},
+                        ],
+                    },
+                },
+            },
+            "lb": {
+                "help": "Load balancer commands: list, info <id>, create, delete <id>, targets, service, algorithm",
+                "subcommands": {
+                    "list": {"help": "List all load balancers"},
+                    "info": {
+                        "help": "Show detailed load balancer information: lb info <id>",
+                        "arguments": [{"name": "load_balancer_id", "provider": "load_balancer_ids"}],
+                    },
+                    "create": {"help": "Create a new load balancer (interactive)"},
+                    "delete": {
+                        "help": "Delete a load balancer: lb delete <id>",
+                        "arguments": [{"name": "load_balancer_id", "provider": "load_balancer_ids"}],
+                    },
+                    "targets": {
+                        "help": "Manage targets: lb targets <id> list|add|remove [server|label] <target>",
+                        "arguments": [
+                            {"name": "load_balancer_id", "provider": "load_balancer_ids"},
+                            {"name": "action", "literals": ["list", "add", "remove"]},
+                            {"name": "target_type", "literals": ["server", "label"], "optional": True},
+                            {"name": "target", "provider": "server_ids", "optional": True},
+                        ],
+                    },
+                    "service": {
+                        "help": "Manage services: lb service <id> list|add|update|delete [port]",
+                        "arguments": [
+                            {"name": "load_balancer_id", "provider": "load_balancer_ids"},
+                            {"name": "action", "literals": ["list", "add", "update", "delete"]},
+                        ],
+                    },
+                    "algorithm": {
+                        "help": "Change algorithm: lb algorithm <id> <round_robin|least_connections>",
+                        "arguments": [
+                            {"name": "load_balancer_id", "provider": "load_balancer_ids"},
+                            {"name": "algorithm", "literals": ["round_robin", "least_connections"]},
+                        ],
+                    },
+                },
+            },
+            "loadbalancer": {
+                "help": "Alias for 'lb' load balancer commands",
+                "subcommands": {
+                    "list": {"help": "List all load balancers"},
+                    "info": {
+                        "help": "Show detailed load balancer information: loadbalancer info <id>",
+                        "arguments": [{"name": "load_balancer_id", "provider": "load_balancer_ids"}],
+                    },
+                    "create": {"help": "Create a new load balancer (interactive)"},
+                    "delete": {
+                        "help": "Delete a load balancer: loadbalancer delete <id>",
+                        "arguments": [{"name": "load_balancer_id", "provider": "load_balancer_ids"}],
+                    },
+                    "targets": {
+                        "help": "Manage targets: loadbalancer targets <id> list|add|remove [server|label] <target>",
+                        "arguments": [
+                            {"name": "load_balancer_id", "provider": "load_balancer_ids"},
+                            {"name": "action", "literals": ["list", "add", "remove"]},
+                            {"name": "target_type", "literals": ["server", "label"], "optional": True},
+                            {"name": "target", "provider": "server_ids", "optional": True},
+                        ],
+                    },
+                    "service": {
+                        "help": "Manage services: loadbalancer service <id> list|add|update|delete [port]",
+                        "arguments": [
+                            {"name": "load_balancer_id", "provider": "load_balancer_ids"},
+                            {"name": "action", "literals": ["list", "add", "update", "delete"]},
+                        ],
+                    },
+                    "algorithm": {
+                        "help": "Change algorithm: loadbalancer algorithm <id> <round_robin|least_connections>",
+                        "arguments": [
+                            {"name": "load_balancer_id", "provider": "load_balancer_ids"},
+                            {"name": "algorithm", "literals": ["round_robin", "least_connections"]},
+                        ],
+                    },
+                },
+            },
             "iso": {
                 "help": "ISO commands: list, info <id>, attach <iso_id> <server_id>, detach <server_id>",
                 "subcommands": {
@@ -557,6 +695,134 @@ class InteractiveConsole:
                     },
                 }
             },
+            "image": {
+                "help": "Image commands: list [snapshot|backup|all], info <id>, delete <id>, update <id>, import [url]",
+                "subcommands": {
+                    "list": {
+                        "help": "List images: image list [snapshot|backup|system|app|all]",
+                        "arguments": [
+                            {"name": "type", "literals": ["snapshot", "backup", "system", "app", "all"], "optional": True}
+                        ],
+                    },
+                    "info": {
+                        "help": "Show image details: image info <id>",
+                        "arguments": [{"name": "image_id", "provider": "image_ids"}],
+                    },
+                    "delete": {
+                        "help": "Delete a custom image: image delete <id>",
+                        "arguments": [{"name": "image_id", "provider": "image_ids"}],
+                    },
+                    "update": {
+                        "help": "Update image metadata: image update <id>",
+                        "arguments": [{"name": "image_id", "provider": "image_ids"}],
+                    },
+                    "import": {"help": "Import custom image from URL: image import [url]"},
+                },
+            },
+            "config": {
+                "help": "Config commands: validate [path], info",
+                "subcommands": {
+                    "validate": {"help": "Validate config file: config validate [path]"},
+                    "info": {"help": "Show active config info: config info"},
+                },
+            },
+            "floating-ip": {
+                "help": "Floating IP commands: list, info <id>, create, update <id>, delete <id>, assign <id> <srv>, unassign <id>, dns <id> <ip> [ptr], protect <id> <enable|disable>",
+                "subcommands": {
+                    "list": {"help": "List all floating IPs"},
+                    "info": {
+                        "help": "Show floating IP details: floating-ip info <id>",
+                        "arguments": [{"name": "floating_ip_id", "provider": "floating_ip_ids"}],
+                    },
+                    "create": {"help": "Create a new floating IP (interactive)"},
+                    "update": {
+                        "help": "Update floating IP metadata: floating-ip update <id>",
+                        "arguments": [{"name": "floating_ip_id", "provider": "floating_ip_ids"}],
+                    },
+                    "delete": {
+                        "help": "Delete a floating IP: floating-ip delete <id>",
+                        "arguments": [{"name": "floating_ip_id", "provider": "floating_ip_ids"}],
+                    },
+                    "assign": {
+                        "help": "Assign floating IP to server: floating-ip assign <id> <server_id>",
+                        "arguments": [
+                            {"name": "floating_ip_id", "provider": "floating_ip_ids"},
+                            {"name": "server_id", "provider": "server_ids"},
+                        ],
+                    },
+                    "unassign": {
+                        "help": "Unassign floating IP: floating-ip unassign <id>",
+                        "arguments": [{"name": "floating_ip_id", "provider": "floating_ip_ids"}],
+                    },
+                    "dns": {
+                        "help": "Set reverse DNS: floating-ip dns <id> <ip> [<ptr>|reset]",
+                        "arguments": [{"name": "floating_ip_id", "provider": "floating_ip_ids"}],
+                    },
+                    "protect": {
+                        "help": "Toggle delete protection: floating-ip protect <id> <enable|disable>",
+                        "arguments": [
+                            {"name": "floating_ip_id", "provider": "floating_ip_ids"},
+                            {"name": "action", "literals": ["enable", "disable"]},
+                        ],
+                    },
+                },
+            },
+            "primary-ip": {
+                "help": "Primary IP commands: list, info <id>, create, update <id>, delete <id>, assign <id> <srv>, unassign <id>, dns <id> <ip> [ptr], protect <id> <enable|disable>",
+                "subcommands": {
+                    "list": {"help": "List all primary IPs"},
+                    "info": {
+                        "help": "Show primary IP details: primary-ip info <id>",
+                        "arguments": [{"name": "primary_ip_id", "provider": "primary_ip_ids"}],
+                    },
+                    "create": {"help": "Create a new primary IP (interactive)"},
+                    "update": {
+                        "help": "Update primary IP metadata: primary-ip update <id>",
+                        "arguments": [{"name": "primary_ip_id", "provider": "primary_ip_ids"}],
+                    },
+                    "delete": {
+                        "help": "Delete a primary IP: primary-ip delete <id>",
+                        "arguments": [{"name": "primary_ip_id", "provider": "primary_ip_ids"}],
+                    },
+                    "assign": {
+                        "help": "Assign primary IP to server: primary-ip assign <id> <server_id>",
+                        "arguments": [
+                            {"name": "primary_ip_id", "provider": "primary_ip_ids"},
+                            {"name": "server_id", "provider": "server_ids"},
+                        ],
+                    },
+                    "unassign": {
+                        "help": "Unassign primary IP: primary-ip unassign <id>",
+                        "arguments": [{"name": "primary_ip_id", "provider": "primary_ip_ids"}],
+                    },
+                    "dns": {
+                        "help": "Set reverse DNS: primary-ip dns <id> <ip> [<ptr>|reset]",
+                        "arguments": [{"name": "primary_ip_id", "provider": "primary_ip_ids"}],
+                    },
+                    "protect": {
+                        "help": "Toggle delete protection: primary-ip protect <id> <enable|disable>",
+                        "arguments": [
+                            {"name": "primary_ip_id", "provider": "primary_ip_ids"},
+                            {"name": "action", "literals": ["enable", "disable"]},
+                        ],
+                    },
+                },
+            },
+            "server-type": {
+                "help": "Server type commands: list [location], info <name|id>",
+                "subcommands": {
+                    "list": {
+                        "help": "List server types: server-type list [location]",
+                        "arguments": [
+                            {"name": "location", "provider": "location_ids", "optional": True}
+                        ],
+                    },
+                    "info": {
+                        "help": "Show server type details: server-type info <name|id>",
+                        "arguments": [{"name": "name_or_id"}],
+                    },
+                },
+            },
             "history": {
                 "help": "Command history: history, history clear",
                 "subcommands": {
@@ -578,11 +844,16 @@ class InteractiveConsole:
         
         self.argument_providers = {
             "commands": self._get_command_names,
+            "image_ids": self._get_image_ids,
+            "floating_ip_ids": self._get_floating_ip_ids,
+            "primary_ip_ids": self._get_primary_ip_ids,
             "server_ids": self._get_server_ids,
             "snapshot_ids": self._get_snapshot_ids,
             "backup_ids": self._get_backup_ids,
             "volume_ids": self._get_volume_ids,
             "network_ids": self._get_network_ids,
+            "firewall_ids": self._get_firewall_ids,
+            "load_balancer_ids": self._get_load_balancer_ids,
             "iso_ids": self._get_iso_ids,
             "ssh_key_ids": self._get_ssh_key_ids,
             "location_ids": self._get_location_ids,
@@ -629,6 +900,24 @@ class InteractiveConsole:
             lambda: [str(server.get("id")) for server in self.hetzner.list_servers()],
         )
     
+    def _get_image_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "image_ids",
+            lambda: [str(img.get("id")) for img in self.hetzner.list_images("snapshot")],
+        )
+
+    def _get_floating_ip_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "floating_ip_ids",
+            lambda: [str(fip.get("id")) for fip in self.hetzner.list_floating_ips()],
+        )
+
+    def _get_primary_ip_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "primary_ip_ids",
+            lambda: [str(pip.get("id")) for pip in self.hetzner.list_primary_ips()],
+        )
+
     def _get_snapshot_ids(self) -> List[str]:
         return self._get_cached_values(
             "snapshot_ids",
@@ -657,6 +946,18 @@ class InteractiveConsole:
         return self._get_cached_values(
             "iso_ids",
             lambda: [str(iso.get("id")) for iso in self.hetzner.list_isos()],
+        )
+
+    def _get_firewall_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "firewall_ids",
+            lambda: [str(firewall.get("id")) for firewall in self.hetzner.list_firewalls()],
+        )
+
+    def _get_load_balancer_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "load_balancer_ids",
+            lambda: [str(lb.get("id")) for lb in self.hetzner.list_load_balancers()],
         )
     
     def _get_ssh_key_ids(self) -> List[str]:
@@ -1052,6 +1353,20 @@ class InteractiveConsole:
                         self.volume_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                     elif main_cmd == "network":
                         self.network_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "firewall":
+                        self.firewall_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd in ["lb", "loadbalancer"]:
+                        self.load_balancer_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "image":
+                        self.image_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "config":
+                        self.config_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "server-type":
+                        self.server_type_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "floating-ip":
+                        self.floating_ip_commands.handle_command(parts[1:] if len(parts) > 1 else [])
+                    elif main_cmd == "primary-ip":
+                        self.primary_ip_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                     elif main_cmd == "iso":
                         self.iso_commands.handle_command(parts[1:] if len(parts) > 1 else [])
                     elif main_cmd == "location":
@@ -1155,6 +1470,74 @@ Available commands:
     network subnet add <id>           - Add a subnet to network
     network subnet delete <id> <ip>   - Remove a subnet from network
     network protect <id> <e|d>        - Enable/disable network protection
+
+  Firewall Commands:
+    firewall list                     - List all firewalls
+    firewall info <id>                - Show detailed information about a firewall
+    firewall create                   - Create a new firewall (interactive)
+    firewall update <id>              - Update firewall metadata
+    firewall delete <id>              - Delete a firewall by ID
+    firewall rules list <id>          - Show current rules for a firewall
+    firewall rules add <id>           - Append new rules to a firewall
+    firewall rules remove <id> <idx>  - Remove rules by 1-based index (comma-separated)
+    firewall rules set <id>           - Replace all rules for a firewall
+    firewall apply <fid> <sid[,..]>   - Apply firewall to one or more servers
+    firewall apply <fid> label <sel>  - Apply firewall to a label selector target
+    firewall remove <fid> <sid[,..]>  - Remove firewall from one or more servers
+    firewall remove <fid> label <sel> - Remove firewall from a label selector target
+
+  Load Balancer Commands:
+    lb list                           - List all load balancers
+    lb info <id>                      - Show detailed information about a load balancer
+    lb create                         - Create a new load balancer (interactive)
+    lb delete <id>                    - Delete a load balancer by ID
+    lb targets <id> list              - Show current targets for a load balancer
+    lb targets <id> add server <sid>  - Add server target (append 'private' for use_private_ip)
+    lb targets <id> add label <sel>   - Add label-selector target
+    lb targets <id> remove server <s> - Remove server target
+    lb targets <id> remove label <s>  - Remove label-selector target
+    lb service <id> list              - List services for a load balancer
+    lb service <id> add               - Add a service (interactive wizard)
+    lb service <id> update <port>     - Update a service (interactive wizard)
+    lb service <id> delete <port>     - Delete service by listen port
+    lb algorithm <id> <algo>          - Change algorithm (round_robin|least_connections)
+
+  Floating IP Commands:
+    floating-ip list                  - List all floating IPs
+    floating-ip info <id>             - Show floating IP details
+    floating-ip create                - Create a new floating IP (interactive)
+    floating-ip update <id>           - Update name/description/labels
+    floating-ip delete <id>           - Delete a floating IP (guards: assigned, protected)
+    floating-ip assign <id> <srv>     - Assign to a server
+    floating-ip unassign <id>         - Unassign from current server
+    floating-ip dns <id> <ip> [ptr]   - Set/reset reverse DNS
+    floating-ip protect <id> <e|d>    - Enable/disable delete protection
+
+  Primary IP Commands:
+    primary-ip list                   - List all primary IPs
+    primary-ip info <id>              - Show primary IP details
+    primary-ip create                 - Create a new primary IP (interactive)
+    primary-ip update <id>            - Update name/auto_delete/labels
+    primary-ip delete <id>            - Delete a primary IP (guards: assigned, protected)
+    primary-ip assign <id> <srv>      - Assign to a server
+    primary-ip unassign <id>          - Unassign from current server
+    primary-ip dns <id> <ip> [ptr]    - Set/reset reverse DNS
+    primary-ip protect <id> <e|d>     - Enable/disable delete protection
+
+  Image Commands:
+    image list [snapshot|backup|all]  - List custom images (default: snapshot)
+    image info <id>                   - Show image details
+    image delete <id>                 - Delete a custom image
+    image update <id>                 - Update image description/labels
+    image import [url]                - Import custom image from URL (wizard)
+
+  Config Commands:
+    config validate [path]            - Validate config file
+    config info                       - Show active config info
+
+  Server Type Commands:
+    server-type list [location]       - List all server types (grouped by architecture)
+    server-type info <name|id>        - Show detailed server type information
 
   ISO Commands:
     iso list                          - List all available ISOs

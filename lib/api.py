@@ -1386,6 +1386,684 @@ class HetznerCloudManager:
 
         return response.get("network", {})
 
+    # Load Balancer Management Functions
+    def list_load_balancer_types(self) -> List[Dict]:
+        """List all available load balancer types."""
+        status_code, response = self._make_request("GET", "load_balancer_types")
+
+        if status_code != 200:
+            print(f"Error listing load balancer types: {response.get('error', 'Unknown error')}")
+            return []
+
+        return response.get("load_balancer_types", [])
+
+    def list_load_balancers(self) -> List[Dict]:
+        """List all load balancers in the project."""
+        status_code, response = self._make_request("GET", "load_balancers")
+
+        if status_code != 200:
+            print(f"Error listing load balancers: {response.get('error', 'Unknown error')}")
+            return []
+
+        return response.get("load_balancers", [])
+
+    def get_load_balancer_by_id(self, load_balancer_id: int) -> Dict:
+        """Get load balancer details by ID."""
+        status_code, response = self._make_request("GET", f"load_balancers/{load_balancer_id}")
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Load balancer with ID {load_balancer_id} not found")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error getting load balancer: {error_message}")
+            return {}
+
+        return response.get("load_balancer", {})
+
+    def create_load_balancer(
+        self,
+        name: str,
+        load_balancer_type: str,
+        location: Optional[str] = None,
+        network_zone: Optional[str] = None,
+        labels: Optional[Dict[str, str]] = None,
+        public_interface: bool = True
+    ) -> Dict:
+        """Create a new load balancer."""
+        data: Dict[str, Any] = {
+            "name": name,
+            "load_balancer_type": load_balancer_type,
+            "public_interface": public_interface,
+        }
+
+        if location:
+            data["location"] = location
+        elif network_zone:
+            data["network_zone"] = network_zone
+
+        if labels:
+            data["labels"] = labels
+
+        status_code, response = self._make_request("POST", "load_balancers", data)
+
+        if status_code not in [200, 201, 202]:
+            if not self.debug:
+                print(f"Failed to create load balancer '{name}'")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error creating load balancer: {error_message}")
+            return {}
+
+        if not self._wait_for_actions(response, "Waiting for load balancer creation to complete..."):
+            return {}
+
+        return response.get("load_balancer", {})
+
+    def delete_load_balancer(self, load_balancer_id: int) -> bool:
+        """Delete a load balancer by ID."""
+        status_code, response = self._make_request("DELETE", f"load_balancers/{load_balancer_id}")
+
+        if status_code not in [200, 204]:
+            if not self.debug:
+                print(f"Failed to delete load balancer {load_balancer_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error deleting load balancer: {error_message}")
+            return False
+
+        return True
+
+    def add_load_balancer_target(self, load_balancer_id: int, target: Dict) -> bool:
+        """Add a target to a load balancer."""
+        status_code, response = self._make_request(
+            "POST",
+            f"load_balancers/{load_balancer_id}/actions/add_target",
+            target
+        )
+
+        if status_code not in [200, 201, 202]:
+            if not self.debug:
+                print(f"Failed to add target to load balancer {load_balancer_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error adding load balancer target: {error_message}")
+            return False
+
+        return self._wait_for_actions(response, "Waiting for target attachment to complete...")
+
+    def remove_load_balancer_target(self, load_balancer_id: int, target: Dict) -> bool:
+        """Remove a target from a load balancer."""
+        status_code, response = self._make_request(
+            "POST",
+            f"load_balancers/{load_balancer_id}/actions/remove_target",
+            target
+        )
+
+        if status_code not in [200, 201, 202]:
+            if not self.debug:
+                print(f"Failed to remove target from load balancer {load_balancer_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error removing load balancer target: {error_message}")
+            return False
+
+        return self._wait_for_actions(response, "Waiting for target removal to complete...")
+
+    # Firewall Management Functions
+    def _wait_for_actions(self, response: Dict, message: str) -> bool:
+        """Wait for one or more actions contained in an API response."""
+        action_ids: List[int] = []
+
+        action = response.get("action", {})
+        if isinstance(action, dict) and action.get("id"):
+            action_ids.append(action["id"])
+
+        for item in response.get("actions", []) or []:
+            if isinstance(item, dict) and item.get("id"):
+                action_ids.append(item["id"])
+
+        if not action_ids:
+            return True
+
+        for index, action_id in enumerate(action_ids, start=1):
+            wait_message = message
+            if len(action_ids) > 1:
+                wait_message = f"{message} ({index}/{len(action_ids)})"
+            if not self._wait_for_action(action_id, message=wait_message):
+                return False
+
+        return True
+
+    def list_firewalls(self) -> List[Dict]:
+        """List all firewalls in the project."""
+        status_code, response = self._make_request("GET", "firewalls")
+
+        if status_code != 200:
+            print(f"Error listing firewalls: {response.get('error', 'Unknown error')}")
+            return []
+
+        return response.get("firewalls", [])
+
+    def get_firewall_by_id(self, firewall_id: int) -> Dict:
+        """Get firewall details by ID."""
+        status_code, response = self._make_request("GET", f"firewalls/{firewall_id}")
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Firewall with ID {firewall_id} not found")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error getting firewall: {error_message}")
+            return {}
+
+        return response.get("firewall", {})
+
+    def create_firewall(
+        self,
+        name: str,
+        rules: Optional[List[Dict]] = None,
+        apply_to: Optional[List[Dict]] = None,
+        labels: Optional[Dict[str, str]] = None
+    ) -> Dict:
+        """Create a new firewall."""
+        data: Dict[str, Any] = {"name": name}
+
+        if rules is not None:
+            data["rules"] = rules
+        if apply_to:
+            data["apply_to"] = apply_to
+        if labels:
+            data["labels"] = labels
+
+        status_code, response = self._make_request("POST", "firewalls", data)
+
+        if status_code != 201:
+            if not self.debug:
+                print(f"Failed to create firewall '{name}'")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error creating firewall: {error_message}")
+            return {}
+
+        return response.get("firewall", {})
+
+    def update_firewall(self, firewall_id: int, name: Optional[str] = None, labels: Optional[Dict[str, str]] = None) -> Dict:
+        """Update firewall metadata (name and/or labels)."""
+        data: Dict[str, Any] = {}
+
+        if name is not None:
+            data["name"] = name
+        if labels is not None:
+            data["labels"] = labels
+
+        if not data:
+            print("No updates provided")
+            return {}
+
+        status_code, response = self._make_request("PUT", f"firewalls/{firewall_id}", data)
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Failed to update firewall {firewall_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error updating firewall: {error_message}")
+            return {}
+
+        return response.get("firewall", {})
+
+    def delete_firewall(self, firewall_id: int) -> bool:
+        """Delete a firewall by ID."""
+        status_code, response = self._make_request("DELETE", f"firewalls/{firewall_id}")
+
+        if status_code not in [200, 204]:
+            if not self.debug:
+                print(f"Failed to delete firewall {firewall_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error deleting firewall: {error_message}")
+            return False
+
+        return True
+
+    def set_firewall_rules(self, firewall_id: int, rules: List[Dict]) -> bool:
+        """Replace firewall rules."""
+        data = {"rules": rules}
+        status_code, response = self._make_request("POST", f"firewalls/{firewall_id}/actions/set_rules", data)
+
+        if status_code not in [200, 201, 202]:
+            if not self.debug:
+                print(f"Failed to update rules for firewall {firewall_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error setting firewall rules: {error_message}")
+            return False
+
+        return self._wait_for_actions(response, "Waiting for firewall rule update to complete...")
+
+    def apply_firewall_to_resources(self, firewall_id: int, resources: List[Dict]) -> bool:
+        """Apply firewall to resources."""
+        data = {"apply_to": resources}
+        status_code, response = self._make_request(
+            "POST",
+            f"firewalls/{firewall_id}/actions/apply_to_resources",
+            data
+        )
+
+        if status_code not in [200, 201, 202]:
+            if not self.debug:
+                print(f"Failed to apply firewall {firewall_id} to resources")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error applying firewall to resources: {error_message}")
+            return False
+
+        return self._wait_for_actions(response, "Waiting for firewall apply operation to complete...")
+
+    def remove_firewall_from_resources(self, firewall_id: int, resources: List[Dict]) -> bool:
+        """Remove firewall from resources."""
+        data = {"remove_from": resources}
+        status_code, response = self._make_request(
+            "POST",
+            f"firewalls/{firewall_id}/actions/remove_from_resources",
+            data
+        )
+
+        if status_code not in [200, 201, 202]:
+            if not self.debug:
+                print(f"Failed to remove firewall {firewall_id} from resources")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error removing firewall from resources: {error_message}")
+            return False
+
+        return self._wait_for_actions(response, "Waiting for firewall removal to complete...")
+
+    # Floating IP Management Functions
+    def list_floating_ips(self) -> List[Dict]:
+        """List all Floating IPs"""
+        status_code, response = self._make_request("GET", "floating_ips")
+        if status_code != 200:
+            print(f"Error listing floating IPs: {response.get('error', 'Unknown error')}")
+            return []
+        return response.get("floating_ips", [])
+
+    def get_floating_ip_by_id(self, fip_id: int) -> Dict:
+        """Get a Floating IP by ID"""
+        status_code, response = self._make_request("GET", f"floating_ips/{fip_id}")
+        if status_code != 200:
+            if not self.debug:
+                print(f"Floating IP with ID {fip_id} not found")
+            else:
+                print(f"Error getting floating IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return {}
+        return response.get("floating_ip", {})
+
+    def create_floating_ip(self, ip_type: str, name: str, home_location: str = None,
+                           server: int = None, description: str = None, labels: Dict = None) -> Dict:
+        """Create a new Floating IP"""
+        data: Dict = {"type": ip_type, "name": name}
+        if home_location:
+            data["home_location"] = home_location
+        if server:
+            data["server"] = server
+        if description:
+            data["description"] = description
+        if labels:
+            data["labels"] = labels
+        status_code, response = self._make_request("POST", "floating_ips", data)
+        if status_code not in (200, 201):
+            if not self.debug:
+                print(f"Failed to create floating IP '{name}'")
+            else:
+                print(f"Error creating floating IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return {}
+        return response.get("floating_ip", {})
+
+    def update_floating_ip(self, fip_id: int, name: str = None,
+                           description: str = None, labels: Dict = None) -> Dict:
+        """Update Floating IP metadata"""
+        data: Dict = {}
+        if name is not None:
+            data["name"] = name
+        if description is not None:
+            data["description"] = description
+        if labels is not None:
+            data["labels"] = labels
+        status_code, response = self._make_request("PUT", f"floating_ips/{fip_id}", data)
+        if status_code != 200:
+            if not self.debug:
+                print(f"Failed to update floating IP {fip_id}")
+            else:
+                print(f"Error updating floating IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return {}
+        return response.get("floating_ip", {})
+
+    def delete_floating_ip(self, fip_id: int) -> bool:
+        """Delete a Floating IP (must be unassigned)"""
+        status_code, response = self._make_request("DELETE", f"floating_ips/{fip_id}")
+        if status_code not in (200, 204):
+            if not self.debug:
+                print(f"Failed to delete floating IP {fip_id}")
+            else:
+                print(f"Error deleting floating IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+        return True
+
+    def assign_floating_ip(self, fip_id: int, server_id: int) -> bool:
+        """Assign a Floating IP to a server"""
+        status_code, response = self._make_request(
+            "POST", f"floating_ips/{fip_id}/actions/assign", {"server": server_id}
+        )
+        if status_code not in (200, 201, 202):
+            if not self.debug:
+                print(f"Failed to assign floating IP {fip_id} to server {server_id}")
+            else:
+                print(f"Error assigning floating IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+        return self._wait_for_actions(response, "Waiting for floating IP assignment...")
+
+    def unassign_floating_ip(self, fip_id: int) -> bool:
+        """Unassign a Floating IP from its current server"""
+        status_code, response = self._make_request(
+            "POST", f"floating_ips/{fip_id}/actions/unassign", {}
+        )
+        if status_code not in (200, 201, 202):
+            if not self.debug:
+                print(f"Failed to unassign floating IP {fip_id}")
+            else:
+                print(f"Error unassigning floating IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+        return self._wait_for_actions(response, "Waiting for floating IP unassignment...")
+
+    def change_floating_ip_dns_ptr(self, fip_id: int, ip: str, dns_ptr: str = None) -> bool:
+        """Set or reset reverse DNS for a Floating IP"""
+        status_code, response = self._make_request(
+            "POST", f"floating_ips/{fip_id}/actions/change_dns_ptr", {"ip": ip, "dns_ptr": dns_ptr}
+        )
+        if status_code not in (200, 201, 202):
+            if not self.debug:
+                print(f"Failed to update rDNS for floating IP {fip_id}")
+            else:
+                print(f"Error updating rDNS: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+        return self._wait_for_actions(response, "Waiting for rDNS update...")
+
+    def change_floating_ip_protection(self, fip_id: int, delete: bool) -> bool:
+        """Enable or disable delete protection for a Floating IP"""
+        status_code, response = self._make_request(
+            "POST", f"floating_ips/{fip_id}/actions/change_protection", {"delete": delete}
+        )
+        if status_code not in (200, 201, 202):
+            if not self.debug:
+                print(f"Failed to change protection for floating IP {fip_id}")
+            else:
+                print(f"Error changing protection: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+        return self._wait_for_actions(response, "Waiting for protection change...")
+
+    # Primary IP Management Functions
+    def list_primary_ips(self) -> List[Dict]:
+        """List all Primary IPs"""
+        status_code, response = self._make_request("GET", "primary_ips")
+        if status_code != 200:
+            print(f"Error listing primary IPs: {response.get('error', 'Unknown error')}")
+            return []
+        return response.get("primary_ips", [])
+
+    def get_primary_ip_by_id(self, pip_id: int) -> Dict:
+        """Get a Primary IP by ID"""
+        status_code, response = self._make_request("GET", f"primary_ips/{pip_id}")
+        if status_code != 200:
+            if not self.debug:
+                print(f"Primary IP with ID {pip_id} not found")
+            else:
+                print(f"Error getting primary IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return {}
+        return response.get("primary_ip", {})
+
+    def create_primary_ip(self, ip_type: str, name: str, assignee_type: str = "server",
+                          datacenter: str = None, assignee_id: int = None,
+                          auto_delete: bool = False, labels: Dict = None) -> Dict:
+        """Create a new Primary IP"""
+        data: Dict = {"type": ip_type, "name": name, "assignee_type": assignee_type,
+                      "auto_delete": auto_delete}
+        if datacenter:
+            data["datacenter"] = datacenter
+        if assignee_id:
+            data["assignee_id"] = assignee_id
+        if labels:
+            data["labels"] = labels
+        status_code, response = self._make_request("POST", "primary_ips", data)
+        if status_code not in (200, 201):
+            if not self.debug:
+                print(f"Failed to create primary IP '{name}'")
+            else:
+                print(f"Error creating primary IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return {}
+        return response.get("primary_ip", {})
+
+    def update_primary_ip(self, pip_id: int, name: str = None,
+                          auto_delete: bool = None, labels: Dict = None) -> Dict:
+        """Update Primary IP metadata"""
+        data: Dict = {}
+        if name is not None:
+            data["name"] = name
+        if auto_delete is not None:
+            data["auto_delete"] = auto_delete
+        if labels is not None:
+            data["labels"] = labels
+        status_code, response = self._make_request("PUT", f"primary_ips/{pip_id}", data)
+        if status_code != 200:
+            if not self.debug:
+                print(f"Failed to update primary IP {pip_id}")
+            else:
+                print(f"Error updating primary IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return {}
+        return response.get("primary_ip", {})
+
+    def delete_primary_ip(self, pip_id: int) -> bool:
+        """Delete a Primary IP (must be unassigned first)"""
+        status_code, response = self._make_request("DELETE", f"primary_ips/{pip_id}")
+        if status_code not in (200, 204):
+            if not self.debug:
+                print(f"Failed to delete primary IP {pip_id}")
+            else:
+                print(f"Error deleting primary IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+        return True
+
+    def assign_primary_ip(self, pip_id: int, server_id: int) -> bool:
+        """Assign a Primary IP to a server"""
+        status_code, response = self._make_request(
+            "POST", f"primary_ips/{pip_id}/actions/assign",
+            {"assignee_id": server_id, "assignee_type": "server"}
+        )
+        if status_code not in (200, 201, 202):
+            if not self.debug:
+                print(f"Failed to assign primary IP {pip_id} to server {server_id}")
+            else:
+                print(f"Error assigning primary IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+        return self._wait_for_actions(response, "Waiting for primary IP assignment...")
+
+    def unassign_primary_ip(self, pip_id: int) -> bool:
+        """Unassign a Primary IP from its current server"""
+        status_code, response = self._make_request(
+            "POST", f"primary_ips/{pip_id}/actions/unassign", {}
+        )
+        if status_code not in (200, 201, 202):
+            if not self.debug:
+                print(f"Failed to unassign primary IP {pip_id}")
+            else:
+                print(f"Error unassigning primary IP: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+        return self._wait_for_actions(response, "Waiting for primary IP unassignment...")
+
+    def change_primary_ip_dns_ptr(self, pip_id: int, ip: str, dns_ptr: str = None) -> bool:
+        """Set or reset reverse DNS for a Primary IP"""
+        status_code, response = self._make_request(
+            "POST", f"primary_ips/{pip_id}/actions/change_dns_ptr", {"ip": ip, "dns_ptr": dns_ptr}
+        )
+        if status_code not in (200, 201, 202):
+            if not self.debug:
+                print(f"Failed to update rDNS for primary IP {pip_id}")
+            else:
+                print(f"Error updating rDNS: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+        return self._wait_for_actions(response, "Waiting for rDNS update...")
+
+    def change_primary_ip_protection(self, pip_id: int, delete: bool) -> bool:
+        """Enable or disable delete protection for a Primary IP"""
+        status_code, response = self._make_request(
+            "POST", f"primary_ips/{pip_id}/actions/change_protection", {"delete": delete}
+        )
+        if status_code not in (200, 201, 202):
+            if not self.debug:
+                print(f"Failed to change protection for primary IP {pip_id}")
+            else:
+                print(f"Error changing protection: {response.get('error', {}).get('message', 'Unknown error')}")
+            return False
+        return self._wait_for_actions(response, "Waiting for protection change...")
+
+    # Image Management Functions
+    def list_images(self, image_type: str = None) -> List[Dict]:
+        """List images, optionally filtered by type (snapshot, backup, system, app)"""
+        endpoint = "images"
+        if image_type:
+            endpoint = f"images?type={image_type}"
+        status_code, response = self._make_request("GET", endpoint)
+
+        if status_code != 200:
+            print(f"Error listing images: {response.get('error', 'Unknown error')}")
+            return []
+
+        return response.get("images", [])
+
+    def get_image_by_id(self, image_id: int) -> Dict:
+        """Get image details by ID"""
+        status_code, response = self._make_request("GET", f"images/{image_id}")
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Image with ID {image_id} not found")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error getting image: {error_message}")
+            return {}
+
+        return response.get("image", {})
+
+    def delete_image(self, image_id: int) -> bool:
+        """Delete an image (only custom images can be deleted)"""
+        status_code, response = self._make_request("DELETE", f"images/{image_id}")
+
+        if status_code not in [200, 204]:
+            if not self.debug:
+                print(f"Failed to delete image {image_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error deleting image: {error_message}")
+            return False
+
+        return True
+
+    def update_image(self, image_id: int, description: str = None, labels: Dict = None) -> Dict:
+        """Update image metadata (description and/or labels)"""
+        data: Dict = {}
+        if description is not None:
+            data["description"] = description
+        if labels is not None:
+            data["labels"] = labels
+
+        status_code, response = self._make_request("PUT", f"images/{image_id}", data)
+
+        if status_code != 200:
+            if not self.debug:
+                print(f"Failed to update image {image_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error updating image: {error_message}")
+            return {}
+
+        return response.get("image", {})
+
+    # Load Balancer Service & Algorithm Functions
+    def add_lb_service(self, lb_id: int, service: Dict) -> bool:
+        """Add a service to a load balancer"""
+        status_code, response = self._make_request(
+            "POST",
+            f"load_balancers/{lb_id}/actions/add_service",
+            service,
+        )
+
+        if status_code not in [200, 201, 202]:
+            if not self.debug:
+                print(f"Failed to add service to load balancer {lb_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error adding lb service: {error_message}")
+            return False
+
+        return self._wait_for_actions(response, "Waiting for service add to complete...")
+
+    def delete_lb_service(self, lb_id: int, listen_port: int) -> bool:
+        """Delete a service from a load balancer by listen port"""
+        data = {"listen_port": listen_port}
+        status_code, response = self._make_request(
+            "POST",
+            f"load_balancers/{lb_id}/actions/delete_service",
+            data,
+        )
+
+        if status_code not in [200, 201, 202]:
+            if not self.debug:
+                print(f"Failed to delete service (port {listen_port}) from load balancer {lb_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error deleting lb service: {error_message}")
+            return False
+
+        return self._wait_for_actions(response, "Waiting for service deletion to complete...")
+
+    def update_lb_service(self, lb_id: int, service: Dict) -> bool:
+        """Update a service on a load balancer"""
+        status_code, response = self._make_request(
+            "POST",
+            f"load_balancers/{lb_id}/actions/update_service",
+            service,
+        )
+
+        if status_code not in [200, 201, 202]:
+            if not self.debug:
+                print(f"Failed to update service on load balancer {lb_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error updating lb service: {error_message}")
+            return False
+
+        return self._wait_for_actions(response, "Waiting for service update to complete...")
+
+    def change_lb_algorithm(self, lb_id: int, algorithm: str) -> bool:
+        """Change the algorithm of a load balancer (round_robin or least_connections)"""
+        data = {"type": algorithm}
+        status_code, response = self._make_request(
+            "POST",
+            f"load_balancers/{lb_id}/actions/change_algorithm",
+            data,
+        )
+
+        if status_code not in [200, 201, 202]:
+            if not self.debug:
+                print(f"Failed to change algorithm for load balancer {lb_id}")
+            else:
+                error_message = response.get('error', {}).get('message', 'Unknown error')
+                print(f"Error changing lb algorithm: {error_message}")
+            return False
+
+        return self._wait_for_actions(response, "Waiting for algorithm change to complete...")
+
     # Location & Datacenter Functions
     def list_locations(self) -> List[Dict]:
         """List all available locations"""

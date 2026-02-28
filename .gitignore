@@ -160,6 +160,9 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+AGENTS.md
+CLAUDE.md
+TODO.md
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
@@ -186,5 +189,3 @@ cython_debug/
 *.swo
 *~
 .DS_Store
-AGENTS.md
-TODO.md

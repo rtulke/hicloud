@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# commands/location.py - Location and Datacenter commands for hicloud
+# commands/location.py - Location, Datacenter, and ServerType commands for hicloud
 
-from typing import List
+from typing import List, Optional
 
 class LocationCommands:
     """Location and Datacenter-related commands for Interactive Console"""
@@ -297,3 +297,152 @@ class DatacenterCommands:
             print(f"  Volumes:        {', '.join(info['volume_ids']) if info['volume_ids'] else '-'}")
             print(f"  Floating IPs:   {', '.join(info['floating_ip_ids']) if info['floating_ip_ids'] else '-'}")
             print(f"  Load Balancers: {', '.join(info['load_balancer_ids']) if info['load_balancer_ids'] else '-'}")
+
+
+class ServerTypeCommands:
+    """Server type commands for Interactive Console."""
+
+    def __init__(self, console):
+        """Initialize with reference to the console."""
+        self.console = console
+        self.hetzner = console.hetzner
+
+    def handle_command(self, args: List[str]):
+        """Handle server-type commands."""
+        if not args:
+            print("Missing server-type subcommand. Use 'server-type list|info'")
+            return
+
+        subcommand = args[0].lower()
+
+        if subcommand == "list":
+            self.list_server_types(args[1:])
+        elif subcommand == "info":
+            self.show_server_type_info(args[1:])
+        else:
+            print(f"Unknown server-type subcommand: {subcommand}")
+
+    def list_server_types(self, args: List[str]):
+        """List all available server types, optionally filtered by location."""
+        location_filter: Optional[str] = args[0].lower() if args else None
+
+        server_types = self.hetzner.list_server_types()
+        if not server_types:
+            print("No server types found")
+            return
+
+        # Group by architecture
+        groups = {}
+        for st in server_types:
+            arch = st.get("architecture", "x86")
+            groups.setdefault(arch, []).append(st)
+
+        for arch in sorted(groups.keys()):
+            types = groups[arch]
+            types.sort(key=lambda x: x.get("name", ""))
+
+            headers = ["Name", "Cores", "Memory (GB)", "Disk (GB)", "Disk Type", "Hourly €", "Monthly €"]
+            rows = []
+
+            for st in types:
+                name = st.get("name", "N/A")
+                cores = st.get("cores", "N/A")
+                memory = st.get("memory", "N/A")
+                disk = st.get("disk", "N/A")
+                disk_type = st.get("storage_type", "N/A")
+
+                # Find price for the requested location (or first available)
+                hourly = "-"
+                monthly = "-"
+                prices = st.get("prices", [])
+                if prices:
+                    price_entry = None
+                    if location_filter:
+                        for p in prices:
+                            if p.get("location", "").lower() == location_filter:
+                                price_entry = p
+                                break
+                    if price_entry is None:
+                        price_entry = prices[0]
+
+                    if price_entry:
+                        ph = price_entry.get("price_hourly", {})
+                        pm = price_entry.get("price_monthly", {})
+                        hourly = ph.get("gross", ph.get("net", "-")) if isinstance(ph, dict) else str(ph)
+                        monthly = pm.get("gross", pm.get("net", "-")) if isinstance(pm, dict) else str(pm)
+                        try:
+                            hourly = f"{float(hourly):.4f}"
+                        except (ValueError, TypeError):
+                            pass
+                        try:
+                            monthly = f"{float(monthly):.2f}"
+                        except (ValueError, TypeError):
+                            pass
+
+                rows.append([name, cores, memory, disk, disk_type, hourly, monthly])
+
+            title = f"Server Types — {arch.upper()}"
+            if location_filter:
+                title += f" (location: {location_filter})"
+            self.console.print_table(headers, rows, title)
+
+    def show_server_type_info(self, args: List[str]):
+        """Show detailed information about a server type by name or ID."""
+        if not args:
+            print("Missing server type name or ID. Use 'server-type info <name|id>'")
+            return
+
+        identifier = args[0]
+        server_types = self.hetzner.list_server_types()
+        if not server_types:
+            print("Could not retrieve server types")
+            return
+
+        # Resolve by name or numeric ID
+        match = None
+        try:
+            numeric_id = int(identifier)
+            for st in server_types:
+                if st.get("id") == numeric_id:
+                    match = st
+                    break
+        except ValueError:
+            for st in server_types:
+                if st.get("name", "").lower() == identifier.lower():
+                    match = st
+                    break
+
+        if not match:
+            print(f"Server type '{identifier}' not found")
+            return
+
+        print(f"\n{self.console.horizontal_line('=')}")
+        print(f"Server Type: \033[1;32m{match.get('name', 'N/A')}\033[0m (ID: {match.get('id', 'N/A')})")
+        print(f"{self.console.horizontal_line('=')}")
+        print(f"Description:   {match.get('description', 'N/A')}")
+        print(f"Architecture:  {match.get('architecture', 'N/A')}")
+        print(f"Cores:         {match.get('cores', 'N/A')}")
+        print(f"Memory:        {match.get('memory', 'N/A')} GB")
+        print(f"Disk:          {match.get('disk', 'N/A')} GB ({match.get('storage_type', 'N/A')})")
+        print(f"CPU Type:      {match.get('cpu_type', 'N/A')}")
+
+        prices = match.get("prices", [])
+        if prices:
+            print("\nPricing by Location:")
+            for p in prices:
+                loc = p.get("location", "N/A")
+                ph = p.get("price_hourly", {})
+                pm = p.get("price_monthly", {})
+                h_val = ph.get("gross", ph.get("net", "-")) if isinstance(ph, dict) else str(ph)
+                m_val = pm.get("gross", pm.get("net", "-")) if isinstance(pm, dict) else str(pm)
+                try:
+                    h_val = f"€{float(h_val):.4f}/hr"
+                except (ValueError, TypeError):
+                    h_val = "-"
+                try:
+                    m_val = f"€{float(m_val):.2f}/mo"
+                except (ValueError, TypeError):
+                    m_val = "-"
+                print(f"  {loc:<12} {h_val}  {m_val}")
+
+        print(f"{self.console.horizontal_line('-')}")
