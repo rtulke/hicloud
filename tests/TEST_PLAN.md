@@ -1,76 +1,76 @@
 # Test Plan - hicloud
 
-Dieses Dokument zeigt den aktuellen Test-Status im Repository und die verbleibenden Luecken.
+This doc shows where testing currently stands in the repo and what is still missing.
 
-Stand: 2026-02-28
+Updated: 2026-02-28
 
 ---
 
-## 1) Unit-Tests: Command-Layer (`tests/commands/`)
+## 1) Unit Tests: Command Layer (`tests/commands/`)
 
-| Modul | Testdatei | Anzahl Tests | Status | Hinweis |
-|-------|-----------|--------------|--------|---------|
-| `commands/vm.py` | `tests/commands/test_vm.py` | 22 | ✅ | Gute Basis inkl. Fehlerfaelle |
-| `commands/snapshot.py` | `tests/commands/test_snapshot.py` | 19 | ✅ | Listen/Create/Delete/Rebuild abgedeckt |
-| `commands/backup.py` | `tests/commands/test_backup.py` | 15 | ✅ | Listen/Enable/Disable/Delete abgedeckt |
-| `commands/network.py` | `tests/commands/test_network.py` | 19 | ✅ | Attach/Detach/Protect etc. abgedeckt |
-| `commands/volume.py` | `tests/commands/test_volume.py` | 26 | ✅ | Umfangreich, inkl. Schutz-/Resize-Faelle |
-| `commands/keys.py` | `tests/commands/test_keys.py` | 14 | ✅ | List/Info/Create/Delete abgedeckt |
-| `commands/iso.py` | `tests/commands/test_iso.py` | 16 | ✅ | List/Info/Attach/Detach abgedeckt |
-| `commands/metrics.py` | `tests/commands/test_metrics.py` | 17 | ✅ | CPU/Traffic/Disk + Eingabevalidierung |
-| `commands/pricing.py` | `tests/commands/test_pricing.py` | 8 | ✅ | List/Calculate + Fehlerpfade |
-| `commands/batch.py` | `tests/commands/test_batch.py` | 17 | ✅ | Parsing + Start/Stop/Delete/Snapshot |
-| `commands/project.py` | `tests/commands/test_project.py` | 11 | ✅ | List/Switch/Info/Resources abgedeckt |
-| `commands/config.py` | `tests/commands/test_config.py` | 9 | ✅ | Validierung + Sicherheitschecks |
-| `commands/firewall.py` | `tests/commands/test_firewall.py` | 6 | ✅ | Kern-Workflows getestet |
-| `commands/loadbalancer.py` | `tests/commands/test_loadbalancer.py` | 16 | ✅ | Target/Service/Algo-Workflows getestet |
-| `commands/image.py` | `tests/commands/test_image.py` | 13 | ✅ | List/Info/Delete/Update abgedeckt |
+| Module | Test File | Test Count | Status | Notes |
+|-------|-----------|------------|--------|-------|
+| `commands/vm.py` | `tests/commands/test_vm.py` | 22 | ✅ | Solid baseline, includes edge/error cases |
+| `commands/snapshot.py` | `tests/commands/test_snapshot.py` | 19 | ✅ | List/Create/Delete/Rebuild covered |
+| `commands/backup.py` | `tests/commands/test_backup.py` | 15 | ✅ | List/Enable/Disable/Delete covered |
+| `commands/network.py` | `tests/commands/test_network.py` | 19 | ✅ | Attach/Detach/Protect etc. covered |
+| `commands/volume.py` | `tests/commands/test_volume.py` | 26 | ✅ | Broad coverage incl. protection/resize paths |
+| `commands/keys.py` | `tests/commands/test_keys.py` | 14 | ✅ | List/Info/Create/Delete covered |
+| `commands/iso.py` | `tests/commands/test_iso.py` | 16 | ✅ | List/Info/Attach/Detach covered |
+| `commands/metrics.py` | `tests/commands/test_metrics.py` | 17 | ✅ | CPU/Traffic/Disk + input validation |
+| `commands/pricing.py` | `tests/commands/test_pricing.py` | 8 | ✅ | List/Calculate + error paths |
+| `commands/batch.py` | `tests/commands/test_batch.py` | 17 | ✅ | ID parsing + Start/Stop/Delete/Snapshot |
+| `commands/project.py` | `tests/commands/test_project.py` | 11 | ✅ | List/Switch/Info/Resources covered |
+| `commands/config.py` | `tests/commands/test_config.py` | 9 | ✅ | Validation + security checks |
+| `commands/firewall.py` | `tests/commands/test_firewall.py` | 6 | ✅ | Core workflows covered |
+| `commands/loadbalancer.py` | `tests/commands/test_loadbalancer.py` | 16 | ✅ | Target/Service/Algo workflows covered |
+| `commands/image.py` | `tests/commands/test_image.py` | 13 | ✅ | List/Info/Delete/Update covered |
 | `commands/floating_ip.py` | `tests/commands/test_floating_ip.py` | 22 | ✅ | Assign/Unassign/Delete/DNS/Protect |
 | `commands/primary_ip.py` | `tests/commands/test_primary_ip.py` | 19 | ✅ | Assign/Unassign/Delete/DNS/Protect |
-| `commands/location.py` | `tests/commands/test_location_servertype.py` | 28 | ✅ | `LocationCommands`, `DatacenterCommands` und `ServerTypeCommands` abgedeckt |
+| `commands/location.py` | `tests/commands/test_location_servertype.py` | 28 | ✅ | `LocationCommands`, `DatacenterCommands`, and `ServerTypeCommands` covered |
 
 ---
 
-## 2) Unit-Tests: API-Layer (`tests/lib/`)
+## 2) Unit Tests: API Layer (`tests/lib/`)
 
-| API-Bereich | Testdatei | Anzahl Tests | Status |
-|------------|-----------|--------------|--------|
+| API Area | Test File | Test Count | Status |
+|----------|-----------|------------|--------|
 | Firewall API | `tests/lib/test_api_firewall.py` | 8 | ✅ |
 | Load Balancer API | `tests/lib/test_api_loadbalancer.py` | 13 | ✅ |
 | Image API | `tests/lib/test_api_image.py` | 10 | ✅ |
 | Floating IP API | `tests/lib/test_api_floating_ip.py` | 14 | ✅ |
 | Primary IP API | `tests/lib/test_api_primary_ip.py` | 13 | ✅ |
 
-Hinweis: Fuer weitere API-Bereiche (z.B. VM, Network, Volume, Backup, Snapshot) existieren aktuell keine separaten `tests/lib/test_api_*.py`-Dateien.
+Note: for other API areas (like VM, Network, Volume, Backup, Snapshot), there are currently no dedicated `tests/lib/test_api_*.py` files.
 
 ---
 
-## 3) Integration-Tests
+## 3) Integration Tests
 
-Aktueller Status: `tests/integration/` existiert derzeit nicht.
+Current status: `tests/integration/` does not exist yet.
 
-Geplanter naechster Schritt:
-- `tests/integration/test_read_only.py` mit `pytest.mark.skipif(not HETZNER_TOKEN, ...)`
-- Nur read-only Endpunkte (list/info/get), keine create/delete/modify Calls
+Next step:
+- add `tests/integration/test_read_only.py` with `pytest.mark.skipif(not HETZNER_TOKEN, ...)`
+- keep it read-only (`list`/`info`/`get`), no create/delete/modify calls
 
 ---
 
-## 4) Verifikation (lokal)
+## 4) Local Verification
 
-Empfohlen innerhalb der venv:
+Recommended inside the venv:
 
 ```bash
 .venv/bin/pytest -q
 ```
 
-Letzter Lauf im Repo:
-- Ergebnis: `355 passed`
-- Laufzeit: `0.15s`
+Latest run in this repo:
+- Result: `355 passed`
+- Runtime: `0.15s`
 
-Hinweis: Ein globales `pytest -q` ohne venv kann wegen fehlender Abhaengigkeiten (`toml`, `requests`) bei der Collection scheitern.
+Note: running global `pytest -q` without venv can fail during collection because of missing deps (`toml`, `requests`).
 
 ---
 
-## 5) Offene Prioritaeten
+## 5) Open Priority
 
-1. Read-only Integration-Tests unter `tests/integration/` anlegen.
+1. Add read-only integration tests under `tests/integration/`.
