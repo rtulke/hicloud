@@ -2,8 +2,6 @@
 
 hicloud is an interactive CLI console for managing Hetzner Cloud resources. It provides an interactive console with tab completion, command history, and commands for managing virtual machines, volumes, networks, firewalls, load balancers, IP addresses, images, and more. And why? Because it's enough for most people and because it's faster than using complex CLI arguments — it works entirely with tab completion.
 
-> **Communication Note:** Project discussions and status updates are provided in German, but this README remains in English.
-
 ## Features
 
 - **CLI Console with Tab Autocompletion** — context-aware completion for commands, subcommands, and live resource IDs
