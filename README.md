@@ -123,7 +123,7 @@ VM Commands:
   vm rescue <id>                       - Enable rescue mode
   vm reset-password <id>               - Reset root password
   vm image <id> <name>                 - Create custom image from VM
-  vm image import [url]                - Start guided custom image import wizard
+  vm image import [url]                - Alias for `image import` (kept for compatibility)
 
 Snapshot Commands:
   snapshot list                        - List all snapshots
@@ -149,7 +149,7 @@ Image Commands:
   image info <id>                      - Show detailed information about an image
   image delete <id>                    - Delete a custom image (with confirmation)
   image update <id>                    - Update image description/labels (interactive)
-  image import [url]                   - Start guided custom image import wizard
+  image import [url]                   - Start guided custom image import wizard (preferred)
 
 Project Commands:
   project list                         - List all available projects
@@ -365,10 +365,12 @@ hicloud> iso detach 5678                         # Detach ISO from server 5678
 Bring your own images hosted on HTTP(S) storage via the interactive wizard:
 
 ```bash
-hicloud> vm image import
+hicloud> image import
 ```
 
-Optional: provide a URL upfront (`vm image import https://example.com/my-image.qcow2`) and the wizard pre-fills the first step before asking for name, architecture, and description. The same wizard is also available as `image import`.
+Optional: provide a URL upfront (`image import https://example.com/my-image.qcow2`) and the wizard pre-fills the first step before asking for name, architecture, and description.
+
+`vm image import` still works as a compatibility alias, but `image import` is the preferred command.
 
 ### Network Management
 

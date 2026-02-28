@@ -308,7 +308,7 @@ class InteractiveConsole:
                         "arguments": [{"name": "server_id", "provider": "server_ids"}],
                     },
                     "image": {
-                        "help": "Create custom image: vm image <id> <n>",
+                        "help": "Create custom image from VM: vm image <id> <name> (import alias: vm image import [url], preferred: image import [url])",
                         "arguments": [
                             {"name": "server_id", "provider": "server_ids"},
                             {"name": "description"},
@@ -716,7 +716,7 @@ class InteractiveConsole:
                         "help": "Update image metadata: image update <id>",
                         "arguments": [{"name": "image_id", "provider": "image_ids"}],
                     },
-                    "import": {"help": "Import custom image from URL: image import [url]"},
+                    "import": {"help": "Import custom image from URL (preferred): image import [url]"},
                 },
             },
             "config": {
@@ -1413,6 +1413,7 @@ Available commands:
     vm rescue <id>                    - Enable rescue mode
     vm reset-password <id>            - Reset root password
     vm image <id> <name>              - Create custom image from VM
+    vm image import [url]             - Alias for image import (compatibility)
     
   Snapshot Commands:
     snapshot list                     - List all snapshots or for specific VM
@@ -1529,7 +1530,7 @@ Available commands:
     image info <id>                   - Show image details
     image delete <id>                 - Delete a custom image
     image update <id>                 - Update image description/labels
-    image import [url]                - Import custom image from URL (wizard)
+    image import [url]                - Import custom image from URL (wizard, preferred)
 
   Config Commands:
     config validate [path]            - Validate config file
