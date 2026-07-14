@@ -40,14 +40,16 @@ def test_create_primary_ip_success(monkeypatch):
         return 201, {"primary_ip": {"id": 20, "ip": "10.0.1.1"}}
 
     monkeypatch.setattr(manager, "_make_request", fake)
-    result = manager.create_primary_ip("ipv4", "my-pip", datacenter="nbg1-dc3",
+    result = manager.create_primary_ip("ipv4", "my-pip", location="nbg1",
                                        auto_delete=True, labels={"k": "v"})
     assert result == {"id": 20, "ip": "10.0.1.1"}
     assert captured["method"] == "POST"
     assert captured["endpoint"] == "primary_ips"
     assert captured["data"]["type"] == "ipv4"
     assert captured["data"]["name"] == "my-pip"
-    assert captured["data"]["datacenter"] == "nbg1-dc3"
+    # Seit 2026-07 erwartet die API 'location' statt 'datacenter'
+    assert captured["data"]["location"] == "nbg1"
+    assert "datacenter" not in captured["data"]
     assert captured["data"]["auto_delete"] is True
     assert captured["data"]["assignee_type"] == "server"
 

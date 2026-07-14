@@ -80,6 +80,7 @@ class DatacenterCommands(BaseCommands):
 
     def list_datacenters(self):
         """List all available datacenters"""
+        print("Note: Hetzner deprecated the datacenter endpoints (removal after 2026-10-01); prefer 'location' commands.")
         datacenters = self.hetzner.list_datacenters()
 
         if not datacenters:

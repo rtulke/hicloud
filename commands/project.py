@@ -185,7 +185,7 @@ class ProjectCommands(BaseCommands):
         # API-Verbindungsstatus prüfen mit einem gültigen Endpunkt
         try:
             # Statt des leeren Endpunkts einen gültigen API-Endpunkt verwenden
-            status_code, response = self.hetzner._make_request("GET", "datacenters")
+            status_code, response = self.hetzner._make_request("GET", "locations")
             if status_code == 200:
                 print(f"Connection Status: \033[1;32mConnected\033[0m")
                 print(f"API Endpoint: {API_BASE_URL}")
@@ -204,20 +204,16 @@ class ProjectCommands(BaseCommands):
                 print(f"  VMs: {server_count} total, {running_servers} running")
                 print(f"  Snapshots: {snapshot_count}")
 
-                # Datacenters anzeigen            
-                datacenters = response.get("datacenters", [])
-                if datacenters:
-                    datacenter_count = len(datacenters)
-                    print(f"  Datacenters: {datacenter_count}")
+                # Locations anzeigen (Datacenter-Endpoints sind bei Hetzner deprecated)
+                locations = response.get("locations", [])
+                if locations:
+                    print(f"  Locations: {len(locations)}")
                     print("  Available Locations:")
-                    for dc in datacenters:
-                        location = dc.get('location', {})
-                        location_name = location.get('name', 'N/A')
-                        location_city = location.get('city', location.get('description', 'N/A'))
-                        location_country = location.get('country', 'N/A')
-                        print(f"    - {dc['name']} ({location_name}): {location_city}, {location_country}")
-                        
-                    # Verbundene Netzwerke zählen
+                    for loc in locations:
+                        loc_city = loc.get('city', loc.get('description', 'N/A'))
+                        print(f"    - {loc.get('name', 'N/A')}: {loc_city}, {loc.get('country', 'N/A')}")
+
+                # Verbundene Netzwerke zählen
                 try:
                     status_code, networks = self.hetzner._make_request("GET", "networks")
                     if status_code == 200:

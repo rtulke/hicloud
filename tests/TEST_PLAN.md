@@ -26,7 +26,7 @@ Updated: 2026-07-14
 | `commands/loadbalancer.py` | `tests/commands/test_loadbalancer.py` | 16 | done | Target/Service/Algo workflows covered |
 | `commands/image.py` | `tests/commands/test_image.py` | 13 | done | List/Info/Delete/Update covered |
 | `commands/floating_ip.py` | `tests/commands/test_floating_ip.py` | 22 | done | Assign/Unassign/Delete/DNS/Protect |
-| `commands/primary_ip.py` | `tests/commands/test_primary_ip.py` | 19 | done | Assign/Unassign/Delete/DNS/Protect |
+| `commands/primary_ip.py` | `tests/commands/test_primary_ip.py` | 20 | done | Assign/Unassign/Delete/DNS/Protect incl. legacy datacenter fallback |
 | `commands/location.py` | `tests/commands/test_location_servertype.py` | 28 | done | `LocationCommands`, `DatacenterCommands`, and `ServerTypeCommands` covered |
 | `commands/base.py` | `tests/commands/test_base.py` | 11 | done | Shared dispatch, parse_id, confirm, prompt_labels |
 | `commands/action.py` | `tests/commands/test_action.py` | 12 | done | List/filter/info incl. error rendering |
@@ -41,7 +41,7 @@ Updated: 2026-07-14
 | API Core / Request Handling | `tests/lib/test_api_core.py` | 10 | done |
 | Config Manager (permissions) | `tests/lib/test_config_manager.py` | 8 | done |
 | Console registry & dispatch | `tests/lib/test_console.py` | 12 | done |
-| Action API | `tests/lib/test_api_action.py` | 6 | done |
+| Action API | `tests/lib/test_api_action.py` | 7 | done |
 | Placement Group API | `tests/lib/test_api_placement_group.py` | 10 | done |
 | Formatting / table truncation | `tests/utils/test_formatting.py` | 9 | done |
 | Interactive prompt helpers | `tests/utils/test_prompts.py` | 10 | done |

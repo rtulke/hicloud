@@ -22,7 +22,7 @@ class DummyHetzner:
             "name": "my-pip",
             "ip": "10.0.0.1",
             "type": "ipv4",
-            "datacenter": {"name": "nbg1-dc3", "location": {"name": "nbg1"}},
+            "location": {"name": "nbg1", "city": "Nuremberg"},
             "assignee_id": None,
             "assignee_type": "server",
             "auto_delete": False,
@@ -32,7 +32,7 @@ class DummyHetzner:
             "dns_ptr": [],
             "labels": {},
         }
-        self.datacenters = [{"name": "nbg1-dc3", "location": {"name": "nbg1"}}]
+        self.locations = [{"name": "nbg1", "city": "Nuremberg"}]
         self.assign_calls = []
         self.unassign_calls = []
         self.delete_calls = []
@@ -75,8 +75,8 @@ class DummyHetzner:
         self.protect_calls.append((pip_id, delete))
         return True
 
-    def list_datacenters(self):
-        return self.datacenters
+    def list_locations(self):
+        return self.locations
 
 
 def build():
@@ -101,7 +101,16 @@ def test_show_info(capsys):
     out = capsys.readouterr().out
     assert "my-pip" in out
     assert "10.0.0.1" in out
-    assert "nbg1-dc3" in out
+    assert "nbg1" in out
+
+
+def test_show_info_falls_back_to_legacy_datacenter(capsys):
+    # Aeltere API-Antworten trugen die Location unter datacenter.location
+    cmd, h, _ = build()
+    del h.pip["location"]
+    h.pip["datacenter"] = {"name": "nbg1-dc3", "location": {"name": "nbg1"}}
+    cmd.show_info(["20"])
+    assert "nbg1" in capsys.readouterr().out
 
 
 def test_show_info_missing_id(capsys):
@@ -232,12 +241,12 @@ def test_update_no_changes(monkeypatch, capsys):
 
 def test_create_wizard(monkeypatch):
     cmd, h, _ = build()
-    # type, name, no server → datacenter 1, no auto_delete, no labels, confirm
+    # type, name, no server → location 1, no auto_delete, no labels, confirm
     answers = iter(["ipv4", "pip-new", "", "1", "n", "n", "y"])
     monkeypatch.setattr("builtins.input", lambda _: next(answers))
     cmd.create_primary_ip()
     assert len(h.create_calls) == 1
     assert h.create_calls[0]["ip_type"] == "ipv4"
     assert h.create_calls[0]["name"] == "pip-new"
-    assert h.create_calls[0]["datacenter"] == "nbg1-dc3"
+    assert h.create_calls[0]["location"] == "nbg1"
     assert h.create_calls[0]["auto_delete"] is False

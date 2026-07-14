@@ -696,7 +696,7 @@ class InteractiveConsole:
                 }
             },
             "datacenter": {
-                "help": "Datacenter commands: list, info <id>, resources [id|location]",
+                "help": "Datacenter commands: list, info <id>, resources [id|location] (deprecated by Hetzner, use 'location')",
                 "subcommands": {
                     "list": {"help": "List all available datacenters"},
                     "info": {
@@ -1391,10 +1391,10 @@ class InteractiveConsole:
         
         # Versuche, Projektinformationen abzurufen
         try:
-            status_code, response = self.hetzner._make_request("GET", "datacenters")
+            status_code, response = self.hetzner._make_request("GET", "locations")
             if status_code == 200:
-                datacenter_count = len(response.get("datacenters", []))
-                print(f"Connection Status: \033[1;32mConnected\033[0m ({datacenter_count} datacenters available)")
+                location_count = len(response.get("locations", []))
+                print(f"Connection Status: \033[1;32mConnected\033[0m ({location_count} locations available)")
             else:
                 print(f"Connection Status: \033[1;31mError\033[0m (HTTP {status_code})")
                 print(f"API Response: {response.get('error', {}).get('message', 'Unknown error')}")

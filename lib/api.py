@@ -1293,13 +1293,13 @@ class HetznerCloudManager:
         )
 
     def create_primary_ip(self, ip_type: str, name: str, assignee_type: str = "server",
-                          datacenter: str = None, assignee_id: int = None,
+                          location: str = None, assignee_id: int = None,
                           auto_delete: bool = False, labels: Dict = None) -> Dict:
-        """Create a new Primary IP"""
+        """Create a new Primary IP (the API replaced 'datacenter' with 'location' in July 2026)"""
         data: Dict = {"type": ip_type, "name": name, "assignee_type": assignee_type,
                       "auto_delete": auto_delete}
-        if datacenter:
-            data["datacenter"] = datacenter
+        if location:
+            data["location"] = location
         if assignee_id:
             data["assignee_id"] = assignee_id
         if labels:
@@ -1490,12 +1490,35 @@ class HetznerCloudManager:
     # Action Management Functions
     # ------------------------------------------------------------------
 
+    # Das globale GET /actions liefert seit 2025-01-30 "410 Gone" — Actions
+    # muessen pro Ressource ueber /<resource>/actions gelistet werden.
+    ACTION_SOURCES = (
+        "servers", "images", "volumes", "networks", "firewalls",
+        "load_balancers", "floating_ips", "primary_ips",
+    )
+
     def list_actions(self, status: Optional[str] = None) -> List[Dict]:
-        """List actions, optionally filtered by status (running, success, error)"""
-        endpoint = "actions"
-        if status:
-            endpoint = f"actions?status={status}"
-        return self._get_list(endpoint, "actions", "listing actions")
+        """List actions across all resource action endpoints, optionally filtered by status"""
+        query = f"?status={status}" if status else ""
+        actions: List[Dict] = []
+        seen = set()
+        failed = []
+
+        for resource in self.ACTION_SOURCES:
+            status_code, response = self._get_all_pages(f"{resource}/actions{query}", "actions")
+            if status_code != 200:
+                failed.append(resource)
+                continue
+            for action in response.get("actions", []):
+                action_id = action.get("id")
+                if action_id not in seen:
+                    seen.add(action_id)
+                    actions.append(action)
+
+        if failed:
+            print(f"Warning: could not list actions for: {', '.join(failed)}")
+
+        return actions
 
     def get_action_by_id(self, action_id: int) -> Dict:
         """Get action details by ID"""

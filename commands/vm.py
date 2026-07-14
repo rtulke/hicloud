@@ -47,9 +47,9 @@ class VMCommands(BaseCommands):
             public_net = server.get("public_net") or {}
             ip = (public_net.get("ipv4") or {}).get("ip", "N/A")
 
-            # Detailliertere Standortinformationen (datacenter kann null sein)
-            datacenter = server.get('datacenter') or {}
-            location = datacenter.get('location') or {}
+            # Seit 2026-07-01 liefert die API 'location' direkt am Server;
+            # 'datacenter.location' bleibt als Fallback fuer aeltere Antworten
+            location = server.get('location') or (server.get('datacenter') or {}).get('location') or {}
             dc_name = location.get('name', 'N/A')
             city = location.get('city', location.get('description', 'N/A'))
             country = location.get('country', 'N/A')
@@ -102,11 +102,11 @@ class VMCommands(BaseCommands):
         print(f"  Memory: {server_type.get('memory', 'N/A')} GB")
         print(f"  Disk: {server_type.get('disk', 'N/A')} GB")
         
-        # Standort-Informationen (datacenter kann null sein)
+        # Standort: seit 2026-07-01 'location' direkt am Server,
+        # 'datacenter.location' als Fallback fuer aeltere Antworten
         print("\nLocation:")
-        datacenter = server.get('datacenter') or {}
-        location = datacenter.get('location') or {}
-        print(f"  Datacenter: {datacenter.get('name', 'N/A')}")
+        location = server.get('location') or (server.get('datacenter') or {}).get('location') or {}
+        print(f"  Name: {location.get('name', 'N/A')}")
         print(f"  City: {location.get('city', 'N/A')}")
         print(f"  Country: {location.get('country', 'N/A')}")
         

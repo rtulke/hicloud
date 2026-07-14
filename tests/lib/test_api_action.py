@@ -3,57 +3,85 @@
 from lib.api import HetznerCloudManager
 
 
-def test_list_actions_success(monkeypatch):
+# Das globale GET /actions ist seit 2025-01-30 entfernt (410 Gone);
+# list_actions aggregiert deshalb ueber die Ressourcen-Action-Endpoints.
+
+def test_list_actions_aggregates_resource_endpoints(monkeypatch):
     manager = HetznerCloudManager("token")
-    captured = {}
+    calls = []
 
     def fake_request(method, endpoint, data=None):
-        captured["endpoint"] = endpoint
-        return 200, {"actions": [{"id": 1, "command": "create_server"}]}
+        calls.append(endpoint)
+        if endpoint.startswith("servers/actions"):
+            return 200, {"actions": [{"id": 1, "command": "start_server"}]}
+        return 200, {"actions": []}
 
     monkeypatch.setattr(manager, "_make_request", fake_request)
 
-    assert manager.list_actions() == [{"id": 1, "command": "create_server"}]
-    assert captured["endpoint"] == "actions"
+    assert manager.list_actions() == [{"id": 1, "command": "start_server"}]
+    assert "servers/actions" in calls
+    assert "floating_ips/actions" in calls
+    assert "actions" not in calls  # der entfernte Global-Endpoint darf nicht mehr aufgerufen werden
 
 
 def test_list_actions_with_status_filter(monkeypatch):
     manager = HetznerCloudManager("token")
-    captured = {}
+    calls = []
 
     def fake_request(method, endpoint, data=None):
-        captured["endpoint"] = endpoint
+        calls.append(endpoint)
         return 200, {"actions": []}
 
     monkeypatch.setattr(manager, "_make_request", fake_request)
 
     manager.list_actions("running")
-    assert captured["endpoint"] == "actions?status=running"
+    assert calls
+    assert all(endpoint.endswith("?status=running") for endpoint in calls)
 
 
-def test_list_actions_follows_pagination(monkeypatch):
+def test_list_actions_deduplicates_across_sources(monkeypatch):
     manager = HetznerCloudManager("token")
 
     def fake_request(method, endpoint, data=None):
-        if "page=2" in endpoint:
-            return 200, {"actions": [{"id": 2}], "meta": {"pagination": {"next_page": None}}}
-        return 200, {"actions": [{"id": 1}], "meta": {"pagination": {"next_page": 2}}}
+        # Dieselbe Action taucht bei zwei Ressourcen auf
+        if endpoint.startswith(("servers/actions", "volumes/actions")):
+            return 200, {"actions": [{"id": 42, "command": "attach_volume"}]}
+        return 200, {"actions": []}
+
+    monkeypatch.setattr(manager, "_make_request", fake_request)
+
+    assert manager.list_actions() == [{"id": 42, "command": "attach_volume"}]
+
+
+def test_list_actions_follows_pagination_per_source(monkeypatch):
+    manager = HetznerCloudManager("token")
+
+    def fake_request(method, endpoint, data=None):
+        if endpoint.startswith("servers/actions"):
+            if "page=2" in endpoint:
+                return 200, {"actions": [{"id": 2}], "meta": {"pagination": {"next_page": None}}}
+            return 200, {"actions": [{"id": 1}], "meta": {"pagination": {"next_page": 2}}}
+        return 200, {"actions": []}
 
     monkeypatch.setattr(manager, "_make_request", fake_request)
 
     assert manager.list_actions() == [{"id": 1}, {"id": 2}]
 
 
-def test_list_actions_error_returns_empty(monkeypatch, capsys):
+def test_list_actions_reports_failed_sources(monkeypatch, capsys):
     manager = HetznerCloudManager("token")
-    monkeypatch.setattr(
-        manager,
-        "_make_request",
-        lambda method, endpoint, data=None: (500, {"error": {"message": "boom"}}),
-    )
 
-    assert manager.list_actions() == []
-    assert "Error listing actions: boom" in capsys.readouterr().out
+    def fake_request(method, endpoint, data=None):
+        if endpoint.startswith("servers/actions"):
+            return 500, {"error": {"message": "boom"}}
+        if endpoint.startswith("volumes/actions"):
+            return 200, {"actions": [{"id": 3}]}
+        return 200, {"actions": []}
+
+    monkeypatch.setattr(manager, "_make_request", fake_request)
+
+    assert manager.list_actions() == [{"id": 3}]
+    assert "could not list actions for: servers" in capsys.readouterr().out
 
 
 def test_get_action_by_id_success(monkeypatch):

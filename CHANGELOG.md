@@ -2,6 +2,32 @@
 
 All notable changes to hicloud are documented in this file.
 
+## [1.3.1] - 2026-07-14
+
+API compatibility release: an audit against the current Hetzner Cloud API
+changelog surfaced several breaking upstream changes.
+
+### Fixed
+
+- Servers and Primary IPs now read the top-level `location` property; the
+  `datacenter` property was removed by Hetzner on 2026-07-01. `vm list` and
+  `vm info` show locations again instead of N/A, and creating a Primary IP
+  sends `location` instead of the removed `datacenter` request field (the
+  creation wizard offers locations accordingly).
+- `action list` aggregates the per-resource action endpoints; the global
+  `GET /v1/actions` listing has returned `410 Gone` since January 2025.
+- `vm info` no longer crashes on servers whose origin image was deleted
+  (`image: null`) and tolerates null `ipv4`/`ipv6`/`datacenter` fields.
+- The welcome screen and `project info` use the locations endpoint instead
+  of the deprecated datacenters endpoint (Hetzner removal planned after
+  2026-10-01); the `datacenter` commands print a deprecation note.
+
+### Verified against the current API
+
+- Reverse DNS resets already send an explicit `dns_ptr: null`, matching the
+  stricter behavior Hetzner enforces from 2026-09-30 on.
+- Polling single actions via `GET /v1/actions/{id}` remains supported.
+
 ## [1.3.0] - 2026-07-14
 
 ### Security

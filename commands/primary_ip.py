@@ -33,19 +33,21 @@ class PrimaryIPCommands(BaseCommands):
             print("No primary IPs found")
             return
 
-        headers = ["ID", "Name", "IP", "Type", "Datacenter", "Assigned To", "Auto-Delete", "Protected"]
+        headers = ["ID", "Name", "IP", "Type", "Location", "Assigned To", "Auto-Delete", "Protected"]
         rows = []
         for pip in sorted(pips, key=lambda x: x.get("id", 0)):
-            pip_id     = pip.get("id", "N/A")
-            name       = pip.get("name", "N/A")
-            ip         = pip.get("ip", "N/A")
-            ip_type    = pip.get("type", "N/A")
-            datacenter = pip.get("datacenter", {}).get("name", "N/A")
-            assignee   = pip.get("assignee_id")
-            assigned   = f"server:{assignee}" if assignee else "-"
-            auto_del   = "yes" if pip.get("auto_delete") else "no"
-            protected  = "yes" if pip.get("protection", {}).get("delete") else "no"
-            rows.append([pip_id, name, ip, ip_type, datacenter, assigned, auto_del, protected])
+            pip_id    = pip.get("id", "N/A")
+            name      = pip.get("name", "N/A")
+            ip        = pip.get("ip", "N/A")
+            ip_type   = pip.get("type", "N/A")
+            # Seit 2026-07 'location' direkt am Objekt; 'datacenter' als Fallback
+            location  = (pip.get("location") or {}).get("name") \
+                or ((pip.get("datacenter") or {}).get("location") or {}).get("name", "N/A")
+            assignee  = pip.get("assignee_id")
+            assigned  = f"server:{assignee}" if assignee else "-"
+            auto_del  = "yes" if pip.get("auto_delete") else "no"
+            protected = "yes" if pip.get("protection", {}).get("delete") else "no"
+            rows.append([pip_id, name, ip, ip_type, location, assigned, auto_del, protected])
 
         self.console.print_table(headers, rows, "Primary IPs")
 
@@ -61,8 +63,8 @@ class PrimaryIPCommands(BaseCommands):
         print(f"{self.console.horizontal_line('=')}")
         print(f"IP:          {pip.get('ip', 'N/A')}")
         print(f"Type:        {pip.get('type', 'N/A')}")
-        dc = pip.get("datacenter", {})
-        print(f"Datacenter:  {dc.get('name', 'N/A')} ({dc.get('location', {}).get('name', 'N/A')})")
+        location = pip.get("location") or (pip.get("datacenter") or {}).get("location") or {}
+        print(f"Location:    {location.get('name', 'N/A')}")
         assignee = pip.get("assignee_id")
         print(f"Assigned To: {'server:' + str(assignee) if assignee else '-'}")
         print(f"Auto-Delete: {'yes' if pip.get('auto_delete') else 'no'}")
@@ -100,10 +102,10 @@ class PrimaryIPCommands(BaseCommands):
             print("Name is required.")
             return
 
-        # Datacenter or server
-        server_input = input("Assign to server ID immediately (or leave blank to choose a datacenter): ").strip()
+        # Location oder Server (die API nutzt seit 2026-07 'location' statt 'datacenter')
+        server_input = input("Assign to server ID immediately (or leave blank to choose a location): ").strip()
         assignee_id = None
-        datacenter = None
+        location = None
         if server_input:
             try:
                 assignee_id = int(server_input)
@@ -111,17 +113,17 @@ class PrimaryIPCommands(BaseCommands):
                 print("Invalid server ID.")
                 return
         else:
-            datacenters = self.hetzner.list_datacenters()
-            if not datacenters:
-                print("No datacenters available.")
+            locations = self.hetzner.list_locations()
+            if not locations:
+                print("No locations available.")
                 return
-            print("\nAvailable datacenters:")
-            for i, dc in enumerate(datacenters, 1):
-                print(f"  {i}. {dc.get('name')} ({dc.get('location', {}).get('name', '')})")
-            choice = input("Select datacenter (number or name): ").strip()
-            datacenter = self._resolve_datacenter(datacenters, choice)
-            if not datacenter:
-                print("Invalid datacenter selection.")
+            print("\nAvailable locations:")
+            for i, loc in enumerate(locations, 1):
+                print(f"  {i}. {loc.get('name')} ({loc.get('city', '')})")
+            choice = input("Select location (number or name): ").strip()
+            location = self._resolve_location(locations, choice)
+            if not location:
+                print("Invalid location selection.")
                 return
 
         auto_delete_input = input("Enable auto-delete (delete IP when server is deleted)? [y/N]: ").strip().lower()
@@ -135,7 +137,7 @@ class PrimaryIPCommands(BaseCommands):
         if assignee_id:
             print(f"  Server:      {assignee_id}")
         else:
-            print(f"  Datacenter:  {datacenter}")
+            print(f"  Location:    {location}")
         print(f"  Auto-Delete: {'yes' if auto_delete else 'no'}")
 
         if not self.confirm("\nCreate primary IP?"):
@@ -143,7 +145,7 @@ class PrimaryIPCommands(BaseCommands):
 
         pip = self.hetzner.create_primary_ip(
             ip_type=ip_type, name=name, assignee_type="server",
-            datacenter=datacenter, assignee_id=assignee_id,
+            location=location, assignee_id=assignee_id,
             auto_delete=auto_delete, labels=labels if labels else None,
         )
         if pip:
@@ -316,14 +318,14 @@ class PrimaryIPCommands(BaseCommands):
         pip = self.hetzner.get_primary_ip_by_id(pip_id)
         return pip if pip else None
 
-    def _resolve_datacenter(self, datacenters, choice: str):
+    def _resolve_location(self, locations, choice: str):
         if choice.isdigit():
             idx = int(choice) - 1
-            if 0 <= idx < len(datacenters):
-                return datacenters[idx].get("name")
+            if 0 <= idx < len(locations):
+                return locations[idx].get("name")
             return None
-        for dc in datacenters:
-            if dc.get("name", "").lower() == choice.lower():
-                return dc.get("name")
+        for loc in locations:
+            if loc.get("name", "").lower() == choice.lower():
+                return loc.get("name")
         return None
 
