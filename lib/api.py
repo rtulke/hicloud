@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
 from urllib.parse import urlencode
 
-from utils.constants import API_BASE_URL, REQUEST_TIMEOUT
+from utils.constants import API_BASE_URL, RATE_LIMIT_MAX_RETRIES, REQUEST_TIMEOUT
 from utils.spinner import DotsSpinner
 
 
@@ -29,17 +29,26 @@ class HetznerCloudManager:
         url = f"{API_BASE_URL}/{endpoint}"
         
         try:
-            if method == "GET":
-                response = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
-            elif method == "POST":
-                response = requests.post(url, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
-            elif method == "PUT":
-                response = requests.put(url, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
-            elif method == "DELETE":
-                response = requests.delete(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
-            else:
-                return 400, {"error": {"message": f"Unsupported method: {method}"}}
-                
+            for attempt in range(RATE_LIMIT_MAX_RETRIES + 1):
+                if method == "GET":
+                    response = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
+                elif method == "POST":
+                    response = requests.post(url, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
+                elif method == "PUT":
+                    response = requests.put(url, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
+                elif method == "DELETE":
+                    response = requests.delete(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
+                else:
+                    return 400, {"error": {"message": f"Unsupported method: {method}"}}
+
+                if response.status_code != 429 or attempt == RATE_LIMIT_MAX_RETRIES:
+                    break
+
+                retry_delay = self._rate_limit_delay(response)
+                if self.debug:
+                    print(f"Rate limited (429), retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+
             if response.status_code in [200, 201, 202, 204]:
                 try:
                     if response.status_code == 204 or not response.text:
@@ -62,7 +71,42 @@ class HetznerCloudManager:
             if self.debug:
                 print(error_msg)
             return 500, {"error": {"message": error_msg}}
-    
+
+    @staticmethod
+    def _rate_limit_delay(response) -> int:
+        """Seconds to wait after an HTTP 429, from Retry-After if present (1-60s)."""
+        try:
+            delay = int(response.headers.get("Retry-After", 5))
+        except (TypeError, ValueError):
+            delay = 5
+        return max(1, min(delay, 60))
+
+    def _get_all_pages(self, endpoint: str, key: str) -> Tuple[int, Dict]:
+        """
+        GET a list endpoint and follow meta.pagination across all pages.
+
+        Returns the same (status_code, response) shape as _make_request,
+        with the `key` arrays of all pages merged. The first request uses
+        the endpoint unchanged so page numbering stays consistent with the
+        API's default page size.
+        """
+        status_code, response = self._make_request("GET", endpoint)
+        if status_code != 200:
+            return status_code, response
+
+        items = list(response.get(key, []))
+        next_page = response.get("meta", {}).get("pagination", {}).get("next_page")
+        separator = "&" if "?" in endpoint else "?"
+
+        while next_page:
+            status_code, response = self._make_request("GET", f"{endpoint}{separator}page={next_page}")
+            if status_code != 200:
+                return status_code, response
+            items.extend(response.get(key, []))
+            next_page = response.get("meta", {}).get("pagination", {}).get("next_page")
+
+        return 200, {key: items}
+
     # Metrics Management Functions
     def get_server_metrics(self, server_id: int, type: str, start: str, end: str, step: Optional[str] = None) -> Dict:
         """
@@ -148,7 +192,7 @@ class HetznerCloudManager:
 
     def list_server_types(self) -> List[Dict]:
         """Return all server types with their specifications"""
-        status_code, response = self._make_request("GET", "server_types")
+        status_code, response = self._get_all_pages("server_types", "server_types")
 
         if status_code != 200:
             if self.debug:
@@ -209,7 +253,7 @@ class HetznerCloudManager:
         
         # Volumes Kosten berechnen
         try:
-            status_code, volumes_response = self._make_request("GET", "volumes")
+            status_code, volumes_response = self._get_all_pages("volumes", "volumes")
             if status_code == 200:
                 volumes = volumes_response.get("volumes", [])
                 
@@ -230,7 +274,7 @@ class HetznerCloudManager:
         
         # Floating IPs berechnen
         try:
-            status_code, ips_response = self._make_request("GET", "floating_ips")
+            status_code, ips_response = self._get_all_pages("floating_ips", "floating_ips")
             if status_code == 200:
                 ips = ips_response.get("floating_ips", [])
                 
@@ -247,7 +291,7 @@ class HetznerCloudManager:
         
         # Load Balancer berechnen
         try:
-            status_code, lb_response = self._make_request("GET", "load_balancers")
+            status_code, lb_response = self._get_all_pages("load_balancers", "load_balancers")
             if status_code == 200:
                 lbs = lb_response.get("load_balancers", [])
                 lb_types = pricing.get("load_balancer_types", [])
@@ -312,7 +356,7 @@ class HetznerCloudManager:
     # SSH Key Management Functions
     def list_ssh_keys(self) -> List[Dict]:
         """List all SSH keys in the project"""
-        status_code, response = self._make_request("GET", "ssh_keys")
+        status_code, response = self._get_all_pages("ssh_keys", "ssh_keys")
         
         if status_code != 200:
             print(f"Error listing SSH keys: {response.get('error', 'Unknown error')}")
@@ -403,7 +447,7 @@ class HetznerCloudManager:
     # Backup Management Functions
     def list_backups(self, server_id: Optional[int] = None) -> List[Dict]:
         """List all backups, optionally filtered by server ID"""
-        status_code, response = self._make_request("GET", "images?type=backup")
+        status_code, response = self._get_all_pages("images?type=backup", "images")
         
         if status_code != 200:
             print(f"Error listing backups: {response.get('error', 'Unknown error')}")
@@ -675,7 +719,7 @@ class HetznerCloudManager:
     
     def list_servers(self) -> List[Dict]:
         """List all servers in the project"""
-        status_code, response = self._make_request("GET", "servers")
+        status_code, response = self._get_all_pages("servers", "servers")
         
         if status_code != 200:
             print(f"Error listing servers: {response.get('error', 'Unknown error')}")
@@ -813,7 +857,7 @@ class HetznerCloudManager:
     # Snapshot Management Functions
     def list_snapshots(self, server_id: Optional[int] = None) -> List[Dict]:
         """List all snapshots, optionally filtered by server ID"""
-        status_code, response = self._make_request("GET", "images?type=snapshot")
+        status_code, response = self._get_all_pages("images?type=snapshot", "images")
         
         if status_code != 200:
             print(f"Error listing snapshots: {response.get('error', 'Unknown error')}")
@@ -912,7 +956,7 @@ class HetznerCloudManager:
     # Volume Management Functions
     def list_volumes(self) -> List[Dict]:
         """List all volumes in the project"""
-        status_code, response = self._make_request("GET", "volumes")
+        status_code, response = self._get_all_pages("volumes", "volumes")
 
         if status_code != 200:
             print(f"Error listing volumes: {response.get('error', 'Unknown error')}")
@@ -1107,7 +1151,7 @@ class HetznerCloudManager:
     # ISO Management Functions
     def list_isos(self) -> List[Dict]:
         """List all available ISOs"""
-        status_code, response = self._make_request("GET", "isos")
+        status_code, response = self._get_all_pages("isos", "isos")
 
         if status_code != 200:
             print(f"Error listing ISOs: {response.get('error', 'Unknown error')}")
@@ -1176,7 +1220,7 @@ class HetznerCloudManager:
     # Network Management Functions
     def list_networks(self) -> List[Dict]:
         """List all networks in the project"""
-        status_code, response = self._make_request("GET", "networks")
+        status_code, response = self._get_all_pages("networks", "networks")
 
         if status_code != 200:
             print(f"Error listing networks: {response.get('error', 'Unknown error')}")
@@ -1385,7 +1429,7 @@ class HetznerCloudManager:
     # Load Balancer Management Functions
     def list_load_balancer_types(self) -> List[Dict]:
         """List all available load balancer types."""
-        status_code, response = self._make_request("GET", "load_balancer_types")
+        status_code, response = self._get_all_pages("load_balancer_types", "load_balancer_types")
 
         if status_code != 200:
             print(f"Error listing load balancer types: {response.get('error', 'Unknown error')}")
@@ -1395,7 +1439,7 @@ class HetznerCloudManager:
 
     def list_load_balancers(self) -> List[Dict]:
         """List all load balancers in the project."""
-        status_code, response = self._make_request("GET", "load_balancers")
+        status_code, response = self._get_all_pages("load_balancers", "load_balancers")
 
         if status_code != 200:
             print(f"Error listing load balancers: {response.get('error', 'Unknown error')}")
@@ -1533,7 +1577,7 @@ class HetznerCloudManager:
 
     def list_firewalls(self) -> List[Dict]:
         """List all firewalls in the project."""
-        status_code, response = self._make_request("GET", "firewalls")
+        status_code, response = self._get_all_pages("firewalls", "firewalls")
 
         if status_code != 200:
             print(f"Error listing firewalls: {response.get('error', 'Unknown error')}")
@@ -1679,7 +1723,7 @@ class HetznerCloudManager:
     # Floating IP Management Functions
     def list_floating_ips(self) -> List[Dict]:
         """List all Floating IPs"""
-        status_code, response = self._make_request("GET", "floating_ips")
+        status_code, response = self._get_all_pages("floating_ips", "floating_ips")
         if status_code != 200:
             print(f"Error listing floating IPs: {response.get('error', 'Unknown error')}")
             return []
@@ -1802,7 +1846,7 @@ class HetznerCloudManager:
     # Primary IP Management Functions
     def list_primary_ips(self) -> List[Dict]:
         """List all Primary IPs"""
-        status_code, response = self._make_request("GET", "primary_ips")
+        status_code, response = self._get_all_pages("primary_ips", "primary_ips")
         if status_code != 200:
             print(f"Error listing primary IPs: {response.get('error', 'Unknown error')}")
             return []
@@ -1929,7 +1973,7 @@ class HetznerCloudManager:
         endpoint = "images"
         if image_type:
             endpoint = f"images?type={image_type}"
-        status_code, response = self._make_request("GET", endpoint)
+        status_code, response = self._get_all_pages(endpoint, "images")
 
         if status_code != 200:
             print(f"Error listing images: {response.get('error', 'Unknown error')}")
@@ -2063,7 +2107,7 @@ class HetznerCloudManager:
     # Location & Datacenter Functions
     def list_locations(self) -> List[Dict]:
         """List all available locations"""
-        status_code, response = self._make_request("GET", "locations")
+        status_code, response = self._get_all_pages("locations", "locations")
 
         if status_code != 200:
             print(f"Error listing locations: {response.get('error', 'Unknown error')}")
@@ -2087,7 +2131,7 @@ class HetznerCloudManager:
 
     def list_datacenters(self) -> List[Dict]:
         """List all available datacenters"""
-        status_code, response = self._make_request("GET", "datacenters")
+        status_code, response = self._get_all_pages("datacenters", "datacenters")
 
         if status_code != 200:
             print(f"Error listing datacenters: {response.get('error', 'Unknown error')}")
