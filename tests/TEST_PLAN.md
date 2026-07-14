@@ -29,6 +29,7 @@ Updated: 2026-07-14
 | `commands/primary_ip.py` | `tests/commands/test_primary_ip.py` | 19 | ✅ | Assign/Unassign/Delete/DNS/Protect |
 | `commands/location.py` | `tests/commands/test_location_servertype.py` | 28 | ✅ | `LocationCommands`, `DatacenterCommands`, and `ServerTypeCommands` covered |
 | `commands/base.py` | `tests/commands/test_base.py` | 11 | ✅ | Shared dispatch, parse_id, confirm, prompt_labels |
+| `commands/action.py` | `tests/commands/test_action.py` | 13 | ✅ | List/filter/info incl. error rendering |
 
 ---
 
@@ -39,6 +40,7 @@ Updated: 2026-07-14
 | API Core / Request Handling | `tests/lib/test_api_core.py` | 10 | ✅ |
 | Config Manager (permissions) | `tests/lib/test_config_manager.py` | 8 | ✅ |
 | Console registry & dispatch | `tests/lib/test_console.py` | 12 | ✅ |
+| Action API | `tests/lib/test_api_action.py` | 6 | ✅ |
 | Formatting / table truncation | `tests/utils/test_formatting.py` | 9 | ✅ |
 | Interactive prompt helpers | `tests/utils/test_prompts.py` | 10 | ✅ |
 | VM API | `tests/lib/test_api_vm.py` | 20 | ✅ |

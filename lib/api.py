@@ -1426,6 +1426,24 @@ class HetznerCloudManager:
         )
 
     # ------------------------------------------------------------------
+    # Action Management Functions
+    # ------------------------------------------------------------------
+
+    def list_actions(self, status: Optional[str] = None) -> List[Dict]:
+        """List actions, optionally filtered by status (running, success, error)"""
+        endpoint = "actions"
+        if status:
+            endpoint = f"actions?status={status}"
+        return self._get_list(endpoint, "actions", "listing actions")
+
+    def get_action_by_id(self, action_id: int) -> Dict:
+        """Get action details by ID"""
+        return self._get_resource(
+            f"actions/{action_id}", "action",
+            f"Action with ID {action_id}", f"getting action {action_id}"
+        )
+
+    # ------------------------------------------------------------------
     # Location & Datacenter Functions
     # ------------------------------------------------------------------
 

@@ -169,6 +169,10 @@ Batch Commands:
   batch delete <id1,id2,id3...>        - Delete multiple servers
   batch snapshot <id1,id2,id3...>      - Create snapshots for multiple servers
 
+Action Commands:
+  action list [running|success|error]  - List API actions (newest first, optional status filter)
+  action info <id>                     - Show action details incl. progress and errors
+
 Volume Commands:
   volume list                          - List all volumes
   volume info <id>                     - Show detailed information about a volume
@@ -518,7 +522,7 @@ Status icons: ✅ shipped, 🟡 partial support, ⬜ not started.
 | 8 | Advanced | Resource Overview | 🟡 | `project resources` and `datacenter resources` provide partial overview; no dedicated unified usage/limits view yet. |
 | 9 | Infrastructure | ISO Management | ✅ | `commands/iso.py` delivers list/info/attach/detach. |
 | 10 | Infrastructure | Placement Groups | ⬜ | No placement group module yet (`placement list|create|assign`). |
-| 11 | Infrastructure | Action Management | ⬜ | `action list/status/cancel/history` absent; would wrap Hetzner action endpoints. |
+| 11 | Infrastructure | Action Management | ✅ | `commands/action.py` ships `action list [running\|success\|error]` and `action info <id>` (history = status filter). The Hetzner API has no cancel endpoint, so `action cancel` is not implementable. |
 | 12 | Business Intelligence | Enhanced Analytics | 🟡 | `commands/pricing.py` supports `list` and `calculate`; forecast/compare/optimization helpers missing. |
 | 13 | Business Intelligence | Backup Policies | 🟡 | `commands/backup.py` handles list/enable/disable/delete; policy view/restore/schedule flows to build. |
 | 14 | CLI UX | Context-aware Autocomplete | 🟡 | ID-based suggestions and inline argument hints implemented; name-based suggestions still open. |

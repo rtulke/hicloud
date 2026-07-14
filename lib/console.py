@@ -32,6 +32,7 @@ from commands.project import ProjectCommands
 from commands.pricing import PricingCommands
 from commands.keys import KeysCommands
 from commands.batch import BatchCommands
+from commands.action import ActionCommands
 from commands.volume import VolumeCommands
 from commands.iso import ISOCommands
 from commands.location import LocationCommands, DatacenterCommands, ServerTypeCommands
@@ -128,6 +129,7 @@ class InteractiveConsole:
         self.pricing_commands = PricingCommands(self)
         self.keys_commands = KeysCommands(self)
         self.batch_commands = BatchCommands(self)
+        self.action_commands = ActionCommands(self)
         self.volume_commands = VolumeCommands(self)
         self.iso_commands = ISOCommands(self)
         self.location_commands = LocationCommands(self)
@@ -407,6 +409,21 @@ class InteractiveConsole:
                     "delete": {"help": "Delete multiple servers: batch delete <id1,id2,id3...>"},
                     "snapshot": {"help": "Create snapshots for multiple servers: batch snapshot <id1,id2,id3...>"}
                 }
+            },
+            "action": {
+                "help": "Action commands: list [running|success|error], info <id>",
+                "subcommands": {
+                    "list": {
+                        "help": "List API actions: action list [running|success|error]",
+                        "arguments": [
+                            {"name": "status", "literals": ["running", "success", "error"], "optional": True}
+                        ],
+                    },
+                    "info": {
+                        "help": "Show action details: action info <id>",
+                        "arguments": [{"name": "action_id", "provider": "action_ids"}],
+                    },
+                },
             },
             "project": {
                 "help": "Project commands: list, switch <n>, resources, info",
@@ -821,6 +838,7 @@ class InteractiveConsole:
             "server_ids": self._get_server_ids,
             "snapshot_ids": self._get_snapshot_ids,
             "backup_ids": self._get_backup_ids,
+            "action_ids": self._get_action_ids,
             "volume_ids": self._get_volume_ids,
             "network_ids": self._get_network_ids,
             "firewall_ids": self._get_firewall_ids,
@@ -843,6 +861,7 @@ class InteractiveConsole:
             "backup": self.backup_commands.handle_command,
             "metrics": self.metrics_commands.handle_command,
             "batch": self.batch_commands.handle_command,
+            "action": self.action_commands.handle_command,
             "project": self.project_commands.handle_command,
             "pricing": self.pricing_commands.handle_command,
             "keys": self.keys_commands.handle_command,
@@ -1009,6 +1028,13 @@ class InteractiveConsole:
             lambda: [str(dc.get("id")) for dc in self.hetzner.list_datacenters()],
         )
     
+    def _get_action_ids(self) -> List[str]:
+        # Für die Completion sind laufende Actions die relevante Menge
+        return self._get_cached_values(
+            "action_ids",
+            lambda: [str(action.get("id")) for action in self.hetzner.list_actions("running")],
+        )
+
     def _get_project_names(self) -> List[str]:
         if not os.path.exists(DEFAULT_CONFIG_PATH):
             return []
@@ -1371,6 +1397,7 @@ class InteractiveConsole:
         ("Backup Commands", ["backup"]),
         ("Monitoring Commands", ["metrics"]),
         ("Batch Commands", ["batch"]),
+        ("Action Commands", ["action"]),
         ("Project Commands", ["project"]),
         ("Pricing Commands", ["pricing"]),
         ("Volume Commands", ["volume"]),
