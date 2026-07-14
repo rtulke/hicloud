@@ -14,12 +14,12 @@ class ConfigManager:
     
     @staticmethod
     def check_file_permissions(config_path: str) -> bool:
-        """Check if the config file has 600 permissions"""
+        """Check if the config file is only accessible by its owner (600 or 400)"""
         if not os.path.exists(config_path):
             return False
-            
-        file_mode = os.stat(config_path).st_mode
-        return (file_mode & stat.S_IRWXU) == stat.S_IRUSR | stat.S_IWUSR
+
+        file_mode = stat.S_IMODE(os.stat(config_path).st_mode)
+        return file_mode in (0o600, 0o400)
     
     @staticmethod
     def load_config(config_path: str) -> Dict:
