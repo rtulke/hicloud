@@ -503,43 +503,43 @@ After you type a command followed by a space (for example `iso `), TAB completio
 
 macOS Terminal and hicloud support Page Up/Down out of the box. iTerm2 ships with *"Page up, page down, home and end scroll outside interactive apps"* enabled by default, which intercepts the keys. Fix:
 
-1. Open iTerm2 → **Preferences** (`⌘+,`) → **Keys**.
+1. Open iTerm2 -> **Preferences** (`Cmd+,`) -> **Keys**.
 2. Either disable the above scrolling option, or add explicit *Key Bindings* for `Page Up`, `Page Down`, `Home`, and `End` that **Send Escape Sequence** with `\[5~`, `\[6~`, `\[H`, `\[F`.
 
 ## Feature Tracker
 
-Status icons: ✅ shipped, 🟡 partial support, ⬜ not started.
+Status: done = shipped, partial = partial support, open = not started.
 
 | ID | Category | Feature | Status | Coverage / Next Steps |
 |----|----------|---------|--------|------------------------|
-| 1 | Top Priority | Network Management | ✅ | `commands/network.py` ships list/info/create/update/delete plus attach/detach/subnet/protect. |
-| 2 | Top Priority | Firewall Management | ✅ | `commands/firewall.py` provides CRUD, robust `rules list|add|remove|set`, server and label-selector apply/remove flows. |
-| 3 | Top Priority | Volume Management | ✅ | `commands/volume.py` implements list/info/create/delete/attach/detach/resize/protect. |
-| 4 | Top Priority | Load Balancer | ✅ | `commands/loadbalancer.py` supports full CRUD, targets (server + label-selector), service list/add/update/delete wizard, health checks, algorithm change. |
-| 5 | Advanced | Floating IPs | ✅ | `commands/floating_ip.py` implements list/info/create/update/delete/assign/unassign/rDNS/protection. IP Deletion Guard (ID 28) built in. |
-| 6 | Advanced | Image Management | ✅ | `commands/image.py` provides list/info/delete/update/import; `vm image` alias still works. |
-| 7 | Advanced | Enhanced Monitoring | 🟡 | `commands/metrics.py` covers `metrics list|cpu|traffic|disk`; alerting/export flows still to implement. |
-| 8 | Advanced | Resource Overview | 🟡 | `project resources` and `datacenter resources` provide partial overview; no dedicated unified usage/limits view yet. |
-| 9 | Infrastructure | ISO Management | ✅ | `commands/iso.py` delivers list/info/attach/detach. |
-| 10 | Infrastructure | Placement Groups | ⬜ | No placement group module yet (`placement list|create|assign`). |
-| 11 | Infrastructure | Action Management | ✅ | `commands/action.py` ships `action list [running\|success\|error]` and `action info <id>` (history = status filter). The Hetzner API has no cancel endpoint, so `action cancel` is not implementable. |
-| 12 | Business Intelligence | Enhanced Analytics | 🟡 | `commands/pricing.py` supports `list` and `calculate`; forecast/compare/optimization helpers missing. |
-| 13 | Business Intelligence | Backup Policies | 🟡 | `commands/backup.py` handles list/enable/disable/delete; policy view/restore/schedule flows to build. |
-| 14 | CLI UX | Context-aware Autocomplete | 🟡 | ID-based suggestions and inline argument hints implemented; name-based suggestions still open. |
-| 15 | CLI UX | Inline Help Overlay | ⬜ | TAB-based hints exist; no toggleable overlay for invalid input. |
-| 16 | CLI UX | Prompt & Status UX | 🟡 | Startup shows active project and connection state; a dedicated `status` command is not implemented. |
-| 17 | CLI UX | Table `--format` / `--sort` Options | 🟡 | Table layout adapts to terminal width; command-level flags not implemented. |
-| 18 | Safety | Guided Destructive Workflows | 🟡 | Many commands require confirmation prompts; standardized flags and cost previews still missing. |
-| 19 | Operations | Diagnostics & Logging Command | ⬜ | No `diagnostics` command; only global `--debug` flag exists. |
-| 20 | Quality | Base `tests/` + Fixtures | 🟡 | `tests/` covers commands/ and lib/ for all shipped modules; shared fixtures and broader coverage patterns still evolving. |
-| 21 | Security | `config validate` + GPG | 🟡 | `config validate` CLI command shipped (`commands/config.py`); optional GPG encryption not implemented. |
-| 22 | Automation | Recurring Job Helpers | ⬜ | No built-in helpers yet for snapshot rotation, backup enforcement, or cost alerts. |
-| 23 | Top Priority | Load Balancer Advanced Operations | ✅ | Service/listener CRUD, health-check wizard, algorithm change implemented in `commands/loadbalancer.py`. |
-| 24 | Infrastructure | Primary IP Management | ✅ | `commands/primary_ip.py` implements list/info/create/update/delete/assign/unassign/rDNS/protection. Deletion Guard built in. |
-| 25 | Infrastructure | Certificates Management | ⬜ | No certificates command module yet; add list/create/update/delete for TLS workflows with load balancers. |
-| 26 | Infrastructure | DNS Zones & RRsets | ⬜ | DNS API surface not represented; add zone and record-set command modules. |
-| 27 | Infrastructure | Server Type Discovery | ✅ | `server-type list [location]` and `server-type info <name|id>` implemented in `commands/location.py`. |
-| 28 | Safety | IP Deletion Policy Guard (May 1, 2026) | ✅ | Built into `floating-ip delete` and `primary-ip delete`: blocks deletion if IP is assigned or protected, with actionable error messages. |
+| 1 | Top Priority | Network Management | done | `commands/network.py` ships list/info/create/update/delete plus attach/detach/subnet/protect. |
+| 2 | Top Priority | Firewall Management | done | `commands/firewall.py` provides CRUD, robust `rules list|add|remove|set`, server and label-selector apply/remove flows. |
+| 3 | Top Priority | Volume Management | done | `commands/volume.py` implements list/info/create/delete/attach/detach/resize/protect. |
+| 4 | Top Priority | Load Balancer | done | `commands/loadbalancer.py` supports full CRUD, targets (server + label-selector), service list/add/update/delete wizard, health checks, algorithm change. |
+| 5 | Advanced | Floating IPs | done | `commands/floating_ip.py` implements list/info/create/update/delete/assign/unassign/rDNS/protection. IP Deletion Guard (ID 28) built in. |
+| 6 | Advanced | Image Management | done | `commands/image.py` provides list/info/delete/update/import; `vm image` alias still works. |
+| 7 | Advanced | Enhanced Monitoring | partial | `commands/metrics.py` covers `metrics list|cpu|traffic|disk`; alerting/export flows still to implement. |
+| 8 | Advanced | Resource Overview | partial | `project resources` and `datacenter resources` provide partial overview; no dedicated unified usage/limits view yet. |
+| 9 | Infrastructure | ISO Management | done | `commands/iso.py` delivers list/info/attach/detach. |
+| 10 | Infrastructure | Placement Groups | open | No placement group module yet (`placement list|create|assign`). |
+| 11 | Infrastructure | Action Management | done | `commands/action.py` ships `action list [running\|success\|error]` and `action info <id>` (history = status filter). The Hetzner API has no cancel endpoint, so `action cancel` is not implementable. |
+| 12 | Business Intelligence | Enhanced Analytics | partial | `commands/pricing.py` supports `list` and `calculate`; forecast/compare/optimization helpers missing. |
+| 13 | Business Intelligence | Backup Policies | partial | `commands/backup.py` handles list/enable/disable/delete; policy view/restore/schedule flows to build. |
+| 14 | CLI UX | Context-aware Autocomplete | partial | ID-based suggestions and inline argument hints implemented; name-based suggestions still open. |
+| 15 | CLI UX | Inline Help Overlay | open | TAB-based hints exist; no toggleable overlay for invalid input. |
+| 16 | CLI UX | Prompt & Status UX | partial | Startup shows active project and connection state; a dedicated `status` command is not implemented. |
+| 17 | CLI UX | Table `--format` / `--sort` Options | partial | Table layout adapts to terminal width; command-level flags not implemented. |
+| 18 | Safety | Guided Destructive Workflows | partial | Many commands require confirmation prompts; standardized flags and cost previews still missing. |
+| 19 | Operations | Diagnostics & Logging Command | open | No `diagnostics` command; only global `--debug` flag exists. |
+| 20 | Quality | Base `tests/` + Fixtures | partial | `tests/` covers commands/ and lib/ for all shipped modules; shared fixtures and broader coverage patterns still evolving. |
+| 21 | Security | `config validate` + GPG | partial | `config validate` CLI command shipped (`commands/config.py`); optional GPG encryption not implemented. |
+| 22 | Automation | Recurring Job Helpers | open | No built-in helpers yet for snapshot rotation, backup enforcement, or cost alerts. |
+| 23 | Top Priority | Load Balancer Advanced Operations | done | Service/listener CRUD, health-check wizard, algorithm change implemented in `commands/loadbalancer.py`. |
+| 24 | Infrastructure | Primary IP Management | done | `commands/primary_ip.py` implements list/info/create/update/delete/assign/unassign/rDNS/protection. Deletion Guard built in. |
+| 25 | Infrastructure | Certificates Management | open | No certificates command module yet; add list/create/update/delete for TLS workflows with load balancers. |
+| 26 | Infrastructure | DNS Zones & RRsets | open | DNS API surface not represented; add zone and record-set command modules. |
+| 27 | Infrastructure | Server Type Discovery | done | `server-type list [location]` and `server-type info <name|id>` implemented in `commands/location.py`. |
+| 28 | Safety | IP Deletion Policy Guard (May 1, 2026) | done | Built into `floating-ip delete` and `primary-ip delete`: blocks deletion if IP is assigned or protected, with actionable error messages. |
 
 ## License
 

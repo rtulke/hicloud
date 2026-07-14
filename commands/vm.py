@@ -412,7 +412,7 @@ class VMCommands(BaseCommands):
                 # Bei direkter API-Anfrage bekommen wir das Passwort zurück
                 # Aber in diesem Fall verwenden wir die create_server-Methode, die das Passwort nicht zurückgibt
                 print("\nCheck your email or Hetzner Cloud Console for the root password.")
-                print("\nYou can use: “vm list” to display all vms.")
+                print("\nYou can use: 'vm list' to display all vms.")
 
         else:
             print(f"Failed to create VM")

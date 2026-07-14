@@ -303,7 +303,7 @@ class NetworkCommands(BaseCommands):
         # Summary
         print("\nUpdate Summary:")
         if new_name:
-            print(f"  Name: {network.get('name')} → {new_name}")
+            print(f"  Name: {network.get('name')} -> {new_name}")
         if new_labels is not None:
             print(f"  Labels: {len(new_labels)} labels")
 

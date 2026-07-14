@@ -54,7 +54,7 @@ class ProjectCommands(BaseCommands):
         
         for project_key, project_data in config.items():
             project_name = project_data.get("project_name", project_key)
-            is_current = "✓" if project_key == self.hetzner.project_name else ""
+            is_current = "*" if project_key == self.hetzner.project_name else ""
             rows.append([project_key, project_name, is_current])
             
         # Tabelle drucken

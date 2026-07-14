@@ -72,7 +72,7 @@ class FloatingIPCommands(BaseCommands):
         if dns_ptrs:
             print("\nReverse DNS:")
             for entry in dns_ptrs:
-                print(f"  {entry.get('ip')} → {entry.get('dns_ptr')}")
+                print(f"  {entry.get('ip')} -> {entry.get('dns_ptr')}")
 
         labels = fip.get("labels", {})
         if labels:
@@ -268,7 +268,7 @@ class FloatingIPCommands(BaseCommands):
         dns_ptr = args[2] if len(args) >= 3 and args[2].lower() != "reset" else None
         fip_id = fip.get("id")
 
-        action = f"→ {dns_ptr}" if dns_ptr else "(reset)"
+        action = f"-> {dns_ptr}" if dns_ptr else "(reset)"
         if not self.confirm(f"Set rDNS for {ip} {action} on floating IP {fip_id}?"):
             return
 

@@ -74,7 +74,7 @@ class PrimaryIPCommands(BaseCommands):
         if dns_ptrs:
             print("\nReverse DNS:")
             for entry in dns_ptrs:
-                print(f"  {entry.get('ip')} → {entry.get('dns_ptr')}")
+                print(f"  {entry.get('ip')} -> {entry.get('dns_ptr')}")
 
         labels = pip.get("labels", {})
         if labels:
@@ -277,7 +277,7 @@ class PrimaryIPCommands(BaseCommands):
         dns_ptr = args[2] if len(args) >= 3 and args[2].lower() != "reset" else None
         pip_id = pip.get("id")
 
-        action = f"→ {dns_ptr}" if dns_ptr else "(reset)"
+        action = f"-> {dns_ptr}" if dns_ptr else "(reset)"
         if not self.confirm(f"Set rDNS for {ip} {action} on primary IP {pip_id}?"):
             return
 
