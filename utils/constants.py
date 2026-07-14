@@ -11,4 +11,4 @@ HISTORY_MAX_LINES = 1000
 API_BASE_URL = "https://api.hetzner.cloud/v1"
 REQUEST_TIMEOUT = 30  # seconds; the API normally answers in <2s, but never let the REPL hang forever
 RATE_LIMIT_MAX_RETRIES = 3  # extra attempts after an HTTP 429 before giving up
-VERSION = "1.2.0"
+VERSION = "1.3.0"
