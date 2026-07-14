@@ -4,10 +4,11 @@
 import json
 import time
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
+from urllib.parse import urlencode
 
-from utils.constants import API_BASE_URL
+from utils.constants import API_BASE_URL, REQUEST_TIMEOUT
 from utils.spinner import DotsSpinner
 
 
@@ -29,13 +30,13 @@ class HetznerCloudManager:
         
         try:
             if method == "GET":
-                response = requests.get(url, headers=self.headers)
+                response = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
             elif method == "POST":
-                response = requests.post(url, headers=self.headers, json=data)
+                response = requests.post(url, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
             elif method == "PUT":
-                response = requests.put(url, headers=self.headers, json=data)
+                response = requests.put(url, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
             elif method == "DELETE":
-                response = requests.delete(url, headers=self.headers)
+                response = requests.delete(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
             else:
                 return 400, {"error": {"message": f"Unsupported method: {method}"}}
                 
@@ -81,11 +82,7 @@ class HetznerCloudManager:
         if step:
             params["step"] = step
             
-        endpoint = f"servers/{server_id}/metrics"
-        
-        # API erfordert GET-Parameter
-        query_params = "&".join([f"{k}={v}" for k, v in params.items()])
-        endpoint = f"{endpoint}?{query_params}"
+        endpoint = f"servers/{server_id}/metrics?{urlencode(params)}"
         
         status_code, response = self._make_request("GET", endpoint)
         
@@ -99,8 +96,8 @@ class HetznerCloudManager:
         """Gets CPU metrics for a server for the specified number of hours"""
         # Berechne Start- und Endzeitpunkt basierend auf Stunden
         # Hetzner API erwartet ISO 8601 mit Timezone (Z für UTC)
-        end_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-        start_time = (datetime.utcnow() - timedelta(hours=hours)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        end_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Für längere Zeiträume größere Schritte verwenden
         step = "60" if hours <= 6 else "300" if hours <= 48 else "3600"
@@ -111,8 +108,8 @@ class HetznerCloudManager:
         """Gets network metrics for a server for the specified number of days"""
         # Berechne Start- und Endzeitpunkt basierend auf Tagen
         # Hetzner API erwartet ISO 8601 mit Timezone (Z für UTC)
-        end_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-        start_time = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        end_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_time = (datetime.now(timezone.utc) - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Für längere Zeiträume größere Schritte verwenden
         step = "300" if days <= 1 else "3600" if days <= 7 else "86400"
@@ -123,8 +120,8 @@ class HetznerCloudManager:
         """Gets disk metrics for a server for the specified number of days"""
         # Berechne Start- und Endzeitpunkt basierend auf Tagen
         # Hetzner API erwartet ISO 8601 mit Timezone (Z für UTC)
-        end_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-        start_time = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        end_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_time = (datetime.now(timezone.utc) - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Feste Schrittweite für Festplattenmetriken
         step = "60"
@@ -766,8 +763,7 @@ class HetznerCloudManager:
         status_code, response = self._make_request("POST", f"servers/{server_id}/actions/shutdown", {})
         
         if status_code != 201:
-            # Try poweroff if shutdown fails
-            print("Trying graceful shutdown...")
+            print("Graceful shutdown failed, forcing power off (unsaved data may be lost)...")
             status_code, response = self._make_request("POST", f"servers/{server_id}/actions/poweroff", {})
             
             if status_code != 201:
