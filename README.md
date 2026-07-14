@@ -29,7 +29,7 @@ Because it's enough for most people and because it's much faster than using comp
 
 ### Prerequisites
 
-- Python 3.6 or higher
+- Python 3.9 or higher
 - pip (Python package manager)
 
 ### Dependencies
@@ -104,6 +104,10 @@ python hicloud.py --project project1
 Use a one-time API token without a configuration file:
 
 ```bash
+export HCLOUD_TOKEN=your_api_token   # preferred: keeps the token out of shell history
+python hicloud.py
+
+# or directly (visible in shell history and process list):
 python hicloud.py --token your_api_token
 ```
 

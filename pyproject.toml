@@ -1,0 +1,31 @@
+# NOTE: hicloud is currently run from a checkout (python hicloud.py).
+# A pip-installable package (console_scripts entry point) requires moving
+# the top-level lib/, commands/, utils/ packages under a single hicloud/
+# package first — installing them as-is would pollute site-packages with
+# generic names. Until then this file carries metadata and tool config.
+
+[project]
+name = "hicloud"
+version = "1.2.0"
+description = "Interactive CLI console for managing Hetzner Cloud resources"
+readme = "README.md"
+license = { text = "GPL-3.0-only" }
+authors = [{ name = "Robert Tulke", email = "rt@debian.sh" }]
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.32",
+    "toml>=0.10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+# Start with correctness-critical rules only (syntax errors, undefined
+# names, invalid literals); tighten to the full E/F/W set once the
+# existing style findings have been cleaned up separately.
+select = ["E9", "F63", "F7", "F82"]
