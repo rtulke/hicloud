@@ -44,7 +44,11 @@ class DummyHetzner:
         return self.snapshots
 
     def get_server_by_id(self, server_id):
-        return self.server if server_id == 1 else None
+        if server_id == 1:
+            return self.server
+        # mirrors the real API layer, which prints the not-found message itself
+        print(f"VM with ID {server_id} not found")
+        return None
 
     def create_snapshot(self, vm_id, description=None):
         self.create_calls.append(vm_id)

@@ -9,12 +9,16 @@ class DummyConsole:
     def __init__(self, hetzner):
         self.hetzner = hetzner
         self.tables = []
+        self.history_saved = False
 
     def print_table(self, headers, rows, title=None):
         self.tables.append((headers, rows, title))
 
     def horizontal_line(self, char="="):
         return char * 60
+
+    def _save_history(self):
+        self.history_saved = True
 
 
 class DummyHetzner:
@@ -122,6 +126,48 @@ def test_switch_project_not_found(monkeypatch, tmp_path, capsys):
     cmd.switch_project(["nonexistent"])
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+def _prepare_switch(monkeypatch, tmp_path, argv):
+    config_file = tmp_path / ".hicloud.toml"
+    config_file.write_text('[prod]\napi_token = "xyz"\nproject_name = "Production"\n')
+    config_file.chmod(0o600)
+    monkeypatch.setattr("commands.project.DEFAULT_CONFIG_PATH", str(config_file))
+
+    captured = {}
+    monkeypatch.setattr("commands.project.os.execv", lambda exe, cmd: captured.update(exe=exe, cmd=cmd))
+    monkeypatch.setattr("commands.project.sys.argv", argv)
+    return captured
+
+
+def test_switch_project_preserves_config_and_debug_flags(monkeypatch, tmp_path, capsys):
+    captured = _prepare_switch(
+        monkeypatch, tmp_path,
+        ["hicloud.py", "--config", "/tmp/x.toml", "--debug", "--project", "default"],
+    )
+
+    cmd, _, console = build()
+    cmd.switch_project(["prod"])
+    capsys.readouterr()
+
+    # cmd = [python, script, <passthrough...>, --project, prod]
+    assert captured["cmd"][2:] == ["--config", "/tmp/x.toml", "--debug", "--project", "prod"]
+    assert console.history_saved is True
+
+
+def test_switch_project_drops_token_flag(monkeypatch, tmp_path, capsys):
+    captured = _prepare_switch(
+        monkeypatch, tmp_path,
+        ["hicloud.py", "--token", "secret123", "--debug"],
+    )
+
+    cmd, _, _ = build()
+    cmd.switch_project(["prod"])
+    capsys.readouterr()
+
+    assert "--token" not in captured["cmd"]
+    assert "secret123" not in captured["cmd"]
+    assert captured["cmd"][2:] == ["--debug", "--project", "prod"]
 
 
 # --- show_info ---

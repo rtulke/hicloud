@@ -50,7 +50,11 @@ class DummyHetzner:
         self.disk_calls = []
 
     def get_server_by_id(self, server_id):
-        return self.server if server_id == 1 else None
+        if server_id == 1:
+            return self.server
+        # mirrors the real API layer, which prints the not-found message itself
+        print(f"VM with ID {server_id} not found")
+        return None
 
     def get_available_metrics(self, server_id):
         return ["cpu", "disk", "network"]
