@@ -5,7 +5,7 @@ import os
 import sys
 from typing import List
 
-from utils.constants import DEFAULT_CONFIG_PATH
+from utils.constants import API_BASE_URL, DEFAULT_CONFIG_PATH
 from lib.config import ConfigManager
 
 class ProjectCommands:
@@ -176,7 +176,7 @@ class ProjectCommands:
             status_code, response = self.hetzner._make_request("GET", "datacenters")
             if status_code == 200:
                 print(f"Connection Status: \033[1;32mConnected\033[0m")
-                print(f"API Endpoint: {self.hetzner.headers['Authorization'][:10]}...")
+                print(f"API Endpoint: {API_BASE_URL}")
 
                 # Server zählen
                 servers = self.hetzner.list_servers()

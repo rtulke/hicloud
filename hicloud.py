@@ -24,7 +24,7 @@ def main():
     parser.add_argument("--config", help="Path to configuration file")
     parser.add_argument("--gen-config", help="Generate a sample configuration file")
     parser.add_argument("--project", help="Project to use from config file", default="default")
-    parser.add_argument("--token", help="API token (overrides config file)")
+    parser.add_argument("--token", help="API token (overrides config file; prefer HCLOUD_TOKEN env var to keep the token out of shell history)")
     parser.add_argument("--version", action="version", version=f"hicloud v{VERSION}")
     parser.add_argument("--debug", action="store_true", help="Enable debug output")
 
@@ -49,12 +49,16 @@ def main():
     if os.path.exists(config_path):
         config = ConfigManager.load_config(config_path)
 
-    # Get API token
+    # Get API token (CLI flag > HCLOUD_TOKEN env var > config file)
     api_token = None
     project_name = "default"
 
+    env_token = os.environ.get("HCLOUD_TOKEN")
+
     if args.token:
         api_token = args.token
+    elif env_token:
+        api_token = env_token
     elif args.project in config:
         api_token = config[args.project].get("api_token")
         project_name = config[args.project].get("project_name", args.project)
@@ -66,7 +70,8 @@ def main():
         if not os.path.exists(config_path):
             print(f"No configuration file found at {config_path}")
             print(f"Generate one with: hicloud.py --gen-config {config_path}")
-            print("Or provide an API token: hicloud.py --token YOUR_API_TOKEN")
+            print("Or provide an API token via the HCLOUD_TOKEN environment variable")
+            print("or: hicloud.py --token YOUR_API_TOKEN")
         else:
             print(f"No API token found for project '{args.project}'")
         return 1
