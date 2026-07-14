@@ -28,6 +28,14 @@ def horizontal_line(char="=") -> str:
     """Returns a horizontal line across the entire terminal width"""
     return char * get_terminal_width()
 
+def truncate_cell(text: str, width: int) -> str:
+    """Truncate text with an ellipsis so it fits a column of the given width"""
+    if len(text) <= width:
+        return text
+    if width <= 1:
+        return text[:max(width, 0)]
+    return text[: width - 1] + "…"
+
 def create_table_layout(headers: List[str], rows: List[List[Any]], padding: int = 2) -> Dict:
     """
     Creates a table layout with dynamically sized columns based on content
@@ -84,7 +92,8 @@ def create_table_layout(headers: List[str], rows: List[List[Any]], padding: int 
     return {
         "column_widths": column_widths,
         "format_str": format_str,
-        "total_width": total_width
+        "total_width": total_width,
+        "padding": padding
     }
 
 def print_table(headers: List[str], rows: List[List[Any]], title: str = None) -> None:
@@ -124,7 +133,11 @@ def print_table(headers: List[str], rows: List[List[Any]], title: str = None) ->
     for row in rows:
         # Stelle sicher, dass die Zeile die richtige Länge hat
         padded_row = row + [""] * (len(headers) - len(row))
-        # Wandle alle Werte in Strings um
-        str_row = [str(cell) for cell in padded_row]
-        row_line = format_str.format(*str_row[:len(headers)])
+        # Wandle alle Werte in Strings um und kürze sie auf die Spaltenbreite,
+        # damit skalierte Spalten das Raster nicht verschieben
+        str_row = [
+            truncate_cell(str(cell), layout["column_widths"][i] - layout["padding"])
+            for i, cell in enumerate(padded_row[:len(headers)])
+        ]
+        row_line = format_str.format(*str_row)
         print(f"{TABLE_ROW_COLOR}{row_line}{ANSI_RESET}")
