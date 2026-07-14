@@ -15,23 +15,35 @@ class DummyConsole:
         return char * 60
 
 
+def _series(values):
+    """Build a Hetzner-style time series: [timestamp, "value"] pairs."""
+    return {"values": [[1700000000 + i * 60, str(v)] for i, v in enumerate(values)]}
+
+
 class DummyHetzner:
     def __init__(self):
         self.server = {"id": 1, "name": "web-01", "status": "running"}
         self.cpu_metrics = {
-            "time_series": {"values": [50.0, 60.0, 45.0, 70.0]}
+            "step": 60,
+            "time_series": {"cpu": _series([50.0, 60.0, 45.0, 70.0])},
         }
         self.traffic_metrics = {
+            "step": 60,
             "time_series": {
-                "network_in": {"values": [1024, 2048]},
-                "network_out": {"values": [512, 1024]},
-            }
+                "network.0.bandwidth.in": _series([1024, 2048]),
+                "network.0.bandwidth.out": _series([512, 1024]),
+                "network.0.pps.in": _series([10, 20]),
+                "network.0.pps.out": _series([5, 8]),
+            },
         }
         self.disk_metrics = {
+            "step": 60,
             "time_series": {
-                "disk_read": {"values": [100, 200]},
-                "disk_write": {"values": [50, 80]},
-            }
+                "disk.0.bandwidth.read": _series([100, 200]),
+                "disk.0.bandwidth.write": _series([50, 80]),
+                "disk.0.iops.read": _series([12, 20]),
+                "disk.0.iops.write": _series([3, 4]),
+            },
         }
         self.cpu_calls = []
         self.traffic_calls = []
@@ -167,6 +179,56 @@ def test_disk_missing_id(capsys):
     cmd, _, _ = build()
     cmd.show_disk_metrics([])
     assert "Missing server ID" in capsys.readouterr().out
+
+
+# --- parsing of the real Hetzner response format ---
+
+def test_cpu_parses_timestamp_value_pairs(capsys):
+    cmd, _, _ = build()
+    cmd.show_cpu_metrics(["1"])
+    out = capsys.readouterr().out
+    # avg of 50/60/45/70 = 56.25, min 45, max 70
+    assert "56.2% (avg)" in out
+    assert "Min: 45.0%" in out
+    assert "Max: 70.0%" in out
+
+
+def test_cpu_empty_series_reports_no_data(capsys):
+    cmd, h, _ = build()
+    h.cpu_metrics = {"step": 60, "time_series": {"cpu": {"values": []}}}
+    cmd.show_cpu_metrics(["1"])
+    assert "No CPU metrics data available" in capsys.readouterr().out
+
+
+def test_traffic_totals_use_step(capsys):
+    cmd, _, _ = build()
+    cmd.show_traffic_metrics(["1"])
+    out = capsys.readouterr().out
+    # (1024+2048) bytes/s * 60s = 184320 bytes = 180.00 KB
+    assert "Total received: 180.00 KB" in out
+    # (512+1024) bytes/s * 60s = 92160 bytes = 90.00 KB
+    assert "Total sent:     90.00 KB" in out
+    # avg pps: in (10+20)/2 = 15.0, out (5+8)/2 = 6.5
+    assert "Received: 15.0 pps" in out
+    assert "Sent:     6.5 pps" in out
+
+
+def test_disk_totals_and_iops(capsys):
+    cmd, _, _ = build()
+    cmd.show_disk_metrics(["1"])
+    out = capsys.readouterr().out
+    # (100+200) bytes/s * 60s = 18000 bytes = 17.58 KB
+    assert "Total read:  17.58 KB" in out
+    # avg iops read (12+20)/2 = 16.0, max 20
+    assert "Avg read:  16.0 IOPS" in out
+    assert "Max read:  20.0 IOPS" in out
+
+
+def test_disk_empty_series_reports_no_data(capsys):
+    cmd, h, _ = build()
+    h.disk_metrics = {"step": 60, "time_series": {}}
+    cmd.show_disk_metrics(["1"])
+    assert "No disk metrics data available" in capsys.readouterr().out
 
 
 # --- no subcommand ---

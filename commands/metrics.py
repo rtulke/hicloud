@@ -97,48 +97,28 @@ class MetricsCommands:
         if not metrics:
             print("No CPU metrics available for this server.")
             return
-            
-        # Metriken auswerten und anzeigen
-        try:
-            # Zeitpunkte und CPU-Werte extrahieren
-            timestamps = metrics.get("time_series", {}).get("values", [])
-            cpu_values = metrics.get("time_series", {}).get("values", [])
-            
-            if not timestamps or not cpu_values:
-                print("No CPU metrics data available.")
-                return
-                
-            # Einfache ASCII-Grafik erstellen
-            print("\nCPU Utilization (%):")
-            print("  0%  10%  20%  30%  40%  50%  60%  70%  80%  90% 100%")
-            print("  |    |    |    |    |    |    |    |    |    |    |")
-            
-            # Berechne Durchschnitt, Min und Max
-            cpu_values_float = []
-            for value in cpu_values:
-                try:
-                    if value is not None:
-                        cpu_values_float.append(float(value))
-                except (ValueError, TypeError):
-                    pass
-                    
-            if cpu_values_float:
-                avg_cpu = sum(cpu_values_float) / len(cpu_values_float)
-                max_cpu = max(cpu_values_float)
-                min_cpu = min(cpu_values_float)
-                
-                # ASCII-Balken für Durchschnitt
-                bar_length = int(avg_cpu / 100 * 51)  # 51 Zeichen für 0-100%
-                bar = "=" * bar_length
-                print(f"  {bar}> {avg_cpu:.1f}% (avg)")
-                
-                # Min/Max-Werte anzeigen
-                print(f"\nMin: {min_cpu:.1f}%, Max: {max_cpu:.1f}%")
-            else:
-                print("  No data available")
-                
-        except Exception as e:
-            print(f"Error processing CPU metrics: {str(e)}")
+
+        # Hetzner liefert [timestamp, "wert"]-Paare pro Serie
+        cpu_values = self._series_values(metrics, "cpu")
+        if not cpu_values:
+            print("No CPU metrics data available.")
+            return
+
+        avg_cpu = sum(cpu_values) / len(cpu_values)
+        max_cpu = max(cpu_values)
+        min_cpu = min(cpu_values)
+
+        # Einfache ASCII-Grafik erstellen
+        print("\nCPU Utilization (%):")
+        print("  0%  10%  20%  30%  40%  50%  60%  70%  80%  90% 100%")
+        print("  |    |    |    |    |    |    |    |    |    |    |")
+
+        # ASCII-Balken für Durchschnitt (>100% möglich bei mehreren Cores, daher kappen)
+        bar_length = min(int(avg_cpu / 100 * 51), 51)
+        bar = "=" * bar_length
+        print(f"  {bar}> {avg_cpu:.1f}% (avg)")
+
+        print(f"\nMin: {min_cpu:.1f}%, Max: {max_cpu:.1f}%")
     
     def show_traffic_metrics(self, args: List[str]):
         """Show network traffic metrics for a server"""
@@ -175,49 +155,32 @@ class MetricsCommands:
         if not metrics:
             print("No network metrics available for this server.")
             return
-            
-        # Metriken auswerten und anzeigen
-        try:
-            # Netzwerkdaten extrahieren
-            timestamps = metrics.get("time_series", {}).get("values", [])
-            network_rx = metrics.get("metrics", {}).get("network", {}).get("pps", {}).get("rx", {}).get("values", [])
-            network_tx = metrics.get("metrics", {}).get("network", {}).get("pps", {}).get("tx", {}).get("values", [])
-            
-            if not timestamps or not network_rx or not network_tx:
-                print("No network metrics data available.")
-                return
-                
-            # Berechne Gesamttraffic
-            rx_values = [float(v) if v is not None else 0 for v in network_rx]
-            tx_values = [float(v) if v is not None else 0 for v in network_tx]
-            
-            total_rx = sum(rx_values)
-            total_tx = sum(tx_values)
-            
-            # In MB/GB umrechnen
-            if total_rx > 1024*1024:
-                rx_str = f"{total_rx/(1024*1024):.2f} GB"
-            else:
-                rx_str = f"{total_rx/1024:.2f} MB"
-                
-            if total_tx > 1024*1024:
-                tx_str = f"{total_tx/(1024*1024):.2f} GB"
-            else:
-                tx_str = f"{total_tx/1024:.2f} MB"
-                
-            print(f"Total received: {rx_str}")
-            print(f"Total sent:     {tx_str}")
-            
-            # Durchschnittliche Paket-Rate berechnen
-            avg_rx_pps = sum(rx_values) / len(rx_values)
-            avg_tx_pps = sum(tx_values) / len(tx_values)
-            
-            print(f"\nAverage packet rate:")
-            print(f"Received: {avg_rx_pps:.1f} pps")
-            print(f"Sent:     {avg_tx_pps:.1f} pps")
-            
-        except Exception as e:
-            print(f"Error processing network metrics: {str(e)}")
+
+        step = float(metrics.get("step") or 0)
+        bw_in = self._series_values(metrics, "network.0.bandwidth.in")
+        bw_out = self._series_values(metrics, "network.0.bandwidth.out")
+        pps_in = self._series_values(metrics, "network.0.pps.in")
+        pps_out = self._series_values(metrics, "network.0.pps.out")
+
+        if not (bw_in or bw_out or pps_in or pps_out):
+            print("No network metrics data available.")
+            return
+
+        if bw_in or bw_out:
+            # Bandwidth-Samples sind Bytes/s; Gesamtvolumen = Summe * Schrittweite
+            print(f"Total received: {self._format_bytes(sum(bw_in) * step)}")
+            print(f"Total sent:     {self._format_bytes(sum(bw_out) * step)}")
+            if bw_in:
+                print(f"\nAverage bandwidth in:  {self._format_bytes(sum(bw_in) / len(bw_in))}/s")
+            if bw_out:
+                print(f"Average bandwidth out: {self._format_bytes(sum(bw_out) / len(bw_out))}/s")
+
+        if pps_in or pps_out:
+            print("\nAverage packet rate:")
+            if pps_in:
+                print(f"Received: {sum(pps_in) / len(pps_in):.1f} pps")
+            if pps_out:
+                print(f"Sent:     {sum(pps_out) / len(pps_out):.1f} pps")
 
     def show_disk_metrics(self, args: List[str]):
         """Show disk I/O metrics for a server"""
@@ -255,73 +218,58 @@ class MetricsCommands:
             print("No disk metrics available for this server.")
             return
 
-        # Metriken auswerten und anzeigen
-        try:
-            # Disk-Daten extrahieren
-            timestamps = metrics.get("time_series", {}).get("values", [])
+        step = float(metrics.get("step") or 0)
+        read_bw = self._series_values(metrics, "disk.0.bandwidth.read")
+        write_bw = self._series_values(metrics, "disk.0.bandwidth.write")
+        read_iops = self._series_values(metrics, "disk.0.iops.read")
+        write_iops = self._series_values(metrics, "disk.0.iops.write")
 
-            # Disk I/O in bytes (read/write)
-            disk_read_bytes = metrics.get("metrics", {}).get("disk", {}).get("0", {}).get("bandwidth", {}).get("read", {}).get("values", [])
-            disk_write_bytes = metrics.get("metrics", {}).get("disk", {}).get("0", {}).get("bandwidth", {}).get("write", {}).get("values", [])
+        if not (read_bw or write_bw or read_iops or write_iops):
+            print("No disk metrics data available.")
+            return
 
-            # Disk IOPS (read/write operations per second)
-            disk_read_iops = metrics.get("metrics", {}).get("disk", {}).get("0", {}).get("iops", {}).get("read", {}).get("values", [])
-            disk_write_iops = metrics.get("metrics", {}).get("disk", {}).get("0", {}).get("iops", {}).get("write", {}).get("values", [])
+        if read_bw or write_bw:
+            # Bandwidth-Samples sind Bytes/s; Gesamtvolumen = Summe * Schrittweite
+            print("Disk Bandwidth:")
+            print(f"  Total read:  {self._format_bytes(sum(read_bw) * step)}")
+            print(f"  Total write: {self._format_bytes(sum(write_bw) * step)}")
+            if read_bw:
+                print(f"\n  Avg read:  {self._format_bytes(sum(read_bw) / len(read_bw))}/s")
+            if write_bw:
+                print(f"  Avg write: {self._format_bytes(sum(write_bw) / len(write_bw))}/s")
 
-            if not timestamps:
-                print("No disk metrics data available.")
-                return
+        if read_iops or write_iops:
+            print("\nDisk IOPS (Operations per second):")
+            if read_iops:
+                print(f"  Avg read:  {sum(read_iops) / len(read_iops):.1f} IOPS")
+            if write_iops:
+                print(f"  Avg write: {sum(write_iops) / len(write_iops):.1f} IOPS")
+            if read_iops:
+                print(f"\n  Max read:  {max(read_iops):.1f} IOPS")
+            if write_iops:
+                print(f"  Max write: {max(write_iops):.1f} IOPS")
 
-            # Berechne Gesamtwerte für Bandwidth (Bytes)
-            if disk_read_bytes and disk_write_bytes:
-                read_bytes_values = [float(v) if v is not None else 0 for v in disk_read_bytes]
-                write_bytes_values = [float(v) if v is not None else 0 for v in disk_write_bytes]
+    def _series_values(self, metrics: dict, series_name: str) -> List[float]:
+        """
+        Extract numeric values from a Hetzner metrics time series.
 
-                total_read_bytes = sum(read_bytes_values)
-                total_write_bytes = sum(write_bytes_values)
+        The API returns metrics as {"time_series": {"<name>": {"values":
+        [[timestamp, "value"], ...]}}} with values encoded as strings.
+        """
+        raw = metrics.get("time_series", {}).get(series_name, {}).get("values", [])
+        values = []
+        for entry in raw:
+            try:
+                values.append(float(entry[1]))
+            except (TypeError, ValueError, IndexError):
+                continue
+        return values
 
-                # In MB/GB umrechnen
-                def format_bytes(bytes_val):
-                    if bytes_val > 1024*1024*1024:
-                        return f"{bytes_val/(1024*1024*1024):.2f} GB"
-                    elif bytes_val > 1024*1024:
-                        return f"{bytes_val/(1024*1024):.2f} MB"
-                    else:
-                        return f"{bytes_val/1024:.2f} KB"
-
-                print("Disk Bandwidth:")
-                print(f"  Total read:  {format_bytes(total_read_bytes)}")
-                print(f"  Total write: {format_bytes(total_write_bytes)}")
-
-                # Durchschnittliche Bandwidth
-                avg_read_bps = sum(read_bytes_values) / len(read_bytes_values) if read_bytes_values else 0
-                avg_write_bps = sum(write_bytes_values) / len(write_bytes_values) if write_bytes_values else 0
-
-                print(f"\n  Avg read:  {format_bytes(avg_read_bps)}/s")
-                print(f"  Avg write: {format_bytes(avg_write_bps)}/s")
-
-            # Berechne Gesamtwerte für IOPS
-            if disk_read_iops and disk_write_iops:
-                read_iops_values = [float(v) if v is not None else 0 for v in disk_read_iops]
-                write_iops_values = [float(v) if v is not None else 0 for v in disk_write_iops]
-
-                # Durchschnittliche IOPS
-                avg_read_iops = sum(read_iops_values) / len(read_iops_values) if read_iops_values else 0
-                avg_write_iops = sum(write_iops_values) / len(write_iops_values) if write_iops_values else 0
-
-                print(f"\nDisk IOPS (Operations per second):")
-                print(f"  Avg read:  {avg_read_iops:.1f} IOPS")
-                print(f"  Avg write: {avg_write_iops:.1f} IOPS")
-
-                # Max IOPS
-                max_read_iops = max(read_iops_values) if read_iops_values else 0
-                max_write_iops = max(write_iops_values) if write_iops_values else 0
-
-                print(f"\n  Max read:  {max_read_iops:.1f} IOPS")
-                print(f"  Max write: {max_write_iops:.1f} IOPS")
-
-            if not disk_read_bytes and not disk_read_iops:
-                print("No disk metrics data available.")
-
-        except Exception as e:
-            print(f"Error processing disk metrics: {str(e)}")
+    @staticmethod
+    def _format_bytes(value: float) -> str:
+        """Format a byte count with a human-readable unit."""
+        for unit in ("B", "KB", "MB", "GB"):
+            if value < 1024:
+                return f"{value:.2f} {unit}"
+            value /= 1024
+        return f"{value:.2f} TB"
