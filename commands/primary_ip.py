@@ -3,41 +3,27 @@
 
 from typing import List
 
+from commands.base import BaseCommands
 
-class PrimaryIPCommands:
+
+class PrimaryIPCommands(BaseCommands):
     """Primary IP management commands for Interactive Console."""
 
-    def __init__(self, console):
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "primary-ip"
+    usage = "primary-ip list|info|create|update|delete|assign|unassign|dns|protect"
 
-    def handle_command(self, args: List[str]):
-        if not args:
-            print("Missing primary-ip subcommand. Use 'primary-ip list|info|create|update|delete|assign|unassign|dns|protect'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_primary_ips()
-        elif subcommand == "info":
-            self.show_info(args[1:])
-        elif subcommand == "create":
-            self.create_primary_ip()
-        elif subcommand == "update":
-            self.update_primary_ip(args[1:])
-        elif subcommand == "delete":
-            self.delete_primary_ip(args[1:])
-        elif subcommand == "assign":
-            self.assign_primary_ip(args[1:])
-        elif subcommand == "unassign":
-            self.unassign_primary_ip(args[1:])
-        elif subcommand == "dns":
-            self.change_dns_ptr(args[1:])
-        elif subcommand == "protect":
-            self.change_protection(args[1:])
-        else:
-            print(f"Unknown primary-ip subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_primary_ips(),
+            "info": self.show_info,
+            "create": lambda args: self.create_primary_ip(),
+            "update": self.update_primary_ip,
+            "delete": self.delete_primary_ip,
+            "assign": self.assign_primary_ip,
+            "unassign": self.unassign_primary_ip,
+            "dns": self.change_dns_ptr,
+            "protect": self.change_protection,
+        }
 
     # ------------------------------------------------------------------ list
 

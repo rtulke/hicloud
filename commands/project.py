@@ -5,40 +5,35 @@ import os
 import sys
 from typing import List
 
+from commands.base import BaseCommands
 from utils.constants import API_BASE_URL, DEFAULT_CONFIG_PATH
 from lib.config import ConfigManager
 
-class ProjectCommands:
+class ProjectCommands(BaseCommands):
     """Project-related commands for Interactive Console"""
-    
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
-    
+
+    label = "project"
+    usage = "project list|switch|resources|info"
+
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_projects(),
+            "switch": self.switch_project,
+            "resources": lambda args: self.show_resources(),
+            "info": lambda args: self.show_info(),
+        }
+
     def handle_command(self, args: List[str]):
-        """Handle project-related commands"""
+        """Ohne Unterbefehl die Projektressourcen zeigen; sonst Standard-Dispatch."""
         if not args:
-            # Wenn kein Unterbefehl angegeben, zeige die Projektinformationen an
             self.show_resources()
             return
-            
-        subcommand = args[0].lower()
-        
-        if subcommand == "list":
-            self.list_projects()
-        elif subcommand == "switch":
-            self.switch_project(args[1:])
-        elif subcommand == "resources":
-            self.show_resources()
-        elif subcommand == "info":
-            self.show_info()
-        else:
-            # Bei unbekannten Unterbefehlen standardmäßig Projektinformationen anzeigen
-            print(f"Unknown project subcommand: {subcommand}")
+        if args[0].lower() not in self.actions:
+            print(f"Unknown project subcommand: {args[0].lower()}")
             print("Available subcommands: list, switch, resources, info")
             print("Use 'help' for more information")
             return
+        super().handle_command(args)
     
     def list_projects(self):
         """List available projects"""
@@ -94,14 +89,31 @@ class ProjectCommands:
             
         # Projekt wechseln durch Neustart mit --project Parameter
         print(f"Switching to project '{project_name}'...")
-        
-        # Aktuelle Kommandozeile bauen
-        cmd = [sys.executable]  # Python-Interpreter
-        cmd.append(os.path.abspath(sys.argv[0]))  # Skriptpfad
-        cmd.append("--project")
-        cmd.append(project_name)
-        
-        # Führe das Skript mit neuem Projekt neu aus
+
+        # History sichern — execv ersetzt den Prozess, bevor der normale
+        # Shutdown-Pfad der Konsole sie schreiben würde
+        self.console._save_history()
+
+        # Ursprüngliche CLI-Flags (--config, --debug, ...) erhalten.
+        # --project wird ersetzt; --token wird entfernt, weil es Vorrang vor
+        # der Config hätte und den Wechsel still wirkungslos machen würde.
+        passthrough = []
+        skip_next = False
+        for arg in sys.argv[1:]:
+            if skip_next:
+                skip_next = False
+                continue
+            if arg in ("--project", "--token"):
+                skip_next = True
+                continue
+            if arg.startswith("--project=") or arg.startswith("--token="):
+                continue
+            passthrough.append(arg)
+
+        cmd = [sys.executable, os.path.abspath(sys.argv[0])]
+        cmd.extend(passthrough)
+        cmd.extend(["--project", project_name])
+
         print(f"Restarting hicloud with project '{project_name}'...")
         os.execv(sys.executable, cmd)
     

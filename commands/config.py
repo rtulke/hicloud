@@ -7,32 +7,22 @@ import stat
 import toml
 from typing import List
 
+from commands.base import BaseCommands
 from lib.config import ConfigManager
 from utils.constants import DEFAULT_CONFIG_PATH
 
 
-class ConfigCommands:
+class ConfigCommands(BaseCommands):
     """Config management commands for Interactive Console."""
 
-    def __init__(self, console):
-        """Initialize with reference to the console."""
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "config"
+    usage = "config validate|info"
 
-    def handle_command(self, args: List[str]):
-        """Handle config-related commands."""
-        if not args:
-            print("Missing config subcommand. Use 'config validate|info'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "validate":
-            self.validate_config(args[1:])
-        elif subcommand == "info":
-            self.show_config_info()
-        else:
-            print(f"Unknown config subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "validate": self.validate_config,
+            "info": lambda args: self.show_config_info(),
+        }
 
     def validate_config(self, args: List[str]):
         """Validate the config file: existence, permissions, required fields, token format."""

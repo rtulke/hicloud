@@ -3,41 +3,27 @@
 
 from typing import List
 
+from commands.base import BaseCommands
 
-class FloatingIPCommands:
+
+class FloatingIPCommands(BaseCommands):
     """Floating IP management commands for Interactive Console."""
 
-    def __init__(self, console):
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "floating-ip"
+    usage = "floating-ip list|info|create|update|delete|assign|unassign|dns|protect"
 
-    def handle_command(self, args: List[str]):
-        if not args:
-            print("Missing floating-ip subcommand. Use 'floating-ip list|info|create|update|delete|assign|unassign|dns|protect'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_floating_ips()
-        elif subcommand == "info":
-            self.show_info(args[1:])
-        elif subcommand == "create":
-            self.create_floating_ip()
-        elif subcommand == "update":
-            self.update_floating_ip(args[1:])
-        elif subcommand == "delete":
-            self.delete_floating_ip(args[1:])
-        elif subcommand == "assign":
-            self.assign_floating_ip(args[1:])
-        elif subcommand == "unassign":
-            self.unassign_floating_ip(args[1:])
-        elif subcommand == "dns":
-            self.change_dns_ptr(args[1:])
-        elif subcommand == "protect":
-            self.change_protection(args[1:])
-        else:
-            print(f"Unknown floating-ip subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_floating_ips(),
+            "info": self.show_info,
+            "create": lambda args: self.create_floating_ip(),
+            "update": self.update_floating_ip,
+            "delete": self.delete_floating_ip,
+            "assign": self.assign_floating_ip,
+            "unassign": self.unassign_floating_ip,
+            "dns": self.change_dns_ptr,
+            "protect": self.change_protection,
+        }
 
     # ------------------------------------------------------------------ list
 
@@ -138,7 +124,7 @@ class FloatingIPCommands:
                 print("Invalid location selection.")
                 return
 
-        labels = self._prompt_labels()
+        labels = self.prompt_labels()
 
         print("\nSummary:")
         print(f"  Type:        {ip_type}")
@@ -150,8 +136,7 @@ class FloatingIPCommands:
         else:
             print(f"  Location:    {home_location}")
 
-        if input("\nCreate floating IP? [y/N]: ").strip().lower() != "y":
-            print("Operation cancelled")
+        if not self.confirm("\nCreate floating IP?"):
             return
 
         fip = self.hetzner.create_floating_ip(
@@ -184,7 +169,7 @@ class FloatingIPCommands:
 
         new_labels = None
         if input("Update labels? [y/N]: ").strip().lower() == "y":
-            new_labels = self._prompt_labels(ask_first=False)
+            new_labels = self.prompt_labels(ask_first=False)
 
         if new_name is None and new_desc is None and new_labels is None:
             print("No changes. Skipping.")
@@ -216,8 +201,7 @@ class FloatingIPCommands:
             print("  floating-ip protect " + str(fip_id) + " disable")
             return
 
-        if input(f"Delete floating IP '{fip.get('name')}' ({fip.get('ip')})? [y/N]: ").strip().lower() != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Delete floating IP '{fip.get('name')}' ({fip.get('ip')})?"):
             return
 
         if self.hetzner.delete_floating_ip(fip_id):
@@ -241,8 +225,7 @@ class FloatingIPCommands:
             return
 
         fip_id = fip.get("id")
-        if input(f"Assign floating IP '{fip.get('name')}' ({fip.get('ip')}) to server {server_id}? [y/N]: ").strip().lower() != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Assign floating IP '{fip.get('name')}' ({fip.get('ip')}) to server {server_id}?"):
             return
 
         if self.hetzner.assign_floating_ip(fip_id, server_id):
@@ -262,8 +245,7 @@ class FloatingIPCommands:
             print(f"Floating IP '{fip.get('name')}' is not assigned to any server.")
             return
 
-        if input(f"Unassign floating IP '{fip.get('name')}' from server {fip['server']}? [y/N]: ").strip().lower() != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Unassign floating IP '{fip.get('name')}' from server {fip['server']}?"):
             return
 
         if self.hetzner.unassign_floating_ip(fip_id):
@@ -287,8 +269,7 @@ class FloatingIPCommands:
         fip_id = fip.get("id")
 
         action = f"→ {dns_ptr}" if dns_ptr else "(reset)"
-        if input(f"Set rDNS for {ip} {action} on floating IP {fip_id}? [y/N]: ").strip().lower() != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Set rDNS for {ip} {action} on floating IP {fip_id}?"):
             return
 
         if self.hetzner.change_floating_ip_dns_ptr(fip_id, ip, dns_ptr):
@@ -322,13 +303,8 @@ class FloatingIPCommands:
     # ------------------------------------------------------------ helpers
 
     def _resolve(self, args: List[str], usage: str):
-        if not args:
-            print(f"Missing ID. Use '{usage}'")
-            return None
-        try:
-            fip_id = int(args[0])
-        except ValueError:
-            print("Invalid ID. Must be an integer.")
+        fip_id = self.parse_id(args, "ID", usage)
+        if fip_id is None:
             return None
         fip = self.hetzner.get_floating_ip_by_id(fip_id)
         return fip if fip else None
@@ -344,13 +320,3 @@ class FloatingIPCommands:
                 return loc.get("name")
         return None
 
-    def _prompt_labels(self, ask_first: bool = True):
-        labels = {}
-        if ask_first and input("Add labels? [y/N]: ").strip().lower() != "y":
-            return labels
-        while True:
-            key = input("Label key (Enter to finish): ").strip()
-            if not key:
-                break
-            labels[key] = input(f"Value for '{key}': ").strip()
-        return labels

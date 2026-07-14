@@ -3,30 +3,24 @@
 
 from typing import List
 
-class PricingCommands:
+from commands.base import BaseCommands
+
+class PricingCommands(BaseCommands):
     """Pricing-related commands for Interactive Console"""
-    
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
-    
-    def handle_command(self, args: List[str]):
-        """Handle pricing-related commands"""
-        if not args:
-            print("Missing pricing subcommand. Use 'pricing list [server|backup|loadbalancer|storage|network|all] [location]' or 'pricing calculate'")
-            return
-            
-        subcommand = args[0].lower()
-        
-        if subcommand == "list":
-            category = args[1].lower() if len(args) > 1 else "all"
-            location = args[2].lower() if len(args) > 2 else None
-            self.list_pricing(category, location)
-        elif subcommand == "calculate":
-            self.calculate_costs()
-        else:
-            print(f"Unknown pricing subcommand: {subcommand}")
+
+    label = "pricing"
+    usage = "pricing list [server|backup|loadbalancer|storage|network|all] [location]' or 'pricing calculate"
+
+    def _build_actions(self):
+        return {
+            "list": self._list_action,
+            "calculate": lambda args: self.calculate_costs(),
+        }
+
+    def _list_action(self, args: List[str]):
+        category = args[0].lower() if args else "all"
+        location = args[1].lower() if len(args) > 1 else None
+        self.list_pricing(category, location)
     
     def list_pricing(self, category: str = "all", location_filter: str = None):
         """Show pricing table for all resources or a specific category"""

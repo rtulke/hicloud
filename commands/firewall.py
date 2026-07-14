@@ -4,41 +4,26 @@
 import ipaddress
 from typing import Dict, List, Optional, Set, Tuple
 
+from commands.base import BaseCommands
 
-class FirewallCommands:
+
+class FirewallCommands(BaseCommands):
     """Firewall-related commands for Interactive Console."""
 
-    def __init__(self, console):
-        """Initialize with reference to the console."""
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "firewall"
+    usage = "firewall list|info|create|update|delete|rules|apply|remove"
 
-    def handle_command(self, args: List[str]):
-        """Handle firewall-related commands."""
-        if not args:
-            print("Missing firewall subcommand. Use 'firewall list|info|create|update|delete|rules|apply|remove'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_firewalls()
-        elif subcommand == "info":
-            self.show_firewall_info(args[1:])
-        elif subcommand == "create":
-            self.create_firewall()
-        elif subcommand == "update":
-            self.update_firewall(args[1:])
-        elif subcommand == "delete":
-            self.delete_firewall(args[1:])
-        elif subcommand == "rules":
-            self.configure_rules(args[1:])
-        elif subcommand == "apply":
-            self.apply_to_resources(args[1:])
-        elif subcommand == "remove":
-            self.remove_from_resources(args[1:])
-        else:
-            print(f"Unknown firewall subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_firewalls(),
+            "info": self.show_firewall_info,
+            "create": lambda args: self.create_firewall(),
+            "update": self.update_firewall,
+            "delete": self.delete_firewall,
+            "rules": self.configure_rules,
+            "apply": self.apply_to_resources,
+            "remove": self.remove_from_resources,
+        }
 
     def list_firewalls(self):
         """List all firewalls."""
@@ -115,7 +100,7 @@ class FirewallCommands:
         if apply_to is None:
             return
 
-        labels = self._prompt_for_labels()
+        labels = self.prompt_labels()
         if labels == {}:
             labels = None
 
@@ -126,9 +111,7 @@ class FirewallCommands:
         if labels:
             print(f"  Labels: {labels}")
 
-        confirm = input("\nCreate this firewall? [y/N]: ").strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm("\nCreate this firewall?"):
             return
 
         print("Creating firewall...")
@@ -171,7 +154,7 @@ class FirewallCommands:
                     print(f"  {key}: {value}")
 
             print("\nEnter new labels (this will replace all existing labels):")
-            new_labels = self._prompt_for_labels(ask_first=False)
+            new_labels = self.prompt_labels(ask_first=False)
 
         if new_name is None and new_labels is None:
             print("\nNo changes made.")
@@ -183,9 +166,7 @@ class FirewallCommands:
         if new_labels is not None:
             print(f"  Labels: {len(new_labels)} labels")
 
-        confirm = input("\nApply these changes? [y/N]: ").strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm("\nApply these changes?"):
             return
 
         print(f"Updating firewall {firewall_id}...")
@@ -206,11 +187,7 @@ class FirewallCommands:
         if applied_count > 0:
             print(f"Warning: This firewall is currently applied to {applied_count} resource(s).")
 
-        confirm = input(
-            f"Are you sure you want to delete firewall '{firewall.get('name')}' (ID: {firewall_id})? [y/N]: "
-        ).strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Are you sure you want to delete firewall '{firewall.get('name')}' (ID: {firewall_id})?"):
             return
 
         print(f"Deleting firewall {firewall_id}...")
@@ -272,9 +249,7 @@ class FirewallCommands:
         print(f"  Rules to add: {len(new_rules)}")
         print(f"  Resulting rules: {len(combined_rules)}")
 
-        confirm = input("\nApply these rule changes? [y/N]: ").strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm("\nApply these rule changes?"):
             return
 
         firewall_id = firewall.get("id")
@@ -310,9 +285,7 @@ class FirewallCommands:
         print(f"  Removing indexes: {', '.join(str(i) for i in sorted(indexes))}")
         print(f"  Resulting rules: {len(remaining_rules)}")
 
-        confirm = input("\nApply these rule changes? [y/N]: ").strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm("\nApply these rule changes?"):
             return
 
         firewall_id = firewall.get("id")
@@ -339,9 +312,7 @@ class FirewallCommands:
         print(f"  Existing rules: {len(existing_rules)}")
         print(f"  New rules: {len(rules)}")
 
-        confirm = input("\nApply these rule changes? [y/N]: ").strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm("\nApply these rule changes?"):
             return
 
         print(f"Updating rules for firewall {firewall_id}...")
@@ -368,11 +339,7 @@ class FirewallCommands:
         resources, target_text = parsed
         firewall_id = firewall.get("id")
 
-        confirm = input(
-            f"Apply firewall '{firewall.get('name')}' (ID: {firewall_id}) to {target_text}? [y/N]: "
-        ).strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Apply firewall '{firewall.get('name')}' (ID: {firewall_id}) to {target_text}?"):
             return
 
         print(f"Applying firewall {firewall_id}...")
@@ -399,11 +366,7 @@ class FirewallCommands:
         resources, target_text = parsed
         firewall_id = firewall.get("id")
 
-        confirm = input(
-            f"Remove firewall '{firewall.get('name')}' (ID: {firewall_id}) from {target_text}? [y/N]: "
-        ).strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Remove firewall '{firewall.get('name')}' (ID: {firewall_id}) from {target_text}?"):
             return
 
         print(f"Removing firewall {firewall_id} from target(s)...")
@@ -468,23 +431,6 @@ class FirewallCommands:
             print("Rule added.")
 
         return rules
-
-    def _prompt_for_labels(self, ask_first: bool = True) -> Dict[str, str]:
-        """Interactively collect key/value labels."""
-        labels: Dict[str, str] = {}
-        if ask_first:
-            add_labels = input("\nAdd labels? [y/N]: ").strip().lower()
-            if add_labels != "y":
-                return labels
-
-        while True:
-            key = input("Label key (or press Enter to finish): ").strip()
-            if not key:
-                break
-            value = input(f"Label value for '{key}': ").strip()
-            labels[key] = value
-
-        return labels
 
     def _prompt_for_apply_resources(self) -> Optional[List[Dict]]:
         """Interactively choose optional initial apply targets."""
@@ -634,16 +580,9 @@ class FirewallCommands:
 
     def _resolve_firewall_from_args(self, args: List[str], usage: str) -> Dict:
         """Resolve firewall from first arg with standard validation and messaging."""
-        if not args:
-            print(f"Missing firewall ID. Use '{usage}'")
+        firewall_id = self.parse_id(args, "firewall ID", usage)
+        if firewall_id is None:
             return {}
-
-        try:
-            firewall_id = int(args[0])
-        except ValueError:
-            print("Invalid firewall ID. Must be an integer.")
-            return {}
-
         return self.hetzner.get_firewall_by_id(firewall_id)
 
     def _validate_port_spec(self, port: str) -> bool:

@@ -3,28 +3,19 @@
 
 from typing import List, Optional
 
-class LocationCommands:
+from commands.base import BaseCommands
+
+class LocationCommands(BaseCommands):
     """Location and Datacenter-related commands for Interactive Console"""
 
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "location"
+    usage = "location list|info"
 
-    def handle_command(self, args: List[str]):
-        """Handle location-related commands"""
-        if not args:
-            print("Missing location subcommand. Use 'location list|info'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_locations()
-        elif subcommand == "info":
-            self.location_info(args[1:])
-        else:
-            print(f"Unknown location subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_locations(),
+            "info": self.location_info,
+        }
 
     def list_locations(self):
         """List all available locations"""
@@ -53,14 +44,8 @@ class LocationCommands:
 
     def location_info(self, args: List[str]):
         """Show detailed information about a location"""
-        if not args:
-            print("Missing location ID. Use 'location info <id>'")
-            return
-
-        try:
-            location_id = int(args[0])
-        except ValueError:
-            print("Invalid location ID. Must be an integer.")
+        location_id = self.parse_id(args, "location ID", "location info <id>")
+        if location_id is None:
             return
 
         location = self.hetzner.get_location_by_id(location_id)
@@ -80,30 +65,18 @@ class LocationCommands:
         print(f"  Longitude:     {location.get('longitude', 'N/A')}")
 
 
-class DatacenterCommands:
+class DatacenterCommands(BaseCommands):
     """Datacenter-related commands for Interactive Console"""
 
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "datacenter"
+    usage = "datacenter list|info"
 
-    def handle_command(self, args: List[str]):
-        """Handle datacenter-related commands"""
-        if not args:
-            print("Missing datacenter subcommand. Use 'datacenter list|info'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_datacenters()
-        elif subcommand == "info":
-            self.datacenter_info(args[1:])
-        elif subcommand == "resources":
-            self.datacenter_resources(args[1:])
-        else:
-            print(f"Unknown datacenter subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_datacenters(),
+            "info": self.datacenter_info,
+            "resources": self.datacenter_resources,
+        }
 
     def list_datacenters(self):
         """List all available datacenters"""
@@ -131,14 +104,8 @@ class DatacenterCommands:
 
     def datacenter_info(self, args: List[str]):
         """Show detailed information about a datacenter"""
-        if not args:
-            print("Missing datacenter ID. Use 'datacenter info <id>'")
-            return
-
-        try:
-            datacenter_id = int(args[0])
-        except ValueError:
-            print("Invalid datacenter ID. Must be an integer.")
+        datacenter_id = self.parse_id(args, "datacenter ID", "datacenter info <id>")
+        if datacenter_id is None:
             return
 
         datacenter = self.hetzner.get_datacenter_by_id(datacenter_id)

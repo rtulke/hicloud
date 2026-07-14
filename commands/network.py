@@ -3,42 +3,26 @@
 
 from typing import List
 
-class NetworkCommands:
+from commands.base import BaseCommands
+
+class NetworkCommands(BaseCommands):
     """Network-related commands for Interactive Console"""
 
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "network"
+    usage = "network list|info|create|update|delete|attach|detach|subnet|protect"
 
-    def handle_command(self, args: List[str]):
-        """Handle network-related commands"""
-        if not args:
-            print("Missing network subcommand. Use 'network list|info|create|update|delete|attach|detach|subnet|protect'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_networks()
-        elif subcommand == "info":
-            self.show_network_info(args[1:])
-        elif subcommand == "create":
-            self.create_network()
-        elif subcommand == "update":
-            self.update_network(args[1:])
-        elif subcommand == "delete":
-            self.delete_network(args[1:])
-        elif subcommand == "attach":
-            self.attach_server(args[1:])
-        elif subcommand == "detach":
-            self.detach_server(args[1:])
-        elif subcommand == "subnet":
-            self.manage_subnet(args[1:])
-        elif subcommand == "protect":
-            self.protect_network(args[1:])
-        else:
-            print(f"Unknown network subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_networks(),
+            "info": self.show_network_info,
+            "create": lambda args: self.create_network(),
+            "update": self.update_network,
+            "delete": self.delete_network,
+            "attach": self.attach_server,
+            "detach": self.detach_server,
+            "subnet": self.manage_subnet,
+            "protect": self.protect_network,
+        }
 
     def list_networks(self):
         """List all networks"""
@@ -76,14 +60,8 @@ class NetworkCommands:
 
     def show_network_info(self, args: List[str]):
         """Show detailed information about a network"""
-        if not args:
-            print("Missing network ID. Use 'network info <id>'")
-            return
-
-        try:
-            network_id = int(args[0])
-        except ValueError:
-            print("Invalid network ID. Must be an integer.")
+        network_id = self.parse_id(args, "network ID", "network info <id>")
+        if network_id is None:
             return
 
         network = self.hetzner.get_network_by_id(network_id)
@@ -277,14 +255,8 @@ class NetworkCommands:
 
     def update_network(self, args: List[str]):
         """Update network metadata (name and/or labels)"""
-        if not args:
-            print("Missing network ID. Use 'network update <id>'")
-            return
-
-        try:
-            network_id = int(args[0])
-        except ValueError:
-            print("Invalid network ID. Must be an integer.")
+        network_id = self.parse_id(args, "network ID", "network update <id>")
+        if network_id is None:
             return
 
         # Get current network info
@@ -360,14 +332,8 @@ class NetworkCommands:
 
     def delete_network(self, args: List[str]):
         """Delete a network by ID"""
-        if not args:
-            print("Missing network ID. Use 'network delete <id>'")
-            return
-
-        try:
-            network_id = int(args[0])
-        except ValueError:
-            print("Invalid network ID. Must be an integer.")
+        network_id = self.parse_id(args, "network ID", "network delete <id>")
+        if network_id is None:
             return
 
         network = self.hetzner.get_network_by_id(network_id)
@@ -388,10 +354,7 @@ class NetworkCommands:
             print("\nUse 'network detach <network_id> <server_id>' to detach servers.")
             return
 
-        confirm = input(f"Are you sure you want to delete network '{network.get('name')}' (ID: {network_id})? [y/N]: ")
-
-        if confirm.lower() != 'y':
-            print("Operation cancelled")
+        if not self.confirm(f"Are you sure you want to delete network '{network.get('name')}' (ID: {network_id})?"):
             return
 
         print(f"Deleting network {network_id}...")
@@ -500,14 +463,8 @@ class NetworkCommands:
 
     def add_subnet(self, args: List[str]):
         """Add a subnet to a network"""
-        if not args:
-            print("Missing network ID. Use 'network subnet add <network_id>'")
-            return
-
-        try:
-            network_id = int(args[0])
-        except ValueError:
-            print("Invalid network ID. Must be an integer.")
+        network_id = self.parse_id(args, "network ID", "network subnet add <network_id>")
+        if network_id is None:
             return
 
         network = self.hetzner.get_network_by_id(network_id)
@@ -560,10 +517,8 @@ class NetworkCommands:
             print("Missing parameters. Use 'network subnet delete <network_id> <ip_range>'")
             return
 
-        try:
-            network_id = int(args[0])
-        except ValueError:
-            print("Invalid network ID. Must be an integer.")
+        network_id = self.parse_id(args, "network ID", "network subnet delete <network_id> <ip_range>")
+        if network_id is None:
             return
 
         ip_range = args[1]
@@ -601,10 +556,8 @@ class NetworkCommands:
             print("Missing parameters. Use 'network protect <id> <enable|disable>'")
             return
 
-        try:
-            network_id = int(args[0])
-        except ValueError:
-            print("Invalid network ID. Must be an integer.")
+        network_id = self.parse_id(args, "network ID", "network protect <id> <enable|disable>")
+        if network_id is None:
             return
 
         action = args[1].lower()

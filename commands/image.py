@@ -3,36 +3,24 @@
 
 from typing import List
 
+from commands.base import BaseCommands
 
-class ImageCommands:
+
+class ImageCommands(BaseCommands):
     """Image management commands for Interactive Console."""
 
-    def __init__(self, console):
-        """Initialize with reference to the console."""
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "image"
+    usage = "image list|info|delete|update|import"
 
-    def handle_command(self, args: List[str]):
-        """Handle image-related commands."""
-        if not args:
-            print("Missing image subcommand. Use 'image list|info|delete|update|import'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_images(args[1:])
-        elif subcommand == "info":
-            self.show_image_info(args[1:])
-        elif subcommand == "delete":
-            self.delete_image(args[1:])
-        elif subcommand == "update":
-            self.update_image(args[1:])
-        elif subcommand == "import":
+    def _build_actions(self):
+        return {
+            "list": self.list_images,
+            "info": self.show_image_info,
+            "delete": self.delete_image,
+            "update": self.update_image,
             # Delegate to the vm_commands import wizard
-            self.console.vm_commands.import_image_from_url(args[1:])
-        else:
-            print(f"Unknown image subcommand: {subcommand}")
+            "import": lambda args: self.console.vm_commands.import_image_from_url(args),
+        }
 
     def list_images(self, args: List[str]):
         """List custom images (snapshots by default)."""
@@ -69,14 +57,8 @@ class ImageCommands:
 
     def show_image_info(self, args: List[str]):
         """Show detailed information about an image."""
-        if not args:
-            print("Missing image ID. Use 'image info <id>'")
-            return
-
-        try:
-            image_id = int(args[0])
-        except ValueError:
-            print("Invalid image ID. Must be an integer.")
+        image_id = self.parse_id(args, "image ID", "image info <id>")
+        if image_id is None:
             return
 
         image = self.hetzner.get_image_by_id(image_id)
@@ -117,14 +99,8 @@ class ImageCommands:
 
     def delete_image(self, args: List[str]):
         """Delete a custom image by ID."""
-        if not args:
-            print("Missing image ID. Use 'image delete <id>'")
-            return
-
-        try:
-            image_id = int(args[0])
-        except ValueError:
-            print("Invalid image ID. Must be an integer.")
+        image_id = self.parse_id(args, "image ID", "image delete <id>")
+        if image_id is None:
             return
 
         image = self.hetzner.get_image_by_id(image_id)
@@ -137,9 +113,7 @@ class ImageCommands:
             print(f"Only custom images (snapshots/backups) can be deleted. This image is of type '{img_type}'.")
             return
 
-        confirm = input(f"Delete image '{name}' (ID: {image_id})? [y/N]: ").strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Delete image '{name}' (ID: {image_id})?"):
             return
 
         if self.hetzner.delete_image(image_id):
@@ -149,14 +123,8 @@ class ImageCommands:
 
     def update_image(self, args: List[str]):
         """Interactively update image description and/or labels."""
-        if not args:
-            print("Missing image ID. Use 'image update <id>'")
-            return
-
-        try:
-            image_id = int(args[0])
-        except ValueError:
-            print("Invalid image ID. Must be an integer.")
+        image_id = self.parse_id(args, "image ID", "image update <id>")
+        if image_id is None:
             return
 
         image = self.hetzner.get_image_by_id(image_id)

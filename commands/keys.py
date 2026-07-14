@@ -2,37 +2,24 @@
 # commands/keys.py - SSH key-related commands for hicloud
 
 import os
-import re
 from typing import List
 
-class KeysCommands:
+from commands.base import BaseCommands
+
+class KeysCommands(BaseCommands):
     """SSH key-related commands for Interactive Console"""
-    
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
-    
-    def handle_command(self, args: List[str]):
-        """Handle SSH key-related commands"""
-        if not args:
-            print("Missing keys subcommand. Use 'keys list|info|create|update|delete'")
-            return
 
-        subcommand = args[0].lower()
+    label = "keys"
+    usage = "keys list|info|create|update|delete"
 
-        if subcommand == "list":
-            self.list_keys()
-        elif subcommand == "info":
-            self.show_key_info(args[1:])
-        elif subcommand == "create":
-            self.create_key(args[1:])
-        elif subcommand == "update":
-            self.update_key(args[1:])
-        elif subcommand == "delete":
-            self.delete_key(args[1:])
-        else:
-            print(f"Unknown keys subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_keys(),
+            "info": self.show_key_info,
+            "create": self.create_key,
+            "update": self.update_key,
+            "delete": self.delete_key,
+        }
     
     def list_keys(self):
         """List all SSH keys"""

@@ -3,41 +3,26 @@
 
 from typing import Dict, List, Optional, Tuple
 
+from commands.base import BaseCommands
 from utils.prompts import prompt_choice, prompt_int
 
 
-class LoadBalancerCommands:
+class LoadBalancerCommands(BaseCommands):
     """Load balancer-related commands for Interactive Console."""
 
-    def __init__(self, console):
-        """Initialize with reference to the console."""
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "lb"
+    usage = "lb list|info|create|delete|targets|service|algorithm"
 
-    def handle_command(self, args: List[str]):
-        """Handle load balancer-related commands."""
-        if not args:
-            print("Missing lb subcommand. Use 'lb list|info|create|delete|targets|service|algorithm'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_load_balancers()
-        elif subcommand == "info":
-            self.show_load_balancer_info(args[1:])
-        elif subcommand == "create":
-            self.create_load_balancer()
-        elif subcommand == "delete":
-            self.delete_load_balancer(args[1:])
-        elif subcommand == "targets":
-            self.manage_targets(args[1:])
-        elif subcommand == "service":
-            self.manage_services(args[1:])
-        elif subcommand == "algorithm":
-            self.change_algorithm(args[1:])
-        else:
-            print(f"Unknown lb subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_load_balancers(),
+            "info": self.show_load_balancer_info,
+            "create": lambda args: self.create_load_balancer(),
+            "delete": self.delete_load_balancer,
+            "targets": self.manage_targets,
+            "service": self.manage_services,
+            "algorithm": self.change_algorithm,
+        }
 
     def list_load_balancers(self):
         """List all load balancers."""
@@ -139,7 +124,7 @@ class LoadBalancerCommands:
         public_interface_input = input("Enable public interface? [Y/n]: ").strip().lower()
         public_interface = public_interface_input not in {"n", "no"}
 
-        labels = self._prompt_for_labels()
+        labels = self.prompt_labels()
         if labels == {}:
             labels = None
 
@@ -151,9 +136,7 @@ class LoadBalancerCommands:
         if labels:
             print(f"  Labels:           {labels}")
 
-        confirm = input("\nCreate this load balancer? [y/N]: ").strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm("\nCreate this load balancer?"):
             return
 
         print("Creating load balancer...")
@@ -180,9 +163,7 @@ class LoadBalancerCommands:
             return
 
         lb_id = lb.get("id")
-        confirm = input(f"Are you sure you want to delete load balancer '{lb.get('name')}' (ID: {lb_id})? [y/N]: ").strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Are you sure you want to delete load balancer '{lb.get('name')}' (ID: {lb_id})?"):
             return
 
         print(f"Deleting load balancer {lb_id}...")
@@ -230,11 +211,9 @@ class LoadBalancerCommands:
             return
 
         target_label = self._target_to_label(target)
-        confirm = input(
-            f"{action.capitalize()} target {target_label} {'to' if action == 'add' else 'from'} load balancer '{lb.get('name')}' (ID: {lb_id})? [y/N]: "
-        ).strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm(
+            f"{action.capitalize()} target {target_label} {'to' if action == 'add' else 'from'} load balancer '{lb.get('name')}' (ID: {lb_id})?"
+        ):
             return
 
         if action == "add":
@@ -297,11 +276,7 @@ class LoadBalancerCommands:
                 print("Invalid listen port. Must be an integer.")
                 return
 
-            confirm = input(
-                f"Delete service on port {listen_port} from load balancer '{lb.get('name')}' (ID: {lb_id})? [y/N]: "
-            ).strip().lower()
-            if confirm != "y":
-                print("Operation cancelled")
+            if not self.confirm(f"Delete service on port {listen_port} from load balancer '{lb.get('name')}' (ID: {lb_id})?"):
                 return
 
             if self.hetzner.delete_lb_service(lb_id, listen_port):
@@ -365,9 +340,7 @@ class LoadBalancerCommands:
         if "stickiness" in service:
             print(f"  Sticky Sessions:  enabled (cookie: {service['stickiness']['cookie_name']})")
 
-        confirm = input("\nAdd this service? [y/N]: ").strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm("\nAdd this service?"):
             return
 
         if self.hetzner.add_lb_service(lb_id, service):
@@ -430,9 +403,7 @@ class LoadBalancerCommands:
                 "retries": hc_retries,
             }
 
-        confirm = input(f"\nUpdate service on port {listen_port}? [y/N]: ").strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"\nUpdate service on port {listen_port}?"):
             return
 
         if self.hetzner.update_lb_service(lb_id, service):
@@ -462,11 +433,7 @@ class LoadBalancerCommands:
             print(f"Load balancer '{lb.get('name')}' already uses '{algorithm}'.")
             return
 
-        confirm = input(
-            f"Change algorithm for '{lb.get('name')}' (ID: {lb_id}) from '{current}' to '{algorithm}'? [y/N]: "
-        ).strip().lower()
-        if confirm != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Change algorithm for '{lb.get('name')}' (ID: {lb_id}) from '{current}' to '{algorithm}'?"):
             return
 
         if self.hetzner.change_lb_algorithm(lb_id, algorithm):
@@ -476,16 +443,9 @@ class LoadBalancerCommands:
 
     def _resolve_lb_from_args(self, args: List[str], usage: str) -> Dict:
         """Resolve load balancer by first arg with standard validation."""
-        if not args:
-            print(f"Missing load balancer ID. Use '{usage}'")
+        lb_id = self.parse_id(args, "load balancer ID", usage)
+        if lb_id is None:
             return {}
-
-        try:
-            lb_id = int(args[0])
-        except ValueError:
-            print("Invalid load balancer ID. Must be an integer.")
-            return {}
-
         return self.hetzner.get_load_balancer_by_id(lb_id)
 
     def _resolve_type_choice(self, lb_types: List[Dict], choice: str) -> Optional[str]:
@@ -519,23 +479,6 @@ class LoadBalancerCommands:
             if location.get("name", "").lower() == choice.lower():
                 return location.get("name")
         return None
-
-    def _prompt_for_labels(self, ask_first: bool = True) -> Dict[str, str]:
-        """Interactively collect key/value labels."""
-        labels: Dict[str, str] = {}
-        if ask_first:
-            add_labels = input("\nAdd labels? [y/N]: ").strip().lower()
-            if add_labels != "y":
-                return labels
-
-        while True:
-            key = input("Label key (or press Enter to finish): ").strip()
-            if not key:
-                break
-            value = input(f"Label value for '{key}': ").strip()
-            labels[key] = value
-
-        return labels
 
     def _build_target(self, target_type: str, value: str, add_mode: bool) -> Optional[Dict]:
         """Build load balancer target object for API calls."""

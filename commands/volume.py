@@ -2,42 +2,27 @@
 # commands/volume.py - Volume-related commands for hicloud
 
 from typing import List
+
+from commands.base import BaseCommands
 from utils.formatting import format_size
 
-class VolumeCommands:
+class VolumeCommands(BaseCommands):
     """Volume-related commands for Interactive Console"""
 
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "volume"
+    usage = "volume list|info|create|delete|attach|detach|resize|protect"
 
-    def handle_command(self, args: List[str]):
-        """Handle volume-related commands"""
-        if not args:
-            print("Missing volume subcommand. Use 'volume list|info|create|delete|attach|detach|resize|protect'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_volumes()
-        elif subcommand == "info":
-            self.show_volume_info(args[1:])
-        elif subcommand == "create":
-            self.create_volume()
-        elif subcommand == "delete":
-            self.delete_volume(args[1:])
-        elif subcommand == "attach":
-            self.attach_volume(args[1:])
-        elif subcommand == "detach":
-            self.detach_volume(args[1:])
-        elif subcommand == "resize":
-            self.resize_volume(args[1:])
-        elif subcommand == "protect":
-            self.protect_volume(args[1:])
-        else:
-            print(f"Unknown volume subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_volumes(),
+            "info": self.show_volume_info,
+            "create": lambda args: self.create_volume(),
+            "delete": self.delete_volume,
+            "attach": self.attach_volume,
+            "detach": self.detach_volume,
+            "resize": self.resize_volume,
+            "protect": self.protect_volume,
+        }
 
     def list_volumes(self):
         """List all volumes"""
@@ -94,14 +79,8 @@ class VolumeCommands:
 
     def show_volume_info(self, args: List[str]):
         """Show detailed information about a specific volume"""
-        if not args:
-            print("Missing volume ID. Use 'volume info <id>'")
-            return
-
-        try:
-            volume_id = int(args[0])
-        except ValueError:
-            print("Invalid volume ID. Must be an integer.")
+        volume_id = self.parse_id(args, "volume ID", "volume info <id>")
+        if volume_id is None:
             return
 
         volume = self.hetzner.get_volume_by_id(volume_id)
@@ -311,14 +290,8 @@ class VolumeCommands:
 
     def delete_volume(self, args: List[str]):
         """Delete a volume by ID"""
-        if not args:
-            print("Missing volume ID. Use 'volume delete <id>'")
-            return
-
-        try:
-            volume_id = int(args[0])
-        except ValueError:
-            print("Invalid volume ID. Must be an integer.")
+        volume_id = self.parse_id(args, "volume ID", "volume delete <id>")
+        if volume_id is None:
             return
 
         volume = self.hetzner.get_volume_by_id(volume_id)
@@ -330,20 +303,14 @@ class VolumeCommands:
         if volume.get('server'):
             print(f"WARNING: Volume '{volume.get('name')}' is currently attached to a server.")
             print("You must detach it first before deletion.")
-            detach_now = input("Do you want to detach it now? [y/N]: ")
-            if detach_now.lower() == 'y':
-                print(f"Detaching volume {volume_id}...")
-                if not self.hetzner.detach_volume(volume_id):
-                    print("Failed to detach volume. Cannot delete.")
-                    return
-            else:
-                print("Operation cancelled")
+            if not self.confirm("Do you want to detach it now?"):
+                return
+            print(f"Detaching volume {volume_id}...")
+            if not self.hetzner.detach_volume(volume_id):
+                print("Failed to detach volume. Cannot delete.")
                 return
 
-        confirm = input(f"Are you sure you want to delete volume '{volume.get('name')}' (ID: {volume_id})? [y/N]: ")
-
-        if confirm.lower() != 'y':
-            print("Operation cancelled")
+        if not self.confirm(f"Are you sure you want to delete volume '{volume.get('name')}' (ID: {volume_id})?"):
             return
 
         print(f"Deleting volume {volume_id}...")
@@ -398,14 +365,8 @@ class VolumeCommands:
 
     def detach_volume(self, args: List[str]):
         """Detach a volume from its server"""
-        if not args:
-            print("Missing volume ID. Use 'volume detach <id>'")
-            return
-
-        try:
-            volume_id = int(args[0])
-        except ValueError:
-            print("Invalid volume ID. Must be an integer.")
+        volume_id = self.parse_id(args, "volume ID", "volume detach <id>")
+        if volume_id is None:
             return
 
         # Get volume details
@@ -492,10 +453,8 @@ class VolumeCommands:
             print("Missing parameters. Use 'volume protect <id> <enable|disable>'")
             return
 
-        try:
-            volume_id = int(args[0])
-        except ValueError:
-            print("Invalid volume ID. Must be an integer.")
+        volume_id = self.parse_id(args, "volume ID", "volume protect <id> <enable|disable>")
+        if volume_id is None:
             return
 
         action = args[1].lower()
