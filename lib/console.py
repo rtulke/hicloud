@@ -33,6 +33,7 @@ from commands.pricing import PricingCommands
 from commands.keys import KeysCommands
 from commands.batch import BatchCommands
 from commands.action import ActionCommands
+from commands.placement_group import PlacementGroupCommands
 from commands.volume import VolumeCommands
 from commands.iso import ISOCommands
 from commands.location import LocationCommands, DatacenterCommands, ServerTypeCommands
@@ -130,6 +131,7 @@ class InteractiveConsole:
         self.keys_commands = KeysCommands(self)
         self.batch_commands = BatchCommands(self)
         self.action_commands = ActionCommands(self)
+        self.placement_group_commands = PlacementGroupCommands(self)
         self.volume_commands = VolumeCommands(self)
         self.iso_commands = ISOCommands(self)
         self.location_commands = LocationCommands(self)
@@ -422,6 +424,36 @@ class InteractiveConsole:
                     "info": {
                         "help": "Show action details: action info <id>",
                         "arguments": [{"name": "action_id", "provider": "action_ids"}],
+                    },
+                },
+            },
+            "placement-group": {
+                "help": "Placement group commands: list, info <id>, create, update <id>, delete <id>, add <id> <server_id>, remove <server_id>",
+                "subcommands": {
+                    "list": {"help": "List all placement groups"},
+                    "info": {
+                        "help": "Show placement group details: placement-group info <id>",
+                        "arguments": [{"name": "placement_group_id", "provider": "placement_group_ids"}],
+                    },
+                    "create": {"help": "Create a new placement group (interactive)"},
+                    "update": {
+                        "help": "Update placement group metadata: placement-group update <id>",
+                        "arguments": [{"name": "placement_group_id", "provider": "placement_group_ids"}],
+                    },
+                    "delete": {
+                        "help": "Delete a placement group: placement-group delete <id>",
+                        "arguments": [{"name": "placement_group_id", "provider": "placement_group_ids"}],
+                    },
+                    "add": {
+                        "help": "Add server to placement group (server must be off): placement-group add <id> <server_id>",
+                        "arguments": [
+                            {"name": "placement_group_id", "provider": "placement_group_ids"},
+                            {"name": "server_id", "provider": "server_ids"},
+                        ],
+                    },
+                    "remove": {
+                        "help": "Remove server from its placement group: placement-group remove <server_id>",
+                        "arguments": [{"name": "server_id", "provider": "server_ids"}],
                     },
                 },
             },
@@ -839,6 +871,7 @@ class InteractiveConsole:
             "snapshot_ids": self._get_snapshot_ids,
             "backup_ids": self._get_backup_ids,
             "action_ids": self._get_action_ids,
+            "placement_group_ids": self._get_placement_group_ids,
             "volume_ids": self._get_volume_ids,
             "network_ids": self._get_network_ids,
             "firewall_ids": self._get_firewall_ids,
@@ -862,6 +895,7 @@ class InteractiveConsole:
             "metrics": self.metrics_commands.handle_command,
             "batch": self.batch_commands.handle_command,
             "action": self.action_commands.handle_command,
+            "placement-group": self.placement_group_commands.handle_command,
             "project": self.project_commands.handle_command,
             "pricing": self.pricing_commands.handle_command,
             "keys": self.keys_commands.handle_command,
@@ -1033,6 +1067,12 @@ class InteractiveConsole:
         return self._get_cached_values(
             "action_ids",
             lambda: [str(action.get("id")) for action in self.hetzner.list_actions("running")],
+        )
+
+    def _get_placement_group_ids(self) -> List[str]:
+        return self._get_cached_values(
+            "placement_group_ids",
+            lambda: [str(group.get("id")) for group in self.hetzner.list_placement_groups()],
         )
 
     def _get_project_names(self) -> List[str]:
@@ -1398,6 +1438,7 @@ class InteractiveConsole:
         ("Monitoring Commands", ["metrics"]),
         ("Batch Commands", ["batch"]),
         ("Action Commands", ["action"]),
+        ("Placement Group Commands", ["placement-group"]),
         ("Project Commands", ["project"]),
         ("Pricing Commands", ["pricing"]),
         ("Volume Commands", ["volume"]),

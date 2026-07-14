@@ -1426,6 +1426,67 @@ class HetznerCloudManager:
         )
 
     # ------------------------------------------------------------------
+    # Placement Group Management Functions
+    # ------------------------------------------------------------------
+
+    def list_placement_groups(self) -> List[Dict]:
+        """List all placement groups in the project"""
+        return self._get_list("placement_groups", "placement_groups", "listing placement groups")
+
+    def get_placement_group_by_id(self, group_id: int) -> Dict:
+        """Get placement group details by ID"""
+        return self._get_resource(
+            f"placement_groups/{group_id}", "placement_group",
+            f"Placement group with ID {group_id}", f"getting placement group {group_id}"
+        )
+
+    def create_placement_group(self, name: str, group_type: str = "spread", labels: Dict = None) -> Dict:
+        """Create a new placement group ('spread' is the only type Hetzner offers)"""
+        data: Dict = {"name": name, "type": group_type}
+        if labels:
+            data["labels"] = labels
+        return self._create_resource(
+            "placement_groups", data, "placement_group", f"creating placement group '{name}'"
+        )
+
+    def update_placement_group(self, group_id: int, name: str = None, labels: Dict = None) -> Dict:
+        """Update placement group metadata (name and/or labels)"""
+        data: Dict = {}
+        if name is not None:
+            data["name"] = name
+        if labels is not None:
+            data["labels"] = labels
+
+        if not data:
+            print("No updates provided")
+            return {}
+
+        return self._update_resource(
+            f"placement_groups/{group_id}", data, "placement_group", f"updating placement group {group_id}"
+        )
+
+    def delete_placement_group(self, group_id: int) -> bool:
+        """Delete a placement group by ID"""
+        return self._delete_resource(f"placement_groups/{group_id}", f"deleting placement group {group_id}")
+
+    def add_server_to_placement_group(self, server_id: int, group_id: int) -> bool:
+        """Add a server to a placement group (server must be powered off)"""
+        return self._run_action(
+            f"servers/{server_id}/actions/add_to_placement_group",
+            {"placement_group": group_id},
+            f"adding server {server_id} to placement group {group_id}",
+            "Waiting for placement group assignment..."
+        )
+
+    def remove_server_from_placement_group(self, server_id: int) -> bool:
+        """Remove a server from its placement group"""
+        return self._run_action(
+            f"servers/{server_id}/actions/remove_from_placement_group", {},
+            f"removing server {server_id} from its placement group",
+            "Waiting for placement group removal..."
+        )
+
+    # ------------------------------------------------------------------
     # Action Management Functions
     # ------------------------------------------------------------------
 

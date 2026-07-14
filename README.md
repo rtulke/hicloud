@@ -173,6 +173,15 @@ Action Commands:
   action list [running|success|error]  - List API actions (newest first, optional status filter)
   action info <id>                     - Show action details incl. progress and errors
 
+Placement Group Commands:
+  placement-group list                 - List all placement groups
+  placement-group info <id>            - Show placement group details
+  placement-group create               - Create a new placement group (interactive)
+  placement-group update <id>          - Update name/labels (interactive)
+  placement-group delete <id>          - Delete a placement group (must be empty)
+  placement-group add <id> <sid>       - Add server to group (server must be powered off)
+  placement-group remove <sid>         - Remove server from its placement group
+
 Volume Commands:
   volume list                          - List all volumes
   volume info <id>                     - Show detailed information about a volume
@@ -521,7 +530,7 @@ Status: done = shipped, partial = partial support, open = not started.
 | 7 | Advanced | Enhanced Monitoring | partial | `commands/metrics.py` covers `metrics list|cpu|traffic|disk`; alerting/export flows still to implement. |
 | 8 | Advanced | Resource Overview | partial | `project resources` and `datacenter resources` provide partial overview; no dedicated unified usage/limits view yet. |
 | 9 | Infrastructure | ISO Management | done | `commands/iso.py` delivers list/info/attach/detach. |
-| 10 | Infrastructure | Placement Groups | open | No placement group module yet (`placement list|create|assign`). |
+| 10 | Infrastructure | Placement Groups | done | `commands/placement_group.py` ships list/info/create/update/delete plus add/remove with running-server and non-empty-group guards. |
 | 11 | Infrastructure | Action Management | done | `commands/action.py` ships `action list [running\|success\|error]` and `action info <id>` (history = status filter). The Hetzner API has no cancel endpoint, so `action cancel` is not implementable. |
 | 12 | Business Intelligence | Enhanced Analytics | partial | `commands/pricing.py` supports `list` and `calculate`; forecast/compare/optimization helpers missing. |
 | 13 | Business Intelligence | Backup Policies | partial | `commands/backup.py` handles list/enable/disable/delete; policy view/restore/schedule flows to build. |
