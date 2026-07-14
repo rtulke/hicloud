@@ -101,7 +101,7 @@ def test_show_info_missing_id(capsys):
 def test_show_info_invalid_id(capsys):
     cmd, _, _ = build()
     cmd.show_key_info(["abc"])
-    assert "Invalid key ID" in capsys.readouterr().out
+    assert "Invalid SSH key ID" in capsys.readouterr().out
 
 
 # --- create ---
@@ -154,7 +154,7 @@ def test_delete_missing_id(capsys):
 def test_delete_invalid_id(capsys):
     cmd, _, _ = build()
     cmd.delete_key(["abc"])
-    assert "Invalid key ID" in capsys.readouterr().out
+    assert "Invalid SSH key ID" in capsys.readouterr().out
 
 
 def test_delete_not_found(capsys):

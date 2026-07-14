@@ -49,14 +49,8 @@ class KeysCommands(BaseCommands):
     
     def delete_key(self, args: List[str]):
         """Delete SSH key by ID"""
-        if not args:
-            print("Missing SSH key ID. Use 'keys delete <id>'")
-            return
-            
-        try:
-            key_id = int(args[0])
-        except ValueError:
-            print("Invalid key ID. Must be an integer.")
+        key_id = self.parse_id(args, "SSH key ID", "keys delete <id>")
+        if key_id is None:
             return
             
         key = self.hetzner.get_ssh_key_by_id(key_id)
@@ -65,10 +59,7 @@ class KeysCommands(BaseCommands):
             # Die Fehlermeldung wird bereits in get_ssh_key_by_id ausgegeben
             return
             
-        confirm = input(f"Are you sure you want to delete SSH key '{key.get('name')}' (ID: {key_id})? [y/N]: ")
-        
-        if confirm.lower() != 'y':
-            print("Operation cancelled")
+        if not self.confirm(f"Are you sure you want to delete SSH key '{key.get('name')}' (ID: {key_id})?"):
             return
             
         print(f"Deleting SSH key {key_id}...")
@@ -79,14 +70,8 @@ class KeysCommands(BaseCommands):
 
     def show_key_info(self, args: List[str]):
         """Show detailed information about an SSH key"""
-        if not args:
-            print("Missing SSH key ID. Use 'keys info <id>'")
-            return
-
-        try:
-            key_id = int(args[0])
-        except ValueError:
-            print("Invalid key ID. Must be an integer.")
+        key_id = self.parse_id(args, "SSH key ID", "keys info <id>")
+        if key_id is None:
             return
 
         key = self.hetzner.get_ssh_key_by_id(key_id)
@@ -201,15 +186,7 @@ class KeysCommands(BaseCommands):
             return
 
         # Optional labels
-        labels = {}
-        add_labels = input("\nAdd labels? [y/N]: ").strip().lower()
-        if add_labels == 'y':
-            while True:
-                key = input("Label key (or press Enter to finish): ").strip()
-                if not key:
-                    break
-                value = input(f"Label value for '{key}': ").strip()
-                labels[key] = value
+        labels = self.prompt_labels()
 
         # Summary
         print("\nSSH Key Creation Summary:")
@@ -242,14 +219,8 @@ class KeysCommands(BaseCommands):
 
     def update_key(self, args: List[str]):
         """Update SSH key metadata (name and/or labels)"""
-        if not args:
-            print("Missing SSH key ID. Use 'keys update <id>'")
-            return
-
-        try:
-            key_id = int(args[0])
-        except ValueError:
-            print("Invalid key ID. Must be an integer.")
+        key_id = self.parse_id(args, "SSH key ID", "keys update <id>")
+        if key_id is None:
             return
 
         # Get current key info

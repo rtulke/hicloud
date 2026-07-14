@@ -127,7 +127,7 @@ class PrimaryIPCommands(BaseCommands):
         auto_delete_input = input("Enable auto-delete (delete IP when server is deleted)? [y/N]: ").strip().lower()
         auto_delete = auto_delete_input == "y"
 
-        labels = self._prompt_labels()
+        labels = self.prompt_labels()
 
         print("\nSummary:")
         print(f"  Type:        {ip_type}")
@@ -138,8 +138,7 @@ class PrimaryIPCommands(BaseCommands):
             print(f"  Datacenter:  {datacenter}")
         print(f"  Auto-Delete: {'yes' if auto_delete else 'no'}")
 
-        if input("\nCreate primary IP? [y/N]: ").strip().lower() != "y":
-            print("Operation cancelled")
+        if not self.confirm("\nCreate primary IP?"):
             return
 
         pip = self.hetzner.create_primary_ip(
@@ -176,7 +175,7 @@ class PrimaryIPCommands(BaseCommands):
 
         new_labels = None
         if input("Update labels? [y/N]: ").strip().lower() == "y":
-            new_labels = self._prompt_labels(ask_first=False)
+            new_labels = self.prompt_labels(ask_first=False)
 
         if new_name is None and new_auto is None and new_labels is None:
             print("No changes. Skipping.")
@@ -211,8 +210,7 @@ class PrimaryIPCommands(BaseCommands):
         if not pip.get("auto_delete"):
             print(f"NOTE: auto_delete is disabled for this IP — it won't be deleted automatically with its server.")
 
-        if input(f"Delete primary IP '{pip.get('name')}' ({pip.get('ip')})? [y/N]: ").strip().lower() != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Delete primary IP '{pip.get('name')}' ({pip.get('ip')})?"):
             return
 
         if self.hetzner.delete_primary_ip(pip_id):
@@ -236,8 +234,7 @@ class PrimaryIPCommands(BaseCommands):
             return
 
         pip_id = pip.get("id")
-        if input(f"Assign primary IP '{pip.get('name')}' ({pip.get('ip')}) to server {server_id}? [y/N]: ").strip().lower() != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Assign primary IP '{pip.get('name')}' ({pip.get('ip')}) to server {server_id}?"):
             return
 
         if self.hetzner.assign_primary_ip(pip_id, server_id):
@@ -257,8 +254,7 @@ class PrimaryIPCommands(BaseCommands):
             print(f"Primary IP '{pip.get('name')}' is not assigned to any server.")
             return
 
-        if input(f"Unassign primary IP '{pip.get('name')}' from server {pip['assignee_id']}? [y/N]: ").strip().lower() != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Unassign primary IP '{pip.get('name')}' from server {pip['assignee_id']}?"):
             return
 
         if self.hetzner.unassign_primary_ip(pip_id):
@@ -282,8 +278,7 @@ class PrimaryIPCommands(BaseCommands):
         pip_id = pip.get("id")
 
         action = f"→ {dns_ptr}" if dns_ptr else "(reset)"
-        if input(f"Set rDNS for {ip} {action} on primary IP {pip_id}? [y/N]: ").strip().lower() != "y":
-            print("Operation cancelled")
+        if not self.confirm(f"Set rDNS for {ip} {action} on primary IP {pip_id}?"):
             return
 
         if self.hetzner.change_primary_ip_dns_ptr(pip_id, ip, dns_ptr):
@@ -315,13 +310,8 @@ class PrimaryIPCommands(BaseCommands):
     # ------------------------------------------------------------ helpers
 
     def _resolve(self, args: List[str], usage: str):
-        if not args:
-            print(f"Missing ID. Use '{usage}'")
-            return None
-        try:
-            pip_id = int(args[0])
-        except ValueError:
-            print("Invalid ID. Must be an integer.")
+        pip_id = self.parse_id(args, "ID", usage)
+        if pip_id is None:
             return None
         pip = self.hetzner.get_primary_ip_by_id(pip_id)
         return pip if pip else None
@@ -337,13 +327,3 @@ class PrimaryIPCommands(BaseCommands):
                 return dc.get("name")
         return None
 
-    def _prompt_labels(self, ask_first: bool = True):
-        labels = {}
-        if ask_first and input("Add labels? [y/N]: ").strip().lower() != "y":
-            return labels
-        while True:
-            key = input("Label key (Enter to finish): ").strip()
-            if not key:
-                break
-            labels[key] = input(f"Value for '{key}': ").strip()
-        return labels

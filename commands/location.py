@@ -266,28 +266,17 @@ class DatacenterCommands(BaseCommands):
             print(f"  Load Balancers: {', '.join(info['load_balancer_ids']) if info['load_balancer_ids'] else '-'}")
 
 
-class ServerTypeCommands:
+class ServerTypeCommands(BaseCommands):
     """Server type commands for Interactive Console."""
 
-    def __init__(self, console):
-        """Initialize with reference to the console."""
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "server-type"
+    usage = "server-type list|info"
 
-    def handle_command(self, args: List[str]):
-        """Handle server-type commands."""
-        if not args:
-            print("Missing server-type subcommand. Use 'server-type list|info'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_server_types(args[1:])
-        elif subcommand == "info":
-            self.show_server_type_info(args[1:])
-        else:
-            print(f"Unknown server-type subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": self.list_server_types,
+            "info": self.show_server_type_info,
+        }
 
     def list_server_types(self, args: List[str]):
         """List all available server types, optionally filtered by location."""

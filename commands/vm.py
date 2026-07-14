@@ -67,14 +67,8 @@ class VMCommands(BaseCommands):
     
     def show_vm_info(self, args: List[str]):
         """Show detailed information about a specific VM"""
-        if not args:
-            print("Missing VM ID. Use 'vm info <id>'")
-            return
-            
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
+        vm_id = self.parse_id(args, "VM ID", "vm info <id>")
+        if vm_id is None:
             return
             
         server = self.hetzner.get_server_by_id(vm_id)
@@ -425,20 +419,14 @@ class VMCommands(BaseCommands):
     
     def start_vm(self, args: List[str]):
         """Start a VM by ID"""
-        if not args:
-            print("Missing VM ID. Use 'vm start <id>'")
+        vm_id = self.parse_id(args, "VM ID", "vm start <id>")
+        if vm_id is None:
             return
-            
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
-            return
-            
+
         server = self.hetzner.get_server_by_id(vm_id)
-        
+
         if not server:
-            print(f"VM with ID {vm_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
             
         if server.get("status") == "running":
@@ -453,20 +441,14 @@ class VMCommands(BaseCommands):
     
     def stop_vm(self, args: List[str]):
         """Stop a VM by ID"""
-        if not args:
-            print("Missing VM ID. Use 'vm stop <id>'")
+        vm_id = self.parse_id(args, "VM ID", "vm stop <id>")
+        if vm_id is None:
             return
-            
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
-            return
-            
+
         server = self.hetzner.get_server_by_id(vm_id)
-        
+
         if not server:
-            print(f"VM with ID {vm_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
             
         if server.get("status") == "off":
@@ -481,20 +463,14 @@ class VMCommands(BaseCommands):
 
     def reboot_vm(self, args: List[str]):
         """Reboot a VM by ID"""
-        if not args:
-            print("Missing VM ID. Use 'vm reboot <id>'")
-            return
-
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
+        vm_id = self.parse_id(args, "VM ID", "vm reboot <id>")
+        if vm_id is None:
             return
 
         server = self.hetzner.get_server_by_id(vm_id)
 
         if not server:
-            print(f"VM with ID {vm_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
 
         if server.get("status") == "off":
@@ -509,26 +485,17 @@ class VMCommands(BaseCommands):
 
     def delete_vm(self, args: List[str]):
         """Delete a VM by ID"""
-        if not args:
-            print("Missing VM ID. Use 'vm delete <id>'")
+        vm_id = self.parse_id(args, "VM ID", "vm delete <id>")
+        if vm_id is None:
             return
-            
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
-            return
-            
+
         server = self.hetzner.get_server_by_id(vm_id)
-        
+
         if not server:
-            print(f"VM with ID {vm_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
-            
-        confirm = input(f"Are you sure you want to delete VM '{server.get('name')}' (ID: {vm_id})? [y/N]: ")
-        
-        if confirm.lower() != 'y':
-            print("Operation cancelled")
+
+        if not self.confirm(f"Are you sure you want to delete VM '{server.get('name')}' (ID: {vm_id})?"):
             return
             
         print(f"Deleting VM {vm_id}...")
@@ -543,12 +510,10 @@ class VMCommands(BaseCommands):
             print("Missing parameters. Use 'vm resize <id> <new_type>'")
             return
             
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
+        vm_id = self.parse_id(args, "VM ID", "vm resize <id> <new_type>")
+        if vm_id is None:
             return
-            
+
         new_type = args[1]
         
         # Get server details
@@ -583,17 +548,13 @@ class VMCommands(BaseCommands):
         print("This may take several minutes to complete.")
         
         # Security check
-        confirm = input(f"\nAre you sure you want to resize VM '{server.get('name')}' (ID: {vm_id}) to {new_type}? [y/N]: ")
-        if confirm.lower() != 'y':
-            print("Operation cancelled")
+        if not self.confirm(f"\nAre you sure you want to resize VM '{server.get('name')}' (ID: {vm_id}) to {new_type}?"):
             return
             
         # Check if server is running and needs to be powered off
         if server.get("status") == "running":
             print(f"VM '{server.get('name')}' is currently running and needs to be powered off.")
-            confirm_stop = input("Do you want to power off the VM now? [y/N]: ")
-            if confirm_stop.lower() != 'y':
-                print("Operation cancelled")
+            if not self.confirm("Do you want to power off the VM now?"):
                 return
                 
             # Stop the server
@@ -628,12 +589,10 @@ class VMCommands(BaseCommands):
             print("Missing parameters. Use 'vm rename <id> <new_name>'")
             return
             
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
+        vm_id = self.parse_id(args, "VM ID", "vm rename <id> <new_name>")
+        if vm_id is None:
             return
-            
+
         new_name = args[1]
         
         # Get server details
@@ -643,9 +602,7 @@ class VMCommands(BaseCommands):
             
         # Security check
         old_name = server.get("name", "unknown")
-        confirm = input(f"Are you sure you want to rename VM '{old_name}' (ID: {vm_id}) to '{new_name}'? [y/N]: ")
-        if confirm.lower() != 'y':
-            print("Operation cancelled")
+        if not self.confirm(f"Are you sure you want to rename VM '{old_name}' (ID: {vm_id}) to '{new_name}'?"):
             return
             
         # Rename the server
@@ -657,14 +614,8 @@ class VMCommands(BaseCommands):
     
     def rescue_vm(self, args: List[str]):
         """Enable rescue mode for a VM"""
-        if not args:
-            print("Missing VM ID. Use 'vm rescue <id>'")
-            return
-            
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
+        vm_id = self.parse_id(args, "VM ID", "vm rescue <id>")
+        if vm_id is None:
             return
             
         # Get server details
@@ -684,18 +635,11 @@ class VMCommands(BaseCommands):
         print("2. linux32")
         print("3. freebsd64")
         
-        mode_choice = input("\nSelect rescue mode (number, default: 1): ").strip()
-        rescue_type = "linux64"  # Default
-        
-        if mode_choice == "2":
-            rescue_type = "linux32"
-        elif mode_choice == "3":
-            rescue_type = "freebsd64"
+        mode_choice = prompt_choice("\nSelect rescue mode (number, default: 1): ", ["1", "2", "3"], default="1")
+        rescue_type = {"1": "linux64", "2": "linux32", "3": "freebsd64"}[mode_choice]
             
         # Security check
-        confirm = input(f"\nAre you sure you want to enable {rescue_type} rescue mode for VM '{server.get('name')}' (ID: {vm_id})? [y/N]: ")
-        if confirm.lower() != 'y':
-            print("Operation cancelled")
+        if not self.confirm(f"\nAre you sure you want to enable {rescue_type} rescue mode for VM '{server.get('name')}' (ID: {vm_id})?"):
             return
             
         # Enable rescue mode
@@ -721,14 +665,8 @@ class VMCommands(BaseCommands):
     
     def reset_password(self, args: List[str]):
         """Reset the root password of a VM"""
-        if not args:
-            print("Missing VM ID. Use 'vm reset-password <id>'")
-            return
-            
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
+        vm_id = self.parse_id(args, "VM ID", "vm reset-password <id>")
+        if vm_id is None:
             return
             
         # Get server details
@@ -742,9 +680,7 @@ class VMCommands(BaseCommands):
         print("Any existing password will no longer work.")
         print("The server needs to be powered on for this operation.")
         
-        confirm = input(f"Are you sure you want to reset the root password for VM '{server.get('name')}' (ID: {vm_id})? [y/N]: ")
-        if confirm.lower() != 'y':
-            print("Operation cancelled")
+        if not self.confirm(f"Are you sure you want to reset the root password for VM '{server.get('name')}' (ID: {vm_id})?"):
             return
             
         # Check if server is powered on
@@ -786,11 +722,9 @@ class VMCommands(BaseCommands):
         if len(args) < 2:
             print("Missing parameters. Use 'vm image <id> <name>'")
             return
-            
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
+
+        vm_id = self.parse_id(args, "VM ID", "vm image <id> <name>")
+        if vm_id is None:
             return
             
         image_name = args[1]
