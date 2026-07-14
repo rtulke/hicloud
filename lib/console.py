@@ -141,6 +141,9 @@ class InteractiveConsole:
         self.floating_ip_commands = FloatingIPCommands(self)
         self.primary_ip_commands = PrimaryIPCommands(self)
         
+        # Befehlsregistry aufbauen (Dispatch, Completion und Hilfe speisen sich daraus)
+        self._build_command_registry()
+
         # Konfiguriere readline für History-Unterstützung
         self._setup_readline()
         
@@ -258,7 +261,9 @@ class InteractiveConsole:
         except Exception as e:
             print(f"Warning: Could not load command history: {str(e)}")
             
-        # Command completion einrichten
+    def _build_command_registry(self):
+        """Single source of truth for the command tree: dispatch handlers,
+        tab completion metadata, and the generated help all derive from it."""
         self.commands = {
             "vm": {
                 "help": "VM commands: list, info <id>, create, start <id>, stop <id>, delete <id>, resize <id> <type>, rename <id> <n>, rescue <id>, reset-password <id>, image <id> <n>",
@@ -610,44 +615,6 @@ class InteractiveConsole:
                     },
                 },
             },
-            "loadbalancer": {
-                "help": "Alias for 'lb' load balancer commands",
-                "subcommands": {
-                    "list": {"help": "List all load balancers"},
-                    "info": {
-                        "help": "Show detailed load balancer information: loadbalancer info <id>",
-                        "arguments": [{"name": "load_balancer_id", "provider": "load_balancer_ids"}],
-                    },
-                    "create": {"help": "Create a new load balancer (interactive)"},
-                    "delete": {
-                        "help": "Delete a load balancer: loadbalancer delete <id>",
-                        "arguments": [{"name": "load_balancer_id", "provider": "load_balancer_ids"}],
-                    },
-                    "targets": {
-                        "help": "Manage targets: loadbalancer targets <id> list|add|remove [server|label] <target>",
-                        "arguments": [
-                            {"name": "load_balancer_id", "provider": "load_balancer_ids"},
-                            {"name": "action", "literals": ["list", "add", "remove"]},
-                            {"name": "target_type", "literals": ["server", "label"], "optional": True},
-                            {"name": "target", "provider": "server_ids", "optional": True},
-                        ],
-                    },
-                    "service": {
-                        "help": "Manage services: loadbalancer service <id> list|add|update|delete [port]",
-                        "arguments": [
-                            {"name": "load_balancer_id", "provider": "load_balancer_ids"},
-                            {"name": "action", "literals": ["list", "add", "update", "delete"]},
-                        ],
-                    },
-                    "algorithm": {
-                        "help": "Change algorithm: loadbalancer algorithm <id> <round_robin|least_connections>",
-                        "arguments": [
-                            {"name": "load_balancer_id", "provider": "load_balancer_ids"},
-                            {"name": "algorithm", "literals": ["round_robin", "least_connections"]},
-                        ],
-                    },
-                },
-            },
             "iso": {
                 "help": "ISO commands: list, info <id>, attach <iso_id> <server_id>, detach <server_id>",
                 "subcommands": {
@@ -841,7 +808,11 @@ class InteractiveConsole:
             "quit": {"help": "Exit the program"},
             "q": {"help": "Exit the program"}
         }
-        
+
+        # Aliase teilen den Befehlsbaum (inkl. Completion), statt ihn zu duplizieren
+        self.commands["server"] = {**self.commands["vm"], "help": "Alias for 'vm' commands", "alias_of": "vm"}
+        self.commands["loadbalancer"] = {**self.commands["lb"], "help": "Alias for 'lb' load balancer commands", "alias_of": "lb"}
+
         self.argument_providers = {
             "commands": self._get_command_names,
             "image_ids": self._get_image_ids,
@@ -863,7 +834,67 @@ class InteractiveConsole:
             "pricing_categories": self._get_pricing_categories,
             "pricing_locations": self._get_pricing_locations,
         }
-    
+
+        # Handler direkt in der Registry verdrahten — der Dispatch ist ein Lookup
+        handlers = {
+            "vm": self.vm_commands.handle_command,
+            "server": self.vm_commands.handle_command,
+            "snapshot": self.snapshot_commands.handle_command,
+            "backup": self.backup_commands.handle_command,
+            "metrics": self.metrics_commands.handle_command,
+            "batch": self.batch_commands.handle_command,
+            "project": self.project_commands.handle_command,
+            "pricing": self.pricing_commands.handle_command,
+            "keys": self.keys_commands.handle_command,
+            "volume": self.volume_commands.handle_command,
+            "network": self.network_commands.handle_command,
+            "firewall": self.firewall_commands.handle_command,
+            "lb": self.load_balancer_commands.handle_command,
+            "loadbalancer": self.load_balancer_commands.handle_command,
+            "iso": self.iso_commands.handle_command,
+            "location": self.location_commands.handle_command,
+            "datacenter": self.datacenter_commands.handle_command,
+            "image": self.image_commands.handle_command,
+            "config": self.config_commands.handle_command,
+            "server-type": self.server_type_commands.handle_command,
+            "floating-ip": self.floating_ip_commands.handle_command,
+            "primary-ip": self.primary_ip_commands.handle_command,
+            "history": self._handle_history,
+            "clear": self._clear_and_welcome,
+            "reset": self._clear_and_welcome,
+            "help": self._handle_help,
+            "exit": self._request_exit,
+            "quit": self._request_exit,
+            "q": self._request_exit,
+        }
+        for name, handler in handlers.items():
+            self.commands[name]["handler"] = handler
+
+    def _handle_help(self, args: List[str]):
+        self.show_help(args[0] if args else None)
+
+    def _handle_history(self, args: List[str]):
+        if args and args[0].lower() == "clear":
+            self._clean_history()
+        else:
+            self._display_history()
+
+    def _request_exit(self, args: List[str]):
+        self.running = False
+
+    def _clear_and_welcome(self, args: List[str]):
+        self._clear_screen()
+        self._display_welcome_screen()
+
+    def _dispatch(self, parts: List[str]):
+        """Route a tokenized command line to its registered handler."""
+        entry = self.commands.get(parts[0].lower())
+        handler = entry.get("handler") if entry else None
+        if handler is None:
+            print(f"Unknown command: {parts[0].lower()}. Tip: type 'help' to list all available commands.")
+            return
+        handler(parts[1:])
+
     def _get_cached_values(self, key: str, fetcher, ttl: int = 10) -> List[str]:
         """Return cached completion values for a provider"""
         entry = self._completion_cache.get(key)
@@ -1320,66 +1351,7 @@ class InteractiveConsole:
                     continue
                     
                 with self._command_output():
-                    parts = command.split()
-                    main_cmd = parts[0].lower()
-                    
-                    if main_cmd in ["exit", "quit", "q"]:
-                        self.running = False
-                    elif main_cmd == "help":
-                        if len(parts) > 1:
-                            self.show_help(parts[1])
-                        else:
-                            self.show_help()
-                    elif main_cmd in ["clear", "reset"]:
-                        self._clear_screen()
-                        self._display_welcome_screen()
-                    elif main_cmd == "snapshot":
-                        self.snapshot_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "backup":
-                        self.backup_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "vm" or main_cmd == "server":
-                        self.vm_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "keys":
-                        self.keys_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "metrics":
-                        self.metrics_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "batch":
-                        self.batch_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "pricing":
-                        self.pricing_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "project":
-                        self.project_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "volume":
-                        self.volume_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "network":
-                        self.network_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "firewall":
-                        self.firewall_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd in ["lb", "loadbalancer"]:
-                        self.load_balancer_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "image":
-                        self.image_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "config":
-                        self.config_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "server-type":
-                        self.server_type_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "floating-ip":
-                        self.floating_ip_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "primary-ip":
-                        self.primary_ip_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "iso":
-                        self.iso_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "location":
-                        self.location_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "datacenter":
-                        self.datacenter_commands.handle_command(parts[1:] if len(parts) > 1 else [])
-                    elif main_cmd == "history":
-                        if len(parts) > 1 and parts[1].lower() == "clear":
-                            self._clean_history()
-                        else:
-                            self._display_history()
-                    else:
-                        print(f"Unknown command: {main_cmd}. Tip: type 'help' to list all available commands.")
+                    self._dispatch(command.split())
                     
             except EOFError:
                 print("\nExiting on Ctrl-D")
@@ -1392,177 +1364,68 @@ class InteractiveConsole:
         # Beim Beenden die Historie speichern
         self._save_history()
     
+    # Reihenfolge und Überschriften der generierten Gesamthilfe
+    HELP_GROUPS = [
+        ("VM Commands", ["vm"]),
+        ("Snapshot Commands", ["snapshot"]),
+        ("Backup Commands", ["backup"]),
+        ("Monitoring Commands", ["metrics"]),
+        ("Batch Commands", ["batch"]),
+        ("Project Commands", ["project"]),
+        ("Pricing Commands", ["pricing"]),
+        ("Volume Commands", ["volume"]),
+        ("Network Commands", ["network"]),
+        ("Firewall Commands", ["firewall"]),
+        ("Load Balancer Commands", ["lb"]),
+        ("Floating IP Commands", ["floating-ip"]),
+        ("Primary IP Commands", ["primary-ip"]),
+        ("Image Commands", ["image"]),
+        ("Config Commands", ["config"]),
+        ("Server Type Commands", ["server-type"]),
+        ("ISO Commands", ["iso"]),
+        ("Location & Datacenter Commands", ["location", "datacenter"]),
+        ("SSH Key Commands", ["keys"]),
+    ]
+
     def show_help(self, command: str = None):
-        """Show help information"""
+        """Show help information, generated from the command registry"""
         if command:
             self._show_detailed_help(command.lower())
             return
 
-        help_text = """
-Available commands:
+        print("\nAvailable commands:")
+        for title, names in self.HELP_GROUPS:
+            print(f"\n  {title}:")
+            for name in names:
+                self._print_command_summary(name)
 
-  VM Commands:
-    vm list                           - List all VMs
-    vm info <id>                      - Show detailed information about a VM
-    vm create                         - Create a new VM (interactive)
-    vm start <id>                     - Start a VM
-    vm stop <id>                      - Stop a VM
-    vm delete <id>                    - Delete a VM by ID
-    vm resize <id> <type>             - Change server type
-    vm rename <id> <name>             - Rename a VM
-    vm rescue <id>                    - Enable rescue mode
-    vm reset-password <id>            - Reset root password
-    vm image <id> <name>              - Create custom image from VM
-    vm image import [url]             - Alias for image import (compatibility)
-    
-  Snapshot Commands:
-    snapshot list                     - List all snapshots or for specific VM
-    snapshot create                   - Create a snapshot for a VM
-    snapshot delete <id>              - Delete a snapshot by ID
-    snapshot delete all               - Delete all snapshots for a VM
-    snapshot rebuild <id> <sv>        - Rebuild a server from a snapshot
-    
-  Backup Commands:
-    backup list                       - List all backups or for specific VM
-    backup enable <id> [WINDOW]       - Enable automatic backups for a VM
-    backup disable <id>               - Disable automatic backups for a VM
-    backup delete <id>                - Delete a backup by ID
-    
-  Monitoring Commands:
-    metrics list <id>                 - List available metrics for a server
-    metrics cpu <id> [--hours=24]     - Show CPU utilization metrics
-    metrics traffic <id> [--days=7]   - Show network traffic metrics
-    metrics disk <id> [--days=1]      - Show disk I/O metrics
+        print("\n  General Commands:")
+        print(f"    {'history':<34}- Show command history")
+        print(f"    {'history clear':<34}- Clear command history")
+        print(f"    {'clear, reset':<34}- Clear screen")
+        print(f"    {'help [command]':<34}- Show general or command-specific help")
+        print(f"    {'exit, quit, q, Ctrl-D':<34}- Exit the program")
+        print("\n  Aliases: 'server' = 'vm', 'loadbalancer' = 'lb'")
 
-  Batch Commands:
-    batch start <id1,id2,id3...>      - Start multiple servers
-    batch stop <id1,id2,id3...>       - Stop multiple servers
-    batch delete <id1,id2,id3...>     - Delete multiple servers
-    batch snapshot <id1,id2,id3...>   - Create snapshots for multiple servers
+    def _print_command_summary(self, name: str):
+        """Render one command's subcommands from registry metadata."""
+        entry = self.commands.get(name)
+        if not entry:
+            return
 
-  Project Commands:
-    project list                      - List all available projects
-    project switch <n>                - Switch to a different project
-    project resources                 - Show all resources in the current project
-    project info                      - Show current project information
-    
-  Pricing Commands:
-    pricing list [category] [loc]     - Show pricing for server|backup|loadbalancer|storage|network|all (optional location filter)
-    pricing calculate                 - Calculate monthly costs for current resources
+        subcommands = entry.get("subcommands") or {}
+        if not subcommands:
+            print(f"    {name:<34}- {entry.get('help', '')}")
+            return
 
-  Volume Commands:
-    volume list                       - List all volumes
-    volume info <id>                  - Show detailed information about a volume
-    volume create                     - Create a new volume (interactive)
-    volume delete <id>                - Delete a volume by ID
-    volume attach <vid> <sid>         - Attach volume to server
-    volume detach <id>                - Detach volume from server
-    volume resize <id> <size>         - Resize a volume (increase only)
-    volume protect <id> <e|d>         - Enable/disable volume protection
-
-  Network Commands:
-    network list                      - List all private networks
-    network info <id>                 - Show detailed information about a network
-    network create                    - Create a new private network (interactive)
-    network update <id>               - Update network metadata (name, labels)
-    network delete <id>               - Delete a network by ID
-    network attach <nid> <sid> [ip]   - Attach server to network
-    network detach <nid> <sid>        - Detach server from network
-    network subnet add <id>           - Add a subnet to network
-    network subnet delete <id> <ip>   - Remove a subnet from network
-    network protect <id> <e|d>        - Enable/disable network protection
-
-  Firewall Commands:
-    firewall list                     - List all firewalls
-    firewall info <id>                - Show detailed information about a firewall
-    firewall create                   - Create a new firewall (interactive)
-    firewall update <id>              - Update firewall metadata
-    firewall delete <id>              - Delete a firewall by ID
-    firewall rules list <id>          - Show current rules for a firewall
-    firewall rules add <id>           - Append new rules to a firewall
-    firewall rules remove <id> <idx>  - Remove rules by 1-based index (comma-separated)
-    firewall rules set <id>           - Replace all rules for a firewall
-    firewall apply <fid> <sid[,..]>   - Apply firewall to one or more servers
-    firewall apply <fid> label <sel>  - Apply firewall to a label selector target
-    firewall remove <fid> <sid[,..]>  - Remove firewall from one or more servers
-    firewall remove <fid> label <sel> - Remove firewall from a label selector target
-
-  Load Balancer Commands:
-    lb list                           - List all load balancers
-    lb info <id>                      - Show detailed information about a load balancer
-    lb create                         - Create a new load balancer (interactive)
-    lb delete <id>                    - Delete a load balancer by ID
-    lb targets <id> list              - Show current targets for a load balancer
-    lb targets <id> add server <sid>  - Add server target (append 'private' for use_private_ip)
-    lb targets <id> add label <sel>   - Add label-selector target
-    lb targets <id> remove server <s> - Remove server target
-    lb targets <id> remove label <s>  - Remove label-selector target
-    lb service <id> list              - List services for a load balancer
-    lb service <id> add               - Add a service (interactive wizard)
-    lb service <id> update <port>     - Update a service (interactive wizard)
-    lb service <id> delete <port>     - Delete service by listen port
-    lb algorithm <id> <algo>          - Change algorithm (round_robin|least_connections)
-
-  Floating IP Commands:
-    floating-ip list                  - List all floating IPs
-    floating-ip info <id>             - Show floating IP details
-    floating-ip create                - Create a new floating IP (interactive)
-    floating-ip update <id>           - Update name/description/labels
-    floating-ip delete <id>           - Delete a floating IP (guards: assigned, protected)
-    floating-ip assign <id> <srv>     - Assign to a server
-    floating-ip unassign <id>         - Unassign from current server
-    floating-ip dns <id> <ip> [ptr]   - Set/reset reverse DNS
-    floating-ip protect <id> <e|d>    - Enable/disable delete protection
-
-  Primary IP Commands:
-    primary-ip list                   - List all primary IPs
-    primary-ip info <id>              - Show primary IP details
-    primary-ip create                 - Create a new primary IP (interactive)
-    primary-ip update <id>            - Update name/auto_delete/labels
-    primary-ip delete <id>            - Delete a primary IP (guards: assigned, protected)
-    primary-ip assign <id> <srv>      - Assign to a server
-    primary-ip unassign <id>          - Unassign from current server
-    primary-ip dns <id> <ip> [ptr]    - Set/reset reverse DNS
-    primary-ip protect <id> <e|d>     - Enable/disable delete protection
-
-  Image Commands:
-    image list [snapshot|backup|all]  - List custom images (default: snapshot)
-    image info <id>                   - Show image details
-    image delete <id>                 - Delete a custom image
-    image update <id>                 - Update image description/labels
-    image import [url]                - Import custom image from URL (wizard, preferred)
-
-  Config Commands:
-    config validate [path]            - Validate config file
-    config info                       - Show active config info
-
-  Server Type Commands:
-    server-type list [location]       - List all server types (grouped by architecture)
-    server-type info <name|id>        - Show detailed server type information
-
-  ISO Commands:
-    iso list                          - List all available ISOs
-    iso info <id>                     - Show detailed information about an ISO
-    iso attach <iso_id> <server_id>   - Attach ISO to server
-    iso detach <server_id>            - Detach ISO from server
-
-  Location & Datacenter Commands:
-    location list                     - List all available locations
-    location info <id>                - Show detailed information about a location
-    datacenter list                   - List all available datacenters
-    datacenter info <id>              - Show detailed information about a datacenter
-    datacenter resources [id|loc]     - Show resources grouped by datacenter (optional filter)
-
-  General Commands:
-    keys list                         - List all SSH keys
-    keys info <id>                    - Show detailed information about an SSH key
-    keys create [name] [file]         - Create/upload a new SSH key
-    keys update <id>                  - Update SSH key metadata (name, labels)
-    keys delete <id>                  - Delete an SSH key by ID
-    history                           - Show command history
-    history clear                     - Clear command history
-    clear, reset                      - Clear screen
-    help [command]                    - Show general or command-specific help
-    exit, quit, q, Ctrl-D             - Exit the program
-"""
-        print(help_text)
+        for sub_name, meta in subcommands.items():
+            description = meta.get("help", "No description provided")
+            usage = f"{name} {sub_name}"
+            # Viele Hilfetexte tragen die Syntax nach dem letzten ": " —
+            # daraus wird die Usage-Spalte, der Rest bleibt Beschreibung
+            if ": " in description:
+                head, tail = description.rsplit(": ", 1)
+                if tail.startswith(name):
+                    usage = tail
+                    description = head
+            print(f"    {usage:<34}- {description}")

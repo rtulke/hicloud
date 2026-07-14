@@ -2,7 +2,7 @@
 
 This doc shows where testing currently stands in the repo and what is still missing.
 
-Updated: 2026-02-28
+Updated: 2026-07-14
 
 ---
 
@@ -17,10 +17,10 @@ Updated: 2026-02-28
 | `commands/volume.py` | `tests/commands/test_volume.py` | 26 | ✅ | Broad coverage incl. protection/resize paths |
 | `commands/keys.py` | `tests/commands/test_keys.py` | 14 | ✅ | List/Info/Create/Delete covered |
 | `commands/iso.py` | `tests/commands/test_iso.py` | 16 | ✅ | List/Info/Attach/Detach covered |
-| `commands/metrics.py` | `tests/commands/test_metrics.py` | 17 | ✅ | CPU/Traffic/Disk + input validation |
+| `commands/metrics.py` | `tests/commands/test_metrics.py` | 22 | ✅ | CPU/Traffic/Disk + input validation; mocks use the real Hetzner time_series format |
 | `commands/pricing.py` | `tests/commands/test_pricing.py` | 8 | ✅ | List/Calculate + error paths |
 | `commands/batch.py` | `tests/commands/test_batch.py` | 17 | ✅ | ID parsing + Start/Stop/Delete/Snapshot |
-| `commands/project.py` | `tests/commands/test_project.py` | 11 | ✅ | List/Switch/Info/Resources covered |
+| `commands/project.py` | `tests/commands/test_project.py` | 13 | ✅ | List/Switch/Info/Resources covered incl. flag passthrough on switch |
 | `commands/config.py` | `tests/commands/test_config.py` | 9 | ✅ | Validation + security checks |
 | `commands/firewall.py` | `tests/commands/test_firewall.py` | 6 | ✅ | Core workflows covered |
 | `commands/loadbalancer.py` | `tests/commands/test_loadbalancer.py` | 16 | ✅ | Target/Service/Algo workflows covered |
@@ -35,7 +35,10 @@ Updated: 2026-02-28
 
 | API Area | Test File | Test Count | Status |
 |----------|-----------|------------|--------|
-| API Core / Request Handling | `tests/lib/test_api_core.py` | 3 | ✅ |
+| API Core / Request Handling | `tests/lib/test_api_core.py` | 10 | ✅ |
+| Config Manager (permissions) | `tests/lib/test_config_manager.py` | 8 | ✅ |
+| Console registry & dispatch | `tests/lib/test_console.py` | 12 | ✅ |
+| Formatting / table truncation | `tests/utils/test_formatting.py` | 9 | ✅ |
 | VM API | `tests/lib/test_api_vm.py` | 20 | ✅ |
 | Snapshot API | `tests/lib/test_api_snapshot.py` | 9 | ✅ |
 | Backup API | `tests/lib/test_api_backup.py` | 9 | ✅ |
