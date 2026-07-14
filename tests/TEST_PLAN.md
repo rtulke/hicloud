@@ -39,6 +39,7 @@ Updated: 2026-07-14
 | Config Manager (permissions) | `tests/lib/test_config_manager.py` | 8 | ✅ |
 | Console registry & dispatch | `tests/lib/test_console.py` | 12 | ✅ |
 | Formatting / table truncation | `tests/utils/test_formatting.py` | 9 | ✅ |
+| Interactive prompt helpers | `tests/utils/test_prompts.py` | 10 | ✅ |
 | VM API | `tests/lib/test_api_vm.py` | 20 | ✅ |
 | Snapshot API | `tests/lib/test_api_snapshot.py` | 9 | ✅ |
 | Backup API | `tests/lib/test_api_backup.py` | 9 | ✅ |

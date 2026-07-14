@@ -4,6 +4,7 @@
 import time
 from typing import List
 
+from utils.prompts import prompt_choice
 from utils.spinner import DotsSpinner
 
 class VMCommands:
@@ -150,16 +151,13 @@ class VMCommands:
                 print(f"  {entry}")
         
         # Volumes
-        try:
-            status_code, volumes_response = self.hetzner._make_request("GET", f"servers/{vm_id}/volumes")
-            if status_code == 200:
-                volumes = volumes_response.get('volumes', [])
-                if volumes:
-                    print("\nAttached Volumes:")
-                    for vol in volumes:
-                        print(f"  {vol.get('name', 'N/A')} ({vol.get('size', 'N/A')} GB)")
-        except Exception:
-            pass
+        status_code, volumes_response = self.hetzner._make_request("GET", f"servers/{vm_id}/volumes")
+        if status_code == 200:
+            volumes = volumes_response.get('volumes', [])
+            if volumes:
+                print("\nAttached Volumes:")
+                for vol in volumes:
+                    print(f"  {vol.get('name', 'N/A')} ({vol.get('size', 'N/A')} GB)")
         
         # Backup-Status
         backup_window = server.get('backup_window', 'disabled')
@@ -184,22 +182,21 @@ class VMCommands:
             print(f"  Rebuild Protection: {rebuild_protection}")
         
         # Preisberechnung (wenn verfügbar)
-        try:
-            status_code, pricing = self.hetzner._make_request("GET", "pricing")
-            if status_code == 200:
-                server_prices = pricing.get('pricing', {}).get('server_types', [])
-                for price in server_prices:
-                    if price.get('id') == server_type.get('id'):
-                        price_monthly = price.get('prices', [{}])[0].get('price_monthly', {}).get('gross', 'N/A')
-                        price_hourly = price.get('prices', [{}])[0].get('price_hourly', {}).get('gross', 'N/A')
-                        if price_monthly != 'N/A' or price_hourly != 'N/A':
-                            print("\nPricing:")
-                            if price_monthly != 'N/A':
-                                print(f"  Monthly: {price_monthly} €")
-                            if price_hourly != 'N/A':
-                                print(f"  Hourly: {price_hourly} €")
-        except Exception:
-            pass
+        status_code, pricing = self.hetzner._make_request("GET", "pricing")
+        if status_code == 200:
+            server_prices = pricing.get('pricing', {}).get('server_types', [])
+            for price in server_prices:
+                if price.get('id') != server_type.get('id'):
+                    continue
+                price_entries = price.get('prices') or [{}]
+                price_monthly = price_entries[0].get('price_monthly', {}).get('gross', 'N/A')
+                price_hourly = price_entries[0].get('price_hourly', {}).get('gross', 'N/A')
+                if price_monthly != 'N/A' or price_hourly != 'N/A':
+                    print("\nPricing:")
+                    if price_monthly != 'N/A':
+                        print(f"  Monthly: {price_monthly} €")
+                    if price_hourly != 'N/A':
+                        print(f"  Hourly: {price_hourly} €")
             
         print(f"{self.console.horizontal_line('-')}")
     
@@ -384,17 +381,9 @@ class VMCommands:
         print("2. IPv6 only")
         print("3. Both IPv4 and IPv6 (default)")
 
-        ip_choice = input("\nSelect IP version (number, default: 3): ").strip()
-
-        ipv4 = True
-        ipv6 = True
-
-        if ip_choice == "1":
-            ipv6 = False
-        elif ip_choice == "2":
-            ipv4 = False
-        elif ip_choice != "" and ip_choice != "3":
-            print("Invalid selection, using both IPv4 and IPv6")
+        ip_choice = prompt_choice("\nSelect IP version (number, default: 3): ", ["1", "2", "3"], default="3")
+        ipv4 = ip_choice != "2"
+        ipv6 = ip_choice != "1"
 
         # Option für Root-Passwort
         generate_password = input("\nDo you want to set a root password? [y/N]: ").strip().lower()

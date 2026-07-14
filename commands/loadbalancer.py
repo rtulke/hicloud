@@ -3,6 +3,8 @@
 
 from typing import Dict, List, Optional, Tuple
 
+from utils.prompts import prompt_choice, prompt_int
+
 
 class LoadBalancerCommands:
     """Load balancer-related commands for Interactive Console."""
@@ -250,10 +252,11 @@ class LoadBalancerCommands:
     def manage_services(self, args: List[str]):
         """Manage load balancer services."""
         if len(args) < 2:
-            print("Missing parameters. Use 'lb service <lb_id> list|add|delete'")
+            print("Missing parameters. Use 'lb service <lb_id> list|add|update|delete'")
             print("Examples:")
             print("  lb service <lb_id> list")
             print("  lb service <lb_id> add")
+            print("  lb service <lb_id> update <listen_port>")
             print("  lb service <lb_id> delete <listen_port>")
             return
 
@@ -307,38 +310,15 @@ class LoadBalancerCommands:
                 print(f"Failed to delete service on port {listen_port}")
             return
 
-        print(f"Unknown service action '{action}'. Use list|add|delete")
+        print(f"Unknown service action '{action}'. Use list|add|update|delete")
 
     def _add_service_wizard(self, lb_id: int, lb_name: str):
         """Interactive wizard to add a new service to a load balancer."""
         print(f"Adding service to load balancer '{lb_name}' (ID: {lb_id}):")
 
-        # Protocol
-        while True:
-            protocol = input("Protocol [tcp/http/https] (default: tcp): ").strip().lower() or "tcp"
-            if protocol in ("tcp", "http", "https"):
-                break
-            print("Invalid protocol. Use tcp, http, or https.")
-
-        # Listen port
-        while True:
-            try:
-                listen_port = int(input("Listen port (1-65535): ").strip())
-                if 1 <= listen_port <= 65535:
-                    break
-                print("Port must be between 1 and 65535.")
-            except ValueError:
-                print("Invalid port. Must be an integer.")
-
-        # Destination port
-        while True:
-            try:
-                destination_port = int(input("Destination port (1-65535): ").strip())
-                if 1 <= destination_port <= 65535:
-                    break
-                print("Port must be between 1 and 65535.")
-            except ValueError:
-                print("Invalid port. Must be an integer.")
+        protocol = prompt_choice("Protocol [tcp/http/https] (default: tcp): ", ["tcp", "http", "https"], default="tcp")
+        listen_port = prompt_int("Listen port (1-65535): ", min_value=1, max_value=65535)
+        destination_port = prompt_int("Destination port (1-65535): ", min_value=1, max_value=65535)
 
         # Health check
         service: Dict = {
@@ -349,29 +329,12 @@ class LoadBalancerCommands:
 
         add_hc = input("Configure health check? [Y/n]: ").strip().lower()
         if add_hc not in ("n", "no"):
-            hc_protocol = input("Health check protocol [tcp/http] (default: tcp): ").strip().lower() or "tcp"
-            if hc_protocol not in ("tcp", "http"):
-                hc_protocol = "tcp"
-
-            try:
-                hc_port = int(input(f"Health check port (default: {destination_port}): ").strip() or destination_port)
-            except ValueError:
-                hc_port = destination_port
-
-            try:
-                hc_interval = int(input("Check interval in seconds (default: 15): ").strip() or 15)
-            except ValueError:
-                hc_interval = 15
-
-            try:
-                hc_timeout = int(input("Timeout in seconds (default: 10): ").strip() or 10)
-            except ValueError:
-                hc_timeout = 10
-
-            try:
-                hc_retries = int(input("Retries (default: 3): ").strip() or 3)
-            except ValueError:
-                hc_retries = 3
+            hc_protocol = prompt_choice("Health check protocol [tcp/http] (default: tcp): ", ["tcp", "http"], default="tcp")
+            hc_port = prompt_int(f"Health check port (default: {destination_port}): ",
+                                 default=destination_port, min_value=1, max_value=65535)
+            hc_interval = prompt_int("Check interval in seconds (default: 15): ", default=15, min_value=1)
+            hc_timeout = prompt_int("Timeout in seconds (default: 10): ", default=10, min_value=1)
+            hc_retries = prompt_int("Retries (default: 3): ", default=3, min_value=1)
 
             health_check: Dict = {
                 "protocol": hc_protocol,
@@ -423,15 +386,12 @@ class LoadBalancerCommands:
         print("Press Enter to keep the current value.\n")
 
         cur_protocol = current.get("protocol", "tcp")
-        protocol_input = input(f"Protocol [tcp/http/https] (current: {cur_protocol}): ").strip().lower()
-        protocol = protocol_input if protocol_input in ("tcp", "http", "https") else cur_protocol
+        protocol = prompt_choice(f"Protocol [tcp/http/https] (current: {cur_protocol}): ",
+                                 ["tcp", "http", "https"], default=cur_protocol)
 
         cur_dest = current.get("destination_port", listen_port)
-        dest_input = input(f"Destination port (current: {cur_dest}): ").strip()
-        try:
-            destination_port = int(dest_input) if dest_input else cur_dest
-        except ValueError:
-            destination_port = cur_dest
+        destination_port = prompt_int(f"Destination port (current: {cur_dest}): ",
+                                      default=cur_dest, min_value=1, max_value=65535)
 
         service: Dict = {
             "listen_port": listen_port,
@@ -443,36 +403,24 @@ class LoadBalancerCommands:
         if update_hc == "y":
             cur_hc = current.get("health_check", {})
             cur_hc_proto = cur_hc.get("protocol", "tcp")
-            hc_proto_input = input(f"Health check protocol [tcp/http] (current: {cur_hc_proto}): ").strip().lower()
-            hc_protocol = hc_proto_input if hc_proto_input in ("tcp", "http") else cur_hc_proto
+            hc_protocol = prompt_choice(f"Health check protocol [tcp/http] (current: {cur_hc_proto}): ",
+                                        ["tcp", "http"], default=cur_hc_proto)
 
             cur_hc_port = cur_hc.get("port", destination_port)
-            hc_port_input = input(f"Health check port (current: {cur_hc_port}): ").strip()
-            try:
-                hc_port = int(hc_port_input) if hc_port_input else cur_hc_port
-            except ValueError:
-                hc_port = cur_hc_port
+            hc_port = prompt_int(f"Health check port (current: {cur_hc_port}): ",
+                                 default=cur_hc_port, min_value=1, max_value=65535)
 
             cur_interval = cur_hc.get("interval", 15)
-            interval_input = input(f"Check interval seconds (current: {cur_interval}): ").strip()
-            try:
-                hc_interval = int(interval_input) if interval_input else cur_interval
-            except ValueError:
-                hc_interval = cur_interval
+            hc_interval = prompt_int(f"Check interval seconds (current: {cur_interval}): ",
+                                     default=cur_interval, min_value=1)
 
             cur_timeout = cur_hc.get("timeout", 10)
-            timeout_input = input(f"Timeout seconds (current: {cur_timeout}): ").strip()
-            try:
-                hc_timeout = int(timeout_input) if timeout_input else cur_timeout
-            except ValueError:
-                hc_timeout = cur_timeout
+            hc_timeout = prompt_int(f"Timeout seconds (current: {cur_timeout}): ",
+                                    default=cur_timeout, min_value=1)
 
             cur_retries = cur_hc.get("retries", 3)
-            retries_input = input(f"Retries (current: {cur_retries}): ").strip()
-            try:
-                hc_retries = int(retries_input) if retries_input else cur_retries
-            except ValueError:
-                hc_retries = cur_retries
+            hc_retries = prompt_int(f"Retries (current: {cur_retries}): ",
+                                    default=cur_retries, min_value=1)
 
             service["health_check"] = {
                 "protocol": hc_protocol,
@@ -604,7 +552,7 @@ class LoadBalancerCommands:
 
             server = self.hetzner.get_server_by_id(server_id)
             if not server:
-                print(f"Server with ID {server_id} not found")
+                # Fehlermeldung kommt bereits aus dem API-Layer
                 return None
 
             target = {
