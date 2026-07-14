@@ -28,6 +28,7 @@ Updated: 2026-07-14
 | `commands/floating_ip.py` | `tests/commands/test_floating_ip.py` | 22 | ✅ | Assign/Unassign/Delete/DNS/Protect |
 | `commands/primary_ip.py` | `tests/commands/test_primary_ip.py` | 19 | ✅ | Assign/Unassign/Delete/DNS/Protect |
 | `commands/location.py` | `tests/commands/test_location_servertype.py` | 28 | ✅ | `LocationCommands`, `DatacenterCommands`, and `ServerTypeCommands` covered |
+| `commands/base.py` | `tests/commands/test_base.py` | 11 | ✅ | Shared dispatch, parse_id, confirm, prompt_labels |
 
 ---
 

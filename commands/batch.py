@@ -3,32 +3,21 @@
 
 from typing import List
 
-class BatchCommands:
+from commands.base import BaseCommands
+
+class BatchCommands(BaseCommands):
     """Batch operations for multiple servers in Interactive Console"""
-    
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
-    
-    def handle_command(self, args: List[str]):
-        """Handle batch operation commands"""
-        if not args:
-            print("Missing batch subcommand. Use 'batch start|stop|delete|snapshot <id1,id2,id3...>'")
-            return
-            
-        subcommand = args[0].lower()
-        
-        if subcommand == "start":
-            self.batch_start(args[1:])
-        elif subcommand == "stop":
-            self.batch_stop(args[1:])
-        elif subcommand == "delete":
-            self.batch_delete(args[1:])
-        elif subcommand == "snapshot":
-            self.batch_snapshot(args[1:])
-        else:
-            print(f"Unknown batch subcommand: {subcommand}")
+
+    label = "batch"
+    usage = "batch start|stop|delete|snapshot <id1,id2,id3...>"
+
+    def _build_actions(self):
+        return {
+            "start": self.batch_start,
+            "stop": self.batch_stop,
+            "delete": self.batch_delete,
+            "snapshot": self.batch_snapshot,
+        }
     
     def _parse_ids(self, args):
         """Parse comma-separated server IDs from arguments"""

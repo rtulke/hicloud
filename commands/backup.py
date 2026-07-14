@@ -2,34 +2,23 @@
 # commands/backup.py - Backup-related commands for hicloud
 
 from typing import List
+
+from commands.base import BaseCommands
 from utils.formatting import format_size
 
-class BackupCommands:
+class BackupCommands(BaseCommands):
     """Backup-related commands for Interactive Console"""
-    
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
-    
-    def handle_command(self, args: List[str]):
-        """Handle backup-related commands"""
-        if not args:
-            print("Missing backup subcommand. Use 'backup list|enable|disable|delete'")
-            return
-            
-        subcommand = args[0].lower()
-        
-        if subcommand == "list":
-            self.list_backups(args[1:])
-        elif subcommand == "enable":
-            self.enable_backup(args[1:])
-        elif subcommand == "disable":
-            self.disable_backup(args[1:])
-        elif subcommand == "delete":
-            self.delete_backup(args[1:])
-        else:
-            print(f"Unknown backup subcommand: {subcommand}")
+
+    label = "backup"
+    usage = "backup list|enable|disable|delete"
+
+    def _build_actions(self):
+        return {
+            "list": self.list_backups,
+            "enable": self.enable_backup,
+            "disable": self.disable_backup,
+            "delete": self.delete_backup,
+        }
     
     def list_backups(self, args: List[str]):
         """List backups, optionally filtered by VM ID"""
@@ -70,20 +59,14 @@ class BackupCommands:
     
     def enable_backup(self, args: List[str]):
         """Enable automatic backups for a VM"""
-        if not args:
-            print("Missing VM ID. Use 'backup enable <id> [WINDOW]'")
-            return
-            
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
+        vm_id = self.parse_id(args, "VM ID", "backup enable <id> [WINDOW]")
+        if vm_id is None:
             return
             
         server = self.hetzner.get_server_by_id(vm_id)
-        
+
         if not server:
-            print(f"VM with ID {vm_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
         
         # Optional backup window parameter
@@ -100,20 +83,14 @@ class BackupCommands:
     
     def disable_backup(self, args: List[str]):
         """Disable automatic backups for a VM"""
-        if not args:
-            print("Missing VM ID. Use 'backup disable <id>'")
-            return
-            
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
+        vm_id = self.parse_id(args, "VM ID", "backup disable <id>")
+        if vm_id is None:
             return
             
         server = self.hetzner.get_server_by_id(vm_id)
-        
+
         if not server:
-            print(f"VM with ID {vm_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
             
         print(f"Disabling automatic backups for VM '{server.get('name')}' (ID: {vm_id})...")
@@ -124,19 +101,11 @@ class BackupCommands:
     
     def delete_backup(self, args: List[str]):
         """Delete a backup by ID"""
-        if not args:
-            print("Missing backup ID. Use 'backup delete <id>'")
+        backup_id = self.parse_id(args, "backup ID", "backup delete <id>")
+        if backup_id is None:
             return
-            
-        try:
-            backup_id = int(args[0])
-        except ValueError:
-            print("Invalid backup ID. Must be an integer.")
-            return
-            
-        confirm = input(f"Are you sure you want to delete backup {backup_id}? [y/N]: ")
-        if confirm.lower() != 'y':
-            print("Operation cancelled")
+
+        if not self.confirm(f"Are you sure you want to delete backup {backup_id}?"):
             return
             
         print(f"Deleting backup {backup_id}...")

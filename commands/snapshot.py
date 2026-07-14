@@ -2,34 +2,23 @@
 # commands/snapshot.py - Snapshot-related commands for hicloud
 
 from typing import List
+
+from commands.base import BaseCommands
 from utils.formatting import format_size
 
-class SnapshotCommands:
+class SnapshotCommands(BaseCommands):
     """Snapshot-related commands for Interactive Console"""
-    
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
-    
-    def handle_command(self, args: List[str]):
-        """Handle snapshot-related commands"""
-        if not args:
-            print("Missing snapshot subcommand. Use 'snapshot list|create|delete|rebuild'")
-            return
-            
-        subcommand = args[0].lower()
-        
-        if subcommand == "list":
-            self.list_snapshots(args[1:])
-        elif subcommand == "create":
-            self.create_snapshot(args[1:])
-        elif subcommand == "delete":
-            self.delete_snapshot(args[1:])
-        elif subcommand == "rebuild":
-            self.rebuild_snapshot(args[1:])
-        else:
-            print(f"Unknown snapshot subcommand: {subcommand}")
+
+    label = "snapshot"
+    usage = "snapshot list|create|delete|rebuild"
+
+    def _build_actions(self):
+        return {
+            "list": self.list_snapshots,
+            "create": self.create_snapshot,
+            "delete": self.delete_snapshot,
+            "rebuild": self.rebuild_snapshot,
+        }
     
     def list_snapshots(self, args: List[str]):
         """List snapshots, optionally filtered by VM ID"""
@@ -72,20 +61,14 @@ class SnapshotCommands:
     
     def create_snapshot(self, args: List[str]):
         """Create a snapshot for a VM"""
-        if not args:
-            print("Missing VM ID. Use 'snapshot create <id>'")
-            return
-            
-        try:
-            vm_id = int(args[0])
-        except ValueError:
-            print("Invalid VM ID. Must be an integer.")
+        vm_id = self.parse_id(args, "VM ID", "snapshot create <id>")
+        if vm_id is None:
             return
             
         server = self.hetzner.get_server_by_id(vm_id)
-        
+
         if not server:
-            print(f"VM with ID {vm_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
             
         print(f"Creating snapshot for VM '{server.get('name')}' (ID: {vm_id})...")
@@ -104,14 +87,8 @@ class SnapshotCommands:
             
         if args[0].lower() == "all":
             # Delete all snapshots for a VM
-            if len(args) < 2:
-                print("Missing VM ID. Use 'snapshot delete all <id>'")
-                return
-                
-            try:
-                vm_id = int(args[1])
-            except ValueError:
-                print("Invalid VM ID. Must be an integer.")
+            vm_id = self.parse_id(args[1:], "VM ID", "snapshot delete all <id>")
+            if vm_id is None:
                 return
                 
             server = self.hetzner.get_server_by_id(vm_id)
@@ -120,9 +97,7 @@ class SnapshotCommands:
                 print(f"VM with ID {vm_id} not found")
                 return
                 
-            confirm = input(f"Are you sure you want to delete ALL snapshots for VM '{server.get('name')}' (ID: {vm_id})? [y/N]: ")
-            if confirm.lower() != 'y':
-                print("Operation cancelled")
+            if not self.confirm(f"Are you sure you want to delete ALL snapshots for VM '{server.get('name')}' (ID: {vm_id})?"):
                 return
                 
             snapshots = self.hetzner.list_snapshots(vm_id)
@@ -146,16 +121,11 @@ class SnapshotCommands:
             
         else:
             # Delete a specific snapshot
-            try:
-                snapshot_id = int(args[0])
-            except ValueError:
-                print("Invalid snapshot ID. Must be an integer.")
+            snapshot_id = self.parse_id(args, "snapshot ID", "snapshot delete <id>")
+            if snapshot_id is None:
                 return
-                
-            confirm = input(f"Are you sure you want to delete snapshot {snapshot_id}? [y/N]: ")
-            
-            if confirm.lower() != 'y':
-                print("Operation cancelled")
+
+            if not self.confirm(f"Are you sure you want to delete snapshot {snapshot_id}?"):
                 return
                 
             if self.hetzner.delete_snapshot(snapshot_id):
@@ -179,7 +149,7 @@ class SnapshotCommands:
         # Get server and snapshot details for confirmation
         server = self.hetzner.get_server_by_id(server_id)
         if not server:
-            print(f"Server with ID {server_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
             
         # Check if the snapshot exists

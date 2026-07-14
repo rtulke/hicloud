@@ -3,49 +3,32 @@
 
 from typing import List
 
-class MetricsCommands:
+from commands.base import BaseCommands
+
+class MetricsCommands(BaseCommands):
     """Metrics-related commands for Interactive Console"""
-    
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
-    
-    def handle_command(self, args: List[str]):
-        """Handle metrics-related commands"""
-        if not args:
-            print("Missing metrics subcommand. Use 'metrics list|cpu|traffic|disk'")
-            return
 
-        subcommand = args[0].lower()
+    label = "metrics"
+    usage = "metrics list|cpu|traffic|disk"
 
-        if subcommand == "list":
-            self.list_metrics(args[1:])
-        elif subcommand == "cpu":
-            self.show_cpu_metrics(args[1:])
-        elif subcommand == "traffic":
-            self.show_traffic_metrics(args[1:])
-        elif subcommand == "disk":
-            self.show_disk_metrics(args[1:])
-        else:
-            print(f"Unknown metrics subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": self.list_metrics,
+            "cpu": self.show_cpu_metrics,
+            "traffic": self.show_traffic_metrics,
+            "disk": self.show_disk_metrics,
+        }
     
     def list_metrics(self, args: List[str]):
         """Show available metrics for a server"""
-        if not args:
-            print("Missing server ID. Use 'metrics list <id>'")
-            return
-            
-        try:
-            server_id = int(args[0])
-        except ValueError:
-            print("Invalid server ID. Must be an integer.")
+        server_id = self.parse_id(args, "server ID", "metrics list <id>")
+        if server_id is None:
             return
             
         # Überprüfe, ob der Server existiert
         server = self.hetzner.get_server_by_id(server_id)
         if not server:
-            print(f"Server with ID {server_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
             
         metrics = self.hetzner.get_available_metrics(server_id)
@@ -64,14 +47,8 @@ class MetricsCommands:
     
     def show_cpu_metrics(self, args: List[str]):
         """Show CPU metrics for a server"""
-        if not args:
-            print("Missing server ID. Use 'metrics cpu <id> [--hours=24]'")
-            return
-            
-        try:
-            server_id = int(args[0])
-        except ValueError:
-            print("Invalid server ID. Must be an integer.")
+        server_id = self.parse_id(args, "server ID", "metrics cpu <id> [--hours=24]")
+        if server_id is None:
             return
             
         # Parse options
@@ -87,7 +64,7 @@ class MetricsCommands:
         # Überprüfe, ob der Server existiert
         server = self.hetzner.get_server_by_id(server_id)
         if not server:
-            print(f"Server with ID {server_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
             
         print(f"\nCPU metrics for server '{server.get('name')}' (ID: {server_id}) over the last {hours} hours:")
@@ -122,14 +99,8 @@ class MetricsCommands:
     
     def show_traffic_metrics(self, args: List[str]):
         """Show network traffic metrics for a server"""
-        if not args:
-            print("Missing server ID. Use 'metrics traffic <id> [--days=7]'")
-            return
-            
-        try:
-            server_id = int(args[0])
-        except ValueError:
-            print("Invalid server ID. Must be an integer.")
+        server_id = self.parse_id(args, "server ID", "metrics traffic <id> [--days=7]")
+        if server_id is None:
             return
             
         # Parse options
@@ -145,7 +116,7 @@ class MetricsCommands:
         # Überprüfe, ob der Server existiert
         server = self.hetzner.get_server_by_id(server_id)
         if not server:
-            print(f"Server with ID {server_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
             
         print(f"\nNetwork traffic for server '{server.get('name')}' (ID: {server_id}) over the last {days} days:")
@@ -184,14 +155,8 @@ class MetricsCommands:
 
     def show_disk_metrics(self, args: List[str]):
         """Show disk I/O metrics for a server"""
-        if not args:
-            print("Missing server ID. Use 'metrics disk <id> [--days=1]'")
-            return
-
-        try:
-            server_id = int(args[0])
-        except ValueError:
-            print("Invalid server ID. Must be an integer.")
+        server_id = self.parse_id(args, "server ID", "metrics disk <id> [--days=1]")
+        if server_id is None:
             return
 
         # Parse options
@@ -207,7 +172,7 @@ class MetricsCommands:
         # Überprüfe, ob der Server existiert
         server = self.hetzner.get_server_by_id(server_id)
         if not server:
-            print(f"Server with ID {server_id} not found")
+            # Fehlermeldung kommt bereits aus dem API-Layer
             return
 
         print(f"\nDisk I/O metrics for server '{server.get('name')}' (ID: {server_id}) over the last {days} day(s):")

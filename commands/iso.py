@@ -2,34 +2,23 @@
 # commands/iso.py - ISO-related commands for hicloud
 
 from typing import List
+
+from commands.base import BaseCommands
 from utils.formatting import format_size
 
-class ISOCommands:
+class ISOCommands(BaseCommands):
     """ISO-related commands for Interactive Console"""
 
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
+    label = "iso"
+    usage = "iso list|info|attach|detach"
 
-    def handle_command(self, args: List[str]):
-        """Handle ISO-related commands"""
-        if not args:
-            print("Missing iso subcommand. Use 'iso list|info|attach|detach'")
-            return
-
-        subcommand = args[0].lower()
-
-        if subcommand == "list":
-            self.list_isos()
-        elif subcommand == "info":
-            self.iso_info(args[1:])
-        elif subcommand == "attach":
-            self.attach_iso(args[1:])
-        elif subcommand == "detach":
-            self.detach_iso(args[1:])
-        else:
-            print(f"Unknown iso subcommand: {subcommand}")
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_isos(),
+            "info": self.iso_info,
+            "attach": self.attach_iso,
+            "detach": self.detach_iso,
+        }
 
     def list_isos(self):
         """List all available ISOs"""
@@ -57,14 +46,8 @@ class ISOCommands:
 
     def iso_info(self, args: List[str]):
         """Show detailed information about an ISO"""
-        if not args:
-            print("Missing ISO ID. Use 'iso info <id>'")
-            return
-
-        try:
-            iso_id = int(args[0])
-        except ValueError:
-            print("Invalid ISO ID. Must be an integer.")
+        iso_id = self.parse_id(args, "ISO ID", "iso info <id>")
+        if iso_id is None:
             return
 
         iso = self.hetzner.get_iso_by_id(iso_id)
@@ -116,14 +99,8 @@ class ISOCommands:
 
     def detach_iso(self, args: List[str]):
         """Detach an ISO from a server"""
-        if not args:
-            print("Missing server ID. Use 'iso detach <server_id>'")
-            return
-
-        try:
-            server_id = int(args[0])
-        except ValueError:
-            print("Invalid server ID. Must be an integer.")
+        server_id = self.parse_id(args, "server ID", "iso detach <server_id>")
+        if server_id is None:
             return
 
         # Verify server exists

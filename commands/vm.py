@@ -4,51 +4,31 @@
 import time
 from typing import List
 
+from commands.base import BaseCommands
 from utils.prompts import prompt_choice
 from utils.spinner import DotsSpinner
 
-class VMCommands:
+class VMCommands(BaseCommands):
     """VM-related commands for Interactive Console"""
-    
-    def __init__(self, console):
-        """Initialize with reference to the console"""
-        self.console = console
-        self.hetzner = console.hetzner
-    
-    def handle_command(self, args: List[str]):
-        """Handle VM-related commands"""
-        if not args:
-            print("Missing VM subcommand. Use 'vm list|info|create|start|stop|reboot|delete|resize|rename|rescue|reset-password|image'")
-            return
-            
-        subcommand = args[0].lower()
-        
-        if subcommand == "list":
-            self.list_vms()
-        elif subcommand == "info":
-            self.show_vm_info(args[1:])
-        elif subcommand == "create":
-            self.create_vm()
-        elif subcommand == "start":
-            self.start_vm(args[1:])
-        elif subcommand == "stop":
-            self.stop_vm(args[1:])
-        elif subcommand == "reboot":
-            self.reboot_vm(args[1:])
-        elif subcommand == "delete":
-            self.delete_vm(args[1:])
-        elif subcommand == "resize":
-            self.resize_vm(args[1:])
-        elif subcommand == "rename":
-            self.rename_vm(args[1:])
-        elif subcommand == "rescue":
-            self.rescue_vm(args[1:])
-        elif subcommand == "reset-password":
-            self.reset_password(args[1:])
-        elif subcommand == "image":
-            self.handle_image_command(args[1:])
-        else:
-            print(f"Unknown VM subcommand: {subcommand}")
+
+    label = "VM"
+    usage = "vm list|info|create|start|stop|reboot|delete|resize|rename|rescue|reset-password|image"
+
+    def _build_actions(self):
+        return {
+            "list": lambda args: self.list_vms(),
+            "info": self.show_vm_info,
+            "create": lambda args: self.create_vm(),
+            "start": self.start_vm,
+            "stop": self.stop_vm,
+            "reboot": self.reboot_vm,
+            "delete": self.delete_vm,
+            "resize": self.resize_vm,
+            "rename": self.rename_vm,
+            "rescue": self.rescue_vm,
+            "reset-password": self.reset_password,
+            "image": self.handle_image_command,
+        }
     
     def list_vms(self):
         """List all VMs"""
