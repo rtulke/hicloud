@@ -125,6 +125,29 @@ def test_show_info(capsys):
     assert "Nuremberg" in out
 
 
+def test_show_info_survives_null_fields(capsys):
+    # Real API: image is null when the origin image was deleted,
+    # ipv4/ipv6 are null when disabled, datacenter can be null.
+    cmd, h, _ = build()
+    h.server["image"] = None
+    h.server["datacenter"] = None
+    h.server["public_net"]["ipv4"] = None
+    cmd.show_vm_info(["1"])
+    out = capsys.readouterr().out
+    assert "original image no longer available" in out
+    assert "IPv4: N/A" in out
+    assert "'NoneType'" not in out
+
+
+def test_list_survives_null_ipv4():
+    cmd, h, console = build()
+    h.server["public_net"]["ipv4"] = None
+    h.server["datacenter"] = None
+    cmd.list_vms()
+    _, rows, _ = console.tables[0]
+    assert rows[0][4] == "N/A"
+
+
 def test_show_info_missing_id(capsys):
     cmd, _, _ = build()
     cmd.show_vm_info([])

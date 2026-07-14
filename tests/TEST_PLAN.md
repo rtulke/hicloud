@@ -10,7 +10,7 @@ Updated: 2026-07-14
 
 | Module | Test File | Test Count | Status | Notes |
 |-------|-----------|------------|--------|-------|
-| `commands/vm.py` | `tests/commands/test_vm.py` | 22 | done | Solid baseline, includes edge/error cases |
+| `commands/vm.py` | `tests/commands/test_vm.py` | 24 | done | Solid baseline incl. null-field regressions (image/ipv4/datacenter) |
 | `commands/snapshot.py` | `tests/commands/test_snapshot.py` | 19 | done | List/Create/Delete/Rebuild covered |
 | `commands/backup.py` | `tests/commands/test_backup.py` | 15 | done | List/Enable/Disable/Delete covered |
 | `commands/network.py` | `tests/commands/test_network.py` | 19 | done | Attach/Detach/Protect etc. covered |

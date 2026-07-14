@@ -43,11 +43,14 @@ class VMCommands(BaseCommands):
         rows = []
     
         for server in servers:
-            ip = server.get("public_net", {}).get("ipv4", {}).get("ip", "N/A")
-            
-            # Detailliertere Standortinformationen
-            dc_name = server.get('datacenter', {}).get('location', {}).get('name', 'N/A')
-            location = server.get('datacenter', {}).get('location', {})
+            # public_net.ipv4 ist null bei IPv6-only-Servern
+            public_net = server.get("public_net") or {}
+            ip = (public_net.get("ipv4") or {}).get("ip", "N/A")
+
+            # Detailliertere Standortinformationen (datacenter kann null sein)
+            datacenter = server.get('datacenter') or {}
+            location = datacenter.get('location') or {}
+            dc_name = location.get('name', 'N/A')
             city = location.get('city', location.get('description', 'N/A'))
             country = location.get('country', 'N/A')
             
@@ -99,25 +102,25 @@ class VMCommands(BaseCommands):
         print(f"  Memory: {server_type.get('memory', 'N/A')} GB")
         print(f"  Disk: {server_type.get('disk', 'N/A')} GB")
         
-        # Standort-Informationen
+        # Standort-Informationen (datacenter kann null sein)
         print("\nLocation:")
-        datacenter = server.get('datacenter', {})
-        location = datacenter.get('location', {})
+        datacenter = server.get('datacenter') or {}
+        location = datacenter.get('location') or {}
         print(f"  Datacenter: {datacenter.get('name', 'N/A')}")
         print(f"  City: {location.get('city', 'N/A')}")
         print(f"  Country: {location.get('country', 'N/A')}")
         
-        # Netzwerkinformationen
+        # Netzwerkinformationen (ipv4/ipv6 sind null, wenn deaktiviert)
         print("\nNetwork:")
-        public_net = server.get('public_net', {})
-        ipv4 = public_net.get('ipv4', {})
-        ipv6 = public_net.get('ipv6', {})
+        public_net = server.get('public_net') or {}
+        ipv4 = public_net.get('ipv4') or {}
+        ipv6 = public_net.get('ipv6') or {}
         print(f"  IPv4: {ipv4.get('ip', 'N/A')}")
         print(f"  IPv6: {ipv6.get('ip', 'N/A')}")
-        
+
         # DNS-Einträge
         dns_ptr = []
-        for entry in public_net.get('dns_ptr', []):
+        for entry in public_net.get('dns_ptr') or []:
             dns_ptr.append(f"{entry.get('ip', 'N/A')} -> {entry.get('dns_ptr', 'N/A')}")
         if dns_ptr:
             print("\nDNS Reverse Records:")
@@ -140,11 +143,14 @@ class VMCommands(BaseCommands):
         else:
             print("\nBackup: Disabled")
         
-        # Image-Informationen
+        # Image-Informationen (null, wenn das Ursprungs-Image gelöscht wurde)
         print("\nImage Information:")
-        image = server.get('image', {})
-        print(f"  OS: {image.get('name', 'N/A')}")
-        print(f"  Description: {image.get('description', 'N/A')}")
+        image = server.get('image') or {}
+        if image:
+            print(f"  OS: {image.get('name', 'N/A')}")
+            print(f"  Description: {image.get('description', 'N/A')}")
+        else:
+            print("  (original image no longer available)")
         
         # Protection-Informationen
         protection = server.get('protection', {})
