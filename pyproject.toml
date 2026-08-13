@@ -19,6 +19,9 @@ dependencies = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Repo-Root auf den Import-Pfad legen, damit 'commands', 'lib' und 'utils'
+# aus jedem Testverzeichnis importierbar sind (ersetzt die frühere conftest.py)
+pythonpath = ["."]
 
 [tool.ruff]
 target-version = "py39"
