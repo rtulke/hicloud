@@ -30,39 +30,75 @@ Because it's enough for most people and because it's much faster than using comp
 ### Prerequisites
 
 - Python 3.9 or higher
-- pip (Python package manager)
+- `git` and `curl` (only for the one-line install)
 
-### Dependencies
-
-#### Option 1: Using Virtual Environment (Recommended)
+#### Option 1: One-line install (Recommended)
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/rtulke/hicloud/main/setup.sh | bash
+```
+
+The installer asks whether to install system-wide or for the current user,
+how to resolve the Python dependencies, and — if `~/.hicloud.toml` does not
+exist yet — walks you through creating it, including where to obtain a
+Hetzner API token. Afterwards `hicloud` is available as a command.
+
+| | System-wide | User only |
+|---|---|---|
+| Installed to | `/opt/hicloud` | `~/.local/share/hicloud` |
+| Launcher | `/usr/local/bin/hicloud` | `~/.local/bin/hicloud` |
+| Requires | root / sudo | nothing |
+
+On Debian and Ubuntu you can choose between a virtual environment (via pip,
+matches the version pins) and system packages (`python3-requests`,
+`python3-toml` via apt). On all other systems a virtual environment is used.
+`~/.local/bin` must be in your `PATH` for a user installation — the installer
+says so if it is not.
+
+Run it again at any time to update: an existing checkout is refreshed and
+your configuration is left untouched.
+
+Options — useful for a non-interactive install:
+
+```bash
+./setup.sh --help          # show all options
+./setup.sh --user --venv   # no questions about scope and dependencies
+./setup.sh --system --apt  # to /opt/hicloud, dependencies via apt
+./setup.sh --dev           # additionally install pytest and ruff
+./setup.sh --user -y       # accept every default, never prompt
+```
+
+To review the script before running it — which is a good habit for anything
+piped into a shell:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rtulke/hicloud/main/setup.sh -o setup.sh
+less setup.sh
+bash setup.sh
+```
+
+#### Option 2: Manual installation
+
+```bash
+git clone https://github.com/rtulke/hicloud.git
+cd hicloud
+
 python3 -m venv .venv
 source .venv/bin/activate   # On Linux/macOS
 # OR
 .venv\Scripts\activate      # On Windows
 
 pip install -r requirements.txt
+python hicloud.py --gen-config ~/.hicloud.toml
 ```
 
 Note for Windows: additionally install `pyreadline3` (`pip install pyreadline3`) —
 the interactive console requires readline support, which Windows does not ship.
 
-Or let the setup script handle everything — it creates the virtual
-environment if missing (`.venv` or `venv/`), installs the dependencies,
-and generates the configuration file on first run:
-
-```bash
-source setup.sh
-```
-
-#### Option 2: Global Installation
-
-```bash
-pip install -r requirements.txt
-```
-
 ### Configuration
+
+The one-line installer already creates this file interactively. The steps
+below are for a manual installation or for adding further projects.
 
 Generate a sample configuration file:
 
@@ -447,6 +483,7 @@ tracks per-module test coverage.
 hicloud/
 │
 ├── hicloud.py               # Main entry point
+├── setup.sh                 # Installer (scope, dependencies, config wizard)
 ├── pyproject.toml           # Project metadata, pytest and ruff configuration
 │
 ├── lib/                     # Core libraries
