@@ -2,6 +2,15 @@
 
 All notable changes to hicloud are documented in this file.
 
+## [1.3.2] - 2026-08-13
+
+### Changed
+
+- All console colors now come from the central palette in `utils/colors.py`:
+  info views, status indicators, warnings, and completion hints share the
+  same look as the tables. No more hard-coded ANSI escapes in command
+  modules — restyling the console is a one-file change.
+
 ## [1.3.1] - 2026-07-14
 
 API compatibility release: an audit against the current Hetzner Cloud API
