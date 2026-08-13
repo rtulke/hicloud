@@ -4,6 +4,7 @@
 from typing import List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, STATUS_ERROR_COLOR
 from utils.formatting import format_size
 
 class SnapshotCommands(BaseCommands):
@@ -163,7 +164,7 @@ class SnapshotCommands(BaseCommands):
         snapshot_name = snapshot.get('description', f'Snapshot {snapshot_id}')
         
         # Warning message
-        print("\n\033[1;31mWARNING!\033[0m")
+        print(f"\n{STATUS_ERROR_COLOR}WARNING!{ANSI_RESET}")
         print(f"Rebuilding server '{server.get('name')}' will delete all data on the server!")
         print("This action is irreversible.")
         print(f"The server will be rebuilt using snapshot '{snapshot_name}'")

@@ -4,6 +4,7 @@
 from typing import List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR
 
 class NetworkCommands(BaseCommands):
     """Network-related commands for Interactive Console"""
@@ -70,7 +71,7 @@ class NetworkCommands(BaseCommands):
             return
 
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"Network Information: \033[1;32m{network.get('name')}\033[0m (ID: {network_id})")
+        print(f"Network Information: {HIGHLIGHT_COLOR}{network.get('name')}{ANSI_RESET} (ID: {network_id})")
         print(f"{self.console.horizontal_line('=')}")
 
         # Basic information
@@ -265,7 +266,7 @@ class NetworkCommands(BaseCommands):
         if not network:
             return
 
-        print(f"\nUpdating Network: \033[1;32m{network.get('name')}\033[0m (ID: {network_id})")
+        print(f"\nUpdating Network: {HIGHLIGHT_COLOR}{network.get('name')}{ANSI_RESET} (ID: {network_id})")
         print(f"{self.console.horizontal_line('-')}")
 
         # Update name
@@ -471,7 +472,7 @@ class NetworkCommands(BaseCommands):
         if not network:
             return
 
-        print(f"\nAdding subnet to network: \033[1;32m{network.get('name')}\033[0m")
+        print(f"\nAdding subnet to network: {HIGHLIGHT_COLOR}{network.get('name')}{ANSI_RESET}")
         print(f"Network IP Range: {network.get('ip_range')}")
 
         # Get available network zones

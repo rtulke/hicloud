@@ -22,7 +22,16 @@ from lib.config import ConfigManager
 from utils.formatting import get_terminal_width as _get_terminal_width
 from utils.formatting import horizontal_line as _horizontal_line
 from utils.formatting import print_table as _print_table
-from utils.colors import PROMPT_TEXT_COLOR, PROMPT_ARROW_COLOR, ANSI_RESET
+from utils.colors import (
+    ANSI_RESET,
+    HIGHLIGHT_COLOR,
+    HINT_COLOR,
+    PROMPT_ARROW_COLOR,
+    PROMPT_TEXT_COLOR,
+    STATUS_ERROR_COLOR,
+    STATUS_OK_COLOR,
+    STATUS_WARN_COLOR,
+)
 
 from commands.vm import VMCommands
 from commands.snapshot import SnapshotCommands
@@ -1171,7 +1180,7 @@ class InteractiveConsole:
     def _complete_main_command(self, prefix: str, line: str) -> Optional[str]:
         commands = self._get_command_names()
         if not prefix:
-            print("\n\033[90mAvailable commands: " + ", ".join(commands) + "\033[0m")
+            print(f"\n{HINT_COLOR}Available commands: " + ", ".join(commands) + ANSI_RESET)
             self._print_prompt_with_line(line)
             return None
         
@@ -1179,7 +1188,7 @@ class InteractiveConsole:
         if len(matches) == 1:
             return matches[0] + " "
         if matches:
-            print("\n\033[90mMatching commands: " + ", ".join(matches) + "\033[0m")
+            print(f"\n{HINT_COLOR}Matching commands: " + ", ".join(matches) + ANSI_RESET)
             self._print_prompt_with_line(line)
             common = self._get_common_prefix(matches)
             if common and len(common) > len(prefix):
@@ -1192,7 +1201,7 @@ class InteractiveConsole:
             return None
         
         matches = [sub for sub in subcommands.keys() if sub.startswith(prefix)]
-        print(f"\n\033[90m{self.commands[cmd_name]['help']}\033[0m")
+        print(f"\n{HINT_COLOR}{self.commands[cmd_name]['help']}{ANSI_RESET}")
         self._print_prompt_with_line(line)
         
         if len(matches) == 1:
@@ -1262,12 +1271,12 @@ class InteractiveConsole:
             preview = ", ".join(matches[:8])
             if len(matches) > 8:
                 preview += ", ..."
-            print(f"\n\033[90mMatching {label}: {preview}\033[0m")
+            print(f"\n{HINT_COLOR}Matching {label}: {preview}{ANSI_RESET}")
         else:
             preview = ", ".join(values[:8])
             if len(values) > 8:
                 preview += ", ..."
-            print(f"\n\033[90m{label} options: {preview}\033[0m")
+            print(f"\n{HINT_COLOR}{label} options: {preview}{ANSI_RESET}")
         self._print_prompt_with_line(line)
         return None
     
@@ -1275,7 +1284,7 @@ class InteractiveConsole:
         """Zeigt Hilfe für einen Hauptbefehl an"""
         if cmd in self.commands and 'help' in self.commands[cmd]:
             # Zeige die Hilfe über dem Prompt
-            print(f"\n\033[90m{self.commands[cmd]['help']}\033[0m")
+            print(f"\n{HINT_COLOR}{self.commands[cmd]['help']}{ANSI_RESET}")
             self._print_prompt_with_line()
             
     def _get_common_prefix(self, strings):
@@ -1300,7 +1309,7 @@ class InteractiveConsole:
         """Zeigt Hilfe für einen Unterbefehl an"""
         if cmd in self.commands and 'subcommands' in self.commands[cmd]:
             if subcmd in self.commands[cmd]['subcommands'] and 'help' in self.commands[cmd]['subcommands'][subcmd]:
-                print(f"\n\033[90m{self.commands[cmd]['subcommands'][subcmd]['help']}\033[0m")
+                print(f"\n{HINT_COLOR}{self.commands[cmd]['subcommands'][subcmd]['help']}{ANSI_RESET}")
                 self._print_prompt_with_line()
     
     def _show_detailed_help(self, cmd_name: str):
@@ -1383,23 +1392,23 @@ class InteractiveConsole:
         print(" " * padding + title)
         
         print(f"{self.horizontal_line('=')}")
-        print(f"Active Project: \033[1;32m{self.hetzner.project_name}\033[0m")
-        
+        print(f"Active Project: {HIGHLIGHT_COLOR}{self.hetzner.project_name}{ANSI_RESET}")
+
         # Debug-Modus anzeigen, wenn aktiviert
         if self.debug:
-            print(f"Debug Mode: \033[1;33mEnabled\033[0m")
+            print(f"Debug Mode: {STATUS_WARN_COLOR}Enabled{ANSI_RESET}")
         
         # Versuche, Projektinformationen abzurufen
         try:
             status_code, response = self.hetzner._make_request("GET", "locations")
             if status_code == 200:
                 location_count = len(response.get("locations", []))
-                print(f"Connection Status: \033[1;32mConnected\033[0m ({location_count} locations available)")
+                print(f"Connection Status: {STATUS_OK_COLOR}Connected{ANSI_RESET} ({location_count} locations available)")
             else:
-                print(f"Connection Status: \033[1;31mError\033[0m (HTTP {status_code})")
+                print(f"Connection Status: {STATUS_ERROR_COLOR}Error{ANSI_RESET} (HTTP {status_code})")
                 print(f"API Response: {response.get('error', {}).get('message', 'Unknown error')}")
         except Exception as e:
-            print(f"Connection Status: \033[1;31mError\033[0m")
+            print(f"Connection Status: {STATUS_ERROR_COLOR}Error{ANSI_RESET}")
             print(f"Error: {str(e)}")
             
         print(f"{self.horizontal_line('-')}")

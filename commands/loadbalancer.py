@@ -4,6 +4,7 @@
 from typing import Dict, List, Optional, Tuple
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR
 from utils.prompts import prompt_choice, prompt_int
 
 
@@ -55,7 +56,7 @@ class LoadBalancerCommands(BaseCommands):
 
         lb_id = lb.get("id")
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"Load Balancer Information: \033[1;32m{lb.get('name')}\033[0m (ID: {lb_id})")
+        print(f"Load Balancer Information: {HIGHLIGHT_COLOR}{lb.get('name')}{ANSI_RESET} (ID: {lb_id})")
         print(f"{self.console.horizontal_line('=')}")
 
         lb_type = lb.get("load_balancer_type", {})

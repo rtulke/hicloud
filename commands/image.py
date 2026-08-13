@@ -4,6 +4,7 @@
 from typing import List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR
 
 
 class ImageCommands(BaseCommands):
@@ -67,7 +68,7 @@ class ImageCommands(BaseCommands):
 
         print(f"\n{self.console.horizontal_line('=')}")
         name = image.get("name") or image.get("description") or f"Image {image_id}"
-        print(f"Image Information: \033[1;32m{name}\033[0m (ID: {image_id})")
+        print(f"Image Information: {HIGHLIGHT_COLOR}{name}{ANSI_RESET} (ID: {image_id})")
         print(f"{self.console.horizontal_line('=')}")
 
         print(f"Type:          {image.get('type', 'N/A')}")

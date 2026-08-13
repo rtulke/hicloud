@@ -5,6 +5,7 @@ import os
 from typing import List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR
 
 class KeysCommands(BaseCommands):
     """SSH key-related commands for Interactive Console"""
@@ -80,7 +81,7 @@ class KeysCommands(BaseCommands):
             return
 
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"SSH Key Information: \033[1;32m{key.get('name')}\033[0m (ID: {key_id})")
+        print(f"SSH Key Information: {HIGHLIGHT_COLOR}{key.get('name')}{ANSI_RESET} (ID: {key_id})")
         print(f"{self.console.horizontal_line('=')}")
 
         # Basic information
@@ -229,7 +230,7 @@ class KeysCommands(BaseCommands):
         if not key:
             return
 
-        print(f"\nUpdating SSH Key: \033[1;32m{key.get('name')}\033[0m (ID: {key_id})")
+        print(f"\nUpdating SSH Key: {HIGHLIGHT_COLOR}{key.get('name')}{ANSI_RESET} (ID: {key_id})")
         print(f"{self.console.horizontal_line('-')}")
 
         # Update name

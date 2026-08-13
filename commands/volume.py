@@ -4,6 +4,7 @@
 from typing import List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR, STATUS_OK_COLOR, STATUS_WARN_COLOR
 from utils.formatting import format_size
 
 class VolumeCommands(BaseCommands):
@@ -89,13 +90,13 @@ class VolumeCommands(BaseCommands):
             return
 
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"Volume Information: \033[1;32m{volume.get('name')}\033[0m (ID: {volume_id})")
+        print(f"Volume Information: {HIGHLIGHT_COLOR}{volume.get('name')}{ANSI_RESET} (ID: {volume_id})")
         print(f"{self.console.horizontal_line('=')}")
 
         # Grundlegende Informationen
         status = volume.get('status', 'unknown')
-        status_color = "\033[1;32m" if status == "available" else "\033[1;33m"
-        print(f"Status: {status_color}{status}\033[0m")
+        status_color = STATUS_OK_COLOR if status == "available" else STATUS_WARN_COLOR
+        print(f"Status: {status_color}{status}{ANSI_RESET}")
 
         created = volume.get('created', 'unknown')
         if created != 'unknown':

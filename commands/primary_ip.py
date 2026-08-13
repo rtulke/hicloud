@@ -4,6 +4,7 @@
 from typing import List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR
 
 
 class PrimaryIPCommands(BaseCommands):
@@ -59,7 +60,7 @@ class PrimaryIPCommands(BaseCommands):
             return
 
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"Primary IP: \033[1;32m{pip.get('name', 'N/A')}\033[0m (ID: {pip.get('id')})")
+        print(f"Primary IP: {HIGHLIGHT_COLOR}{pip.get('name', 'N/A')}{ANSI_RESET} (ID: {pip.get('id')})")
         print(f"{self.console.horizontal_line('=')}")
         print(f"IP:          {pip.get('ip', 'N/A')}")
         print(f"Type:        {pip.get('type', 'N/A')}")

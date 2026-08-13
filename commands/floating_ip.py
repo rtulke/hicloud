@@ -4,6 +4,7 @@
 from typing import List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR
 
 
 class FloatingIPCommands(BaseCommands):
@@ -56,7 +57,7 @@ class FloatingIPCommands(BaseCommands):
             return
 
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"Floating IP: \033[1;32m{fip.get('name', 'N/A')}\033[0m (ID: {fip.get('id')})")
+        print(f"Floating IP: {HIGHLIGHT_COLOR}{fip.get('name', 'N/A')}{ANSI_RESET} (ID: {fip.get('id')})")
         print(f"{self.console.horizontal_line('=')}")
         print(f"IP:          {fip.get('ip', 'N/A')}")
         print(f"Type:        {fip.get('type', 'N/A')}")

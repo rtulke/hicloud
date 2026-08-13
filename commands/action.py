@@ -4,6 +4,7 @@
 from typing import Dict, List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR
 
 
 class ActionCommands(BaseCommands):
@@ -63,7 +64,7 @@ class ActionCommands(BaseCommands):
             return
 
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"Action: \033[1;32m{action.get('command', 'N/A')}\033[0m (ID: {action.get('id')})")
+        print(f"Action: {HIGHLIGHT_COLOR}{action.get('command', 'N/A')}{ANSI_RESET} (ID: {action.get('id')})")
         print(f"{self.console.horizontal_line('=')}")
         print(f"Status:    {action.get('status', 'N/A')}")
         print(f"Progress:  {action.get('progress', 0)}%")

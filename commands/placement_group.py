@@ -4,6 +4,7 @@
 from typing import List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR
 
 
 class PlacementGroupCommands(BaseCommands):
@@ -57,7 +58,7 @@ class PlacementGroupCommands(BaseCommands):
             return
 
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"Placement Group: \033[1;32m{group.get('name', 'N/A')}\033[0m (ID: {group.get('id')})")
+        print(f"Placement Group: {HIGHLIGHT_COLOR}{group.get('name', 'N/A')}{ANSI_RESET} (ID: {group.get('id')})")
         print(f"{self.console.horizontal_line('=')}")
         print(f"Type:    {group.get('type', 'N/A')}")
         print(f"Created: {group.get('created', 'N/A')}")
@@ -120,7 +121,7 @@ class PlacementGroupCommands(BaseCommands):
             return
 
         group_id = group.get("id")
-        print(f"\nUpdating Placement Group: \033[1;32m{group.get('name')}\033[0m (ID: {group_id})")
+        print(f"\nUpdating Placement Group: {HIGHLIGHT_COLOR}{group.get('name')}{ANSI_RESET} (ID: {group_id})")
         print(f"{self.console.horizontal_line('-')}")
 
         new_name = input(f"New name (leave empty to keep '{group.get('name')}'): ").strip() or None

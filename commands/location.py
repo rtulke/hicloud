@@ -4,6 +4,7 @@
 from typing import List, Optional
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR
 
 class LocationCommands(BaseCommands):
     """Location and Datacenter-related commands for Interactive Console"""
@@ -374,7 +375,7 @@ class ServerTypeCommands(BaseCommands):
             return
 
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"Server Type: \033[1;32m{match.get('name', 'N/A')}\033[0m (ID: {match.get('id', 'N/A')})")
+        print(f"Server Type: {HIGHLIGHT_COLOR}{match.get('name', 'N/A')}{ANSI_RESET} (ID: {match.get('id', 'N/A')})")
         print(f"{self.console.horizontal_line('=')}")
         print(f"Description:   {match.get('description', 'N/A')}")
         print(f"Architecture:  {match.get('architecture', 'N/A')}")

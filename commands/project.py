@@ -6,6 +6,7 @@ import sys
 from typing import List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR, STATUS_ERROR_COLOR, STATUS_OK_COLOR
 from utils.constants import API_BASE_URL, DEFAULT_CONFIG_PATH
 from lib.config import ConfigManager
 
@@ -179,7 +180,7 @@ class ProjectCommands(BaseCommands):
     def show_info(self):
         """Show detailed information about the current project"""
         print(f"\n{'='*60}")
-        print(f"Project Information: \033[1;32m{self.hetzner.project_name}\033[0m")
+        print(f"Project Information: {HIGHLIGHT_COLOR}{self.hetzner.project_name}{ANSI_RESET}")
         print(f"{'='*60}")
 
         # API-Verbindungsstatus prüfen mit einem gültigen Endpunkt
@@ -187,7 +188,7 @@ class ProjectCommands(BaseCommands):
             # Statt des leeren Endpunkts einen gültigen API-Endpunkt verwenden
             status_code, response = self.hetzner._make_request("GET", "locations")
             if status_code == 200:
-                print(f"Connection Status: \033[1;32mConnected\033[0m")
+                print(f"Connection Status: {STATUS_OK_COLOR}Connected{ANSI_RESET}")
                 print(f"API Endpoint: {API_BASE_URL}")
 
                 # Server zählen
@@ -232,10 +233,10 @@ class ProjectCommands(BaseCommands):
                     pass
 
             else:
-                print(f"Connection Status: \033[1;31mError\033[0m (HTTP {status_code})")
+                print(f"Connection Status: {STATUS_ERROR_COLOR}Error{ANSI_RESET} (HTTP {status_code})")
                 print(f"Could not connect to API. Response: {response.get('error', {}).get('message', 'Unknown error')}")
         except Exception as e:
-            print(f"Connection Status: \033[1;31mError\033[0m")
+            print(f"Connection Status: {STATUS_ERROR_COLOR}Error{ANSI_RESET}")
             print(f"Error: {str(e)}")
 
         print(f"{'-'*60}")

@@ -5,6 +5,7 @@ import time
 from typing import List
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR, STATUS_ERROR_COLOR, STATUS_OK_COLOR, STATUS_WARN_COLOR
 from utils.prompts import prompt_choice
 from utils.spinner import DotsSpinner
 
@@ -81,13 +82,13 @@ class VMCommands(BaseCommands):
             return
             
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"VM Information: \033[1;32m{server.get('name')}\033[0m (ID: {vm_id})")
+        print(f"VM Information: {HIGHLIGHT_COLOR}{server.get('name')}{ANSI_RESET} (ID: {vm_id})")
         print(f"{self.console.horizontal_line('=')}")
         
         # Grundlegende Informationen
         status = server.get('status', 'unknown')
-        status_color = "\033[1;32m" if status == "running" else "\033[1;31m" if status == "off" else "\033[1;33m"
-        print(f"Status: {status_color}{status}\033[0m")
+        status_color = STATUS_OK_COLOR if status == "running" else STATUS_ERROR_COLOR if status == "off" else STATUS_WARN_COLOR
+        print(f"Status: {status_color}{status}{ANSI_RESET}")
         created = server.get('created', 'unknown')
         if created != 'unknown':
             created_date = created.split('T')[0]

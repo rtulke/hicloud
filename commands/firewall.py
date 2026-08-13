@@ -5,6 +5,7 @@ import ipaddress
 from typing import Dict, List, Optional, Set, Tuple
 
 from commands.base import BaseCommands
+from utils.colors import ANSI_RESET, HIGHLIGHT_COLOR
 
 
 class FirewallCommands(BaseCommands):
@@ -60,7 +61,7 @@ class FirewallCommands(BaseCommands):
 
         firewall_id = firewall.get("id", "N/A")
         print(f"\n{self.console.horizontal_line('=')}")
-        print(f"Firewall Information: \033[1;32m{firewall.get('name')}\033[0m (ID: {firewall_id})")
+        print(f"Firewall Information: {HIGHLIGHT_COLOR}{firewall.get('name')}{ANSI_RESET} (ID: {firewall_id})")
         print(f"{self.console.horizontal_line('=')}")
 
         created = firewall.get("created", "N/A")
@@ -136,7 +137,7 @@ class FirewallCommands(BaseCommands):
             return
 
         firewall_id = firewall.get("id")
-        print(f"\nUpdating Firewall: \033[1;32m{firewall.get('name')}\033[0m (ID: {firewall_id})")
+        print(f"\nUpdating Firewall: {HIGHLIGHT_COLOR}{firewall.get('name')}{ANSI_RESET} (ID: {firewall_id})")
         print(f"{self.console.horizontal_line('-')}")
 
         new_name = None
@@ -225,7 +226,7 @@ class FirewallCommands(BaseCommands):
         if not firewall:
             return
 
-        print(f"\nFirewall Rules: \033[1;32m{firewall.get('name')}\033[0m (ID: {firewall.get('id')})")
+        print(f"\nFirewall Rules: {HIGHLIGHT_COLOR}{firewall.get('name')}{ANSI_RESET} (ID: {firewall.get('id')})")
         self._print_rules(firewall.get("rules", []))
 
     def add_rules(self, args: List[str]):
