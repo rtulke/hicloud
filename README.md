@@ -45,10 +45,15 @@ source .venv/bin/activate   # On Linux/macOS
 pip install -r requirements.txt
 ```
 
-Or use the provided activation script:
+Note for Windows: additionally install `pyreadline3` (`pip install pyreadline3`) —
+the interactive console requires readline support, which Windows does not ship.
+
+Or let the setup script handle everything — it creates the virtual
+environment if missing (`.venv` or `venv/`), installs the dependencies,
+and generates the configuration file on first run:
 
 ```bash
-source activate_hicloud.sh
+source setup.sh
 ```
 
 #### Option 2: Global Installation
@@ -424,17 +429,33 @@ hicloud> batch delete 1,2,3                      # Delete multiple servers (with
 
 ## Development
 
+Set up a development environment (runtime dependencies plus pytest and ruff)
+and run the checks:
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+
+pytest -q          # run the test suite
+ruff check .       # lint
+```
+
+Pytest and ruff are configured in `pyproject.toml`; `tests/TEST_PLAN.md`
+tracks per-module test coverage.
+
 ```
 hicloud/
 │
 ├── hicloud.py               # Main entry point
+├── pyproject.toml           # Project metadata, pytest and ruff configuration
 │
 ├── lib/                     # Core libraries
-│   ├── api.py               # HetznerCloudManager — all HTTP calls
+│   ├── api.py               # HetznerCloudManager — all HTTP calls via generic helpers
 │   ├── config.py            # ConfigManager — TOML loading, permission validation
-│   └── console.py           # InteractiveConsole — REPL, tab completion, dispatch
+│   └── console.py           # InteractiveConsole — REPL, command registry, tab completion
 │
 ├── commands/                # Resource command handlers
+│   ├── base.py              # BaseCommands — shared dispatch and input helpers
 │   ├── vm.py                # VMCommands
 │   ├── snapshot.py          # SnapshotCommands
 │   ├── backup.py            # BackupCommands
@@ -451,55 +472,23 @@ hicloud/
 │   ├── image.py             # ImageCommands
 │   ├── config.py            # ConfigCommands
 │   ├── batch.py             # BatchCommands
+│   ├── action.py            # ActionCommands
+│   ├── placement_group.py   # PlacementGroupCommands
 │   ├── iso.py               # ISOCommands
 │   └── location.py          # LocationCommands + DatacenterCommands + ServerTypeCommands
 │
 ├── utils/
 │   ├── formatting.py        # Table layout, terminal width helpers
-│   ├── colors.py            # ANSI 24-bit RGB color constants
+│   ├── colors.py            # Central color palette (ANSI 24-bit RGB, semantic constants)
 │   ├── constants.py         # API_BASE_URL, DEFAULT_CONFIG_PATH, VERSION
+│   ├── prompts.py           # Shared interactive prompt helpers (re-prompt on invalid input)
 │   └── spinner.py           # DotsSpinner — threaded progress indicator
 │
 └── tests/
-    ├── TEST_PLAN.md         # Current test status and open test tasks
+    ├── TEST_PLAN.md         # Current test status per module
     ├── commands/            # Unit tests for command handlers (test_<command>.py)
-    │   ├── test_vm.py
-    │   ├── test_snapshot.py
-    │   ├── test_backup.py
-    │   ├── test_metrics.py
-    │   ├── test_project.py
-    │   ├── test_pricing.py
-    │   ├── test_keys.py
-    │   ├── test_volume.py
-    │   ├── test_network.py
-    │   ├── test_firewall.py
-    │   ├── test_loadbalancer.py
-    │   ├── test_floating_ip.py
-    │   ├── test_primary_ip.py
-    │   ├── test_image.py
-    │   ├── test_config.py
-    │   ├── test_batch.py
-    │   ├── test_iso.py
-    │   └── test_location_servertype.py
-    └── lib/                 # Unit tests for API layer (HetznerCloudManager)
-        ├── test_api_core.py
-        ├── test_api_vm.py
-        ├── test_api_snapshot.py
-        ├── test_api_backup.py
-        ├── test_api_batch.py
-        ├── test_api_volume.py
-        ├── test_api_network.py
-        ├── test_api_iso.py
-        ├── test_api_keys.py
-        ├── test_api_location.py
-        ├── test_api_metrics.py
-        ├── test_api_pricing.py
-        ├── test_api_project.py
-        ├── test_api_firewall.py
-        ├── test_api_loadbalancer.py
-        ├── test_api_floating_ip.py
-        ├── test_api_primary_ip.py
-        └── test_api_image.py
+    ├── lib/                 # Unit tests for the API layer, config, and console
+    └── utils/               # Unit tests for formatting and prompt helpers
 ```
 
 ## Troubleshooting
