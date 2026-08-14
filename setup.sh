@@ -587,10 +587,11 @@ print_token_instructions() {
 
       1.  Sign in at https://console.hetzner.com/projects
       2.  Select the project the token should belong to
-      3.  Left menu bar: "Security", then upper menu bar: "API tokens"
-      4.  Click "Generate API token"
-      5.  Enter a description and pick permissions ${C_BOLD}Read & Write${C_RESET}
-      6.  Copy the token - it is shown exactly once
+      3.  Bottom of the left sidebar: "Security"
+      4.  Tab bar at the top: "API tokens"
+      5.  Red button in the top right: "Add API token"
+      6.  Enter a description, pick permissions ${C_BOLD}Read & Write${C_RESET},
+          then copy the token - it is shown exactly once
 
 EOF
 }
