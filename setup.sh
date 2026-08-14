@@ -38,12 +38,43 @@ else
     C_RESET=""; C_BOLD=""; C_DIM=""; C_RED=""; C_GREEN=""; C_YELLOW=""; C_CYAN=""
 fi
 
-info()  { printf '%s\n' "$*"; }
-step()  { printf '%s\n' "${C_CYAN}==>${C_RESET} ${C_BOLD}$*${C_RESET}"; }
-ok()    { printf '%s\n' "  ${C_GREEN}OK${C_RESET}  $*"; }
-warn()  { printf '%s\n' "  ${C_YELLOW}WARN${C_RESET}  $*" >&2; }
-hint()  { printf '%s\n' "  ${C_DIM}$*${C_RESET}"; }
-die()   { printf '%s\n' "${C_RED}ERROR${C_RESET}  $*" >&2; exit 1; }
+# Terminals without a UTF-8 locale would render the marks as garbage.
+case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+    *UTF-8*|*utf-8*|*UTF8*|*utf8*) M_OK="✓"; M_WARN="!"; M_ERR="✗"; M_RULE="─" ;;
+    *)                             M_OK="+"; M_WARN="!"; M_ERR="x"; M_RULE="-" ;;
+esac
+
+# Two levels of indentation: headings sit at 2, their content at 4.
+info()  { printf '    %s\n' "$*"; }
+plain() { printf '%s\n' "$*"; }
+blank() { printf '\n'; }
+step()  { printf '\n  %s\n' "${C_BOLD}$*${C_RESET}"; }
+ok()    { printf '    %s  %s\n' "${C_GREEN}${M_OK}${C_RESET}" "$*"; }
+warn()  { printf '    %s  %s\n' "${C_YELLOW}${M_WARN}${C_RESET}" "$*" >&2; }
+hint()  { printf '       %s\n' "${C_DIM}$*${C_RESET}"; }
+die()   { printf '\n    %s  %s\n\n' "${C_RED}${M_ERR}${C_RESET}" "$*" >&2; exit 1; }
+
+rule() {
+    local width=64 out="" i=0
+    while [ "$i" -lt "$width" ]; do out="$out$M_RULE"; i=$((i + 1)); done
+    printf '%s' "$out"
+}
+
+banner() {
+    printf '\n  %s\n  %s\n' "${C_BOLD}hicloud installer${C_RESET}" "${C_DIM}$(rule)${C_RESET}"
+}
+
+# Paths are long enough without spelling out the home directory every time.
+tilde() {
+    case "$1" in
+        "$HOME"/*) printf '~%s' "${1#"$HOME"}" ;;
+        "$HOME")   printf '~' ;;
+        *)         printf '%s' "$1" ;;
+    esac
+}
+
+# label <name> <value> - aligned two-column output for the summary lines
+label() { printf '    %-14s %s\n' "$1" "$2"; }
 
 # --------------------------------------------------------------- prompts --
 
@@ -77,9 +108,9 @@ ask() {
         return 0
     fi
     if [ -n "$default" ]; then
-        printf '%s [%s]: ' "$prompt" "$default" > "$TTY"
+        printf '    %s [%s]: ' "$prompt" "$default" > "$TTY"
     else
-        printf '%s: ' "$prompt" > "$TTY"
+        printf '    %s: ' "$prompt" > "$TTY"
     fi
     read_tty ANSWER
     ANSWER="${ANSWER:-$default}"
@@ -100,24 +131,30 @@ confirm() {
 }
 
 # choose <prompt> <default-index> <option>...  -> chosen option in $ANSWER
+# An option is "label|explanation"; only the label is returned.
 choose() {
     local prompt="$1" default="$2"; shift 2
-    local options=("$@") i
+    local options=("$@") i entry
 
     if [ "$OPT_YES" -eq 1 ] || ! have_tty; then
-        ANSWER="${options[$((default - 1))]}"
+        ANSWER="${options[$((default - 1))]%%|*}"
         return 0
     fi
     while true; do
-        printf '%s\n' "$prompt" > "$TTY"
+        printf '\n    %s\n\n' "${C_BOLD}$prompt${C_RESET}" > "$TTY"
         for i in "${!options[@]}"; do
-            printf '  %d) %s\n' "$((i + 1))" "${options[$i]}" > "$TTY"
+            entry="${options[$i]}"
+            printf '      %d)  %s\n' "$((i + 1))" "${entry%%|*}" > "$TTY"
+            case "$entry" in
+                *"|"*) printf '          %s\n' "${C_DIM}${entry#*|}${C_RESET}" > "$TTY" ;;
+            esac
         done
-        printf 'Selection [%d]: ' "$default" > "$TTY"
+        printf '\n    Selection [%d]: ' "$default" > "$TTY"
         read_tty ANSWER
         ANSWER="${ANSWER:-$default}"
         if [[ "$ANSWER" =~ ^[0-9]+$ ]] && [ "$ANSWER" -ge 1 ] && [ "$ANSWER" -le "${#options[@]}" ]; then
-            ANSWER="${options[$((ANSWER - 1))]}"
+            ANSWER="${options[$((ANSWER - 1))]%%|*}"
+            printf '\n' > "$TTY"
             return 0
         fi
         warn "Please enter a number between 1 and ${#options[@]}."
@@ -193,10 +230,32 @@ detect_os() {
 }
 
 SUDO=""
+CAN_SYSTEM=0       # is a system-wide installation possible at all?
+PRIV_NOTE=""       # how that was determined, for the environment summary
+
+# Determined up front: without root or sudo a system-wide install cannot work,
+# and offering it anyway would only fail halfway through.
+detect_privileges() {
+    if [ "$(id -u)" -eq 0 ]; then
+        SUDO=""; CAN_SYSTEM=1; PRIV_NOTE="running as root"
+        return
+    fi
+    if ! command -v sudo >/dev/null 2>&1; then
+        CAN_SYSTEM=0; PRIV_NOTE="no sudo installed - user installation only"
+        return
+    fi
+    SUDO="sudo"; CAN_SYSTEM=1
+    # -n never prompts: it only tells us whether a password will be needed.
+    if sudo -n true 2>/dev/null; then
+        PRIV_NOTE="sudo available"
+    else
+        PRIV_NOTE="sudo available, will ask for your password"
+    fi
+}
+
 need_sudo() {
-    [ "$(id -u)" -eq 0 ] && { SUDO=""; return 0; }
-    command -v sudo >/dev/null 2>&1 || die "Root privileges required, but sudo is not available. Re-run as root or use --user."
-    SUDO="sudo"
+    [ "$CAN_SYSTEM" -eq 1 ] \
+        || die "Root privileges required, but sudo is not installed. Re-run as root or use --user."
 }
 
 # ------------------------------------------------------------- installer --
@@ -228,13 +287,17 @@ find_venv() {
 }
 
 resolve_scope() {
+    if [ -z "$OPT_SCOPE" ] && [ "$CAN_SYSTEM" -eq 0 ]; then
+        OPT_SCOPE="user"
+    fi
+
     if [ -z "$OPT_SCOPE" ]; then
         # Running as root almost always means a system-wide install is wanted.
         local default=2
         [ "$(id -u)" -eq 0 ] && default=1
         choose "Where should hicloud be installed?" "$default" \
-            "system-wide, for all users  ($SYSTEM_PREFIX, command in /usr/local/bin, needs sudo)" \
-            "for the current user only   ($USER_PREFIX, command in ~/.local/bin)"
+            "system-wide, for all users|$SYSTEM_PREFIX, command in /usr/local/bin" \
+            "for the current user only|$(tilde "$USER_PREFIX"), command in ~/.local/bin"
         case "$ANSWER" in
             system*) OPT_SCOPE="system" ;;
             *)       OPT_SCOPE="user" ;;
@@ -242,9 +305,9 @@ resolve_scope() {
     fi
 
     if [ "$OPT_SCOPE" = "system" ]; then
+        need_sudo
         INSTALL_DIR="${OPT_PREFIX:-$SYSTEM_PREFIX}"
         LAUNCHER="$SYSTEM_LAUNCHER"
-        need_sudo
     else
         INSTALL_DIR="${OPT_PREFIX:-$USER_PREFIX}"
         LAUNCHER="$USER_LAUNCHER"
@@ -270,7 +333,7 @@ fetch_sources() {
 
     # Running from the target checkout itself: nothing to fetch.
     if [ -n "$SRC_DIR" ] && [ "$SRC_DIR" = "$INSTALL_DIR" ]; then
-        ok "Installing from the current checkout ($SRC_DIR)"
+        ok "Installing from the current checkout ($(tilde "$SRC_DIR"))"
         return
     fi
 
@@ -294,19 +357,19 @@ fetch_sources() {
                 | run tar xf - -C "$INSTALL_DIR" \
                 || die "Copying from $SRC_DIR failed."
         fi
-        ok "Copied $SRC_DIR to $INSTALL_DIR"
+        ok "Copied $(tilde "$SRC_DIR") to $(tilde "$INSTALL_DIR")"
         return
     fi
 
     if [ -d "$INSTALL_DIR/.git" ]; then
         run git -C "$INSTALL_DIR" pull --ff-only --quiet \
-            && ok "Updated existing checkout at $INSTALL_DIR" \
-            || warn "Could not update $INSTALL_DIR - keeping the current state."
+            && ok "Updated existing checkout at $(tilde "$INSTALL_DIR")" \
+            || warn "Could not update $(tilde "$INSTALL_DIR") - keeping the current state."
         return
     fi
 
     if [ -f "$INSTALL_DIR/hicloud.py" ]; then
-        ok "Using existing installation at $INSTALL_DIR"
+        ok "Using existing installation at $(tilde "$INSTALL_DIR")"
         return
     fi
 
@@ -314,7 +377,7 @@ fetch_sources() {
     run mkdir -p "$(dirname "$INSTALL_DIR")"
     run git clone --quiet --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$INSTALL_DIR" \
         || die "Cloning $REPO_URL failed."
-    ok "Cloned $REPO_URL to $INSTALL_DIR"
+    ok "Cloned $REPO_URL to $(tilde "$INSTALL_DIR")"
 }
 
 # No question here - the sensible route follows from the system and the scope:
@@ -360,28 +423,29 @@ install_deps_venv() {
 
     local venv_dir
     if venv_dir="$(find_venv "$INSTALL_DIR")"; then
-        ok "Reusing existing environment at $venv_dir"
+        ok "Reusing existing environment at $(tilde "$venv_dir")"
     else
         venv_dir="$INSTALL_DIR/.venv"
-        info "  Creating $venv_dir ..."
+        info "Creating $(tilde "$venv_dir") ..."
         if ! run python3 -m venv "$venv_dir" 2>/dev/null; then
             # Debian and Ubuntu split venv out of the python3 package.
             if [ "$OS_FAMILY" = "apt" ]; then
                 warn "python3 -m venv failed - installing python3-venv."
-                need_sudo
+                [ "$CAN_SYSTEM" -eq 1 ] \
+                    || die "python3-venv is missing and cannot be installed without root. Install it with: apt install python3-venv"
                 $SUDO apt-get install -y python3-venv || die "Installing python3-venv failed."
                 run python3 -m venv "$venv_dir" || die "Could not create the virtual environment."
             else
                 die "Could not create the virtual environment at $venv_dir."
             fi
         fi
-        ok "Created $venv_dir"
+        ok "Created $(tilde "$venv_dir")"
     fi
 
     PYTHON_BIN="$venv_dir/bin/python"
     [ -x "$PYTHON_BIN" ] || die "No interpreter found at $PYTHON_BIN."
 
-    info "  Installing dependencies ..."
+    info "Installing dependencies ..."
     run "$PYTHON_BIN" -m pip install --quiet --upgrade pip \
         || warn "Could not update pip - continuing."
 
@@ -406,7 +470,7 @@ install_command() {
         run ln -s "$INSTALL_DIR/hicloud.py" "$LAUNCHER" \
             || die "Could not create the symlink $LAUNCHER."
         run chmod 755 "$INSTALL_DIR/hicloud.py"
-        ok "Symlink $LAUNCHER -> $INSTALL_DIR/hicloud.py"
+        ok "Symlink $(tilde "$LAUNCHER") -> $(tilde "$INSTALL_DIR")/hicloud.py"
     else
         local tmp
         tmp="$(mktemp)"
@@ -418,7 +482,7 @@ EOF
         chmod 755 "$tmp"
         run cp "$tmp" "$LAUNCHER" || die "Could not write the launcher to $LAUNCHER."
         rm -f "$tmp"
-        ok "Launcher installed at $LAUNCHER"
+        ok "Installed $(tilde "$LAUNCHER")"
     fi
 
     ensure_path "$(dirname "$LAUNCHER")"
@@ -442,13 +506,13 @@ ensure_path() {
     local bindir="$1" rc marker
 
     case ":$PATH:" in
-        *":$bindir:"*) ok "$bindir is in your PATH"; return 0 ;;
+        *":$bindir:"*) ok "$(tilde "$bindir") is already in your PATH"; return 0 ;;
     esac
 
     # A system-wide install lands in /usr/local/bin, which every sane PATH
     # already contains - if it does not, that is a system decision to respect.
     if [ "$OPT_SCOPE" = "system" ]; then
-        warn "$bindir is not in your PATH. Start hicloud via $LAUNCHER."
+        warn "$(tilde "$bindir") is not in your PATH - start hicloud via $LAUNCHER."
         return 0
     fi
 
@@ -456,7 +520,7 @@ ensure_path() {
     marker="# added by hicloud setup.sh"
 
     if [ -f "$rc" ] && grep -qF "$marker" "$rc"; then
-        ok "PATH entry already present in $rc"
+        ok "PATH entry already present in $(tilde "$rc")"
         PATH_NEEDS_RELOAD=1
         return 0
     fi
@@ -468,7 +532,7 @@ ensure_path() {
         printf '\n%s\ncase ":$PATH:" in *":%s:"*) ;; *) PATH="%s:$PATH" ;; esac\nexport PATH\n' \
             "$marker" "$bindir" "$bindir" >> "$rc"
     fi
-    ok "Added $bindir to your PATH in $rc"
+    ok "Added $(tilde "$bindir") to your PATH in $(tilde "$rc")"
 
     # Make the command usable for the rest of this run, e.g. the smoke test.
     PATH="$bindir:$PATH"
@@ -494,13 +558,14 @@ verify_install() {
 print_token_instructions() {
     cat <<EOF
 
-  ${C_BOLD}Where do I get an API token?${C_RESET}
-    1. Sign in at https://console.hetzner.com/projects
-    2. Select the project the token should belong to
-    3. Left-hand menu: "Security" -> tab "API tokens"
-    4. Top right: "Generate API token"
-    5. Enter a description and pick permissions ${C_BOLD}Read & Write${C_RESET}
-    6. Copy the token - it is shown exactly once
+    ${C_BOLD}Where do I get an API token?${C_RESET}
+
+      1.  Sign in at https://console.hetzner.com/projects
+      2.  Select the project the token should belong to
+      3.  Left-hand menu: "Security" -> tab "API tokens"
+      4.  Top right: "Generate API token"
+      5.  Enter a description and pick permissions ${C_BOLD}Read & Write${C_RESET}
+      6.  Copy the token - it is shown exactly once
 
 EOF
 }
@@ -522,18 +587,18 @@ configure() {
     step "Configuration"
 
     if [ -f "$CONFIG_FILE" ]; then
-        ok "Configuration found at $CONFIG_FILE - keeping it unchanged"
+        ok "Found $(tilde "$CONFIG_FILE") - keeping it unchanged"
         return
     fi
 
-    info "  No configuration at $CONFIG_FILE yet."
+    info "No configuration at $(tilde "$CONFIG_FILE") yet."
     if ! have_tty || [ "$OPT_YES" -eq 1 ]; then
         warn "Not running interactively - skipping the configuration."
-        hint "Create it later with: hicloud --gen-config $CONFIG_FILE"
+        hint "Create it later with: hicloud --gen-config $(tilde "$CONFIG_FILE")"
         return
     fi
-    if ! confirm "  Create the configuration now?" "y"; then
-        hint "Create it later with: hicloud --gen-config $CONFIG_FILE"
+    if ! confirm "Create the configuration now?" "y"; then
+        hint "Create it later with: hicloud --gen-config $(tilde "$CONFIG_FILE")"
         return
     fi
 
@@ -542,13 +607,13 @@ configure() {
     local token="" project="" attempt=0
     while true; do
         attempt=$((attempt + 1))
-        printf 'API token (input hidden): ' > "$TTY"
+        printf '    API token (input hidden): ' > "$TTY"
         read_tty token -s
 
         if [ -z "$token" ]; then
             if [ "$attempt" -ge 3 ]; then
                 warn "No token entered - skipping the configuration."
-                hint "Create it later with: hicloud --gen-config $CONFIG_FILE"
+                hint "Create it later with: hicloud --gen-config $(tilde "$CONFIG_FILE")"
                 return
             fi
             warn "No token entered. Please paste the token or press Ctrl-C to abort."
@@ -558,10 +623,10 @@ configure() {
         # Hetzner tokens are 64 alphanumeric characters.
         if ! printf '%s' "$token" | grep -qE '^[A-Za-z0-9]{64}$'; then
             warn "That does not look like a Hetzner token (expected 64 alphanumeric characters)."
-            confirm "  Use it anyway?" "n" || continue
+            confirm "Use it anyway?" "n" || continue
         fi
 
-        info "  Verifying the token ..."
+        info "Verifying the token ..."
         set +e
         verify_token "$token"
         local result=$?
@@ -569,17 +634,17 @@ configure() {
         case "$result" in
             0) ok "Token accepted by the Hetzner API"; break ;;
             1) warn "The API rejected the token (401/403). Please check it and try again."
-               confirm "  Enter a different token?" "y" && continue
+               confirm "Enter a different token?" "y" && continue
                # Writing a token the API already refused would only produce a
                # configuration that fails on the first command.
-               hint "Skipping the configuration. Create it later with: hicloud --gen-config $CONFIG_FILE"
+               hint "Skipping the configuration. Create it later with: hicloud --gen-config $(tilde "$CONFIG_FILE")"
                return ;;
             2) warn "Could not verify the token (no network or curl). Using it unchecked."
                break ;;
         esac
     done
 
-    ask "  Project name" "default"
+    ask "Project name" "default"
     project="$ANSWER"
 
     local old_umask
@@ -592,31 +657,35 @@ project_name = "$project"
 EOF
     umask "$old_umask"
     chmod 600 "$CONFIG_FILE"
-    ok "Wrote $CONFIG_FILE with permissions 600"
+    ok "Wrote $(tilde "$CONFIG_FILE") with permissions 600"
     hint "Add more projects as further [name] sections in that file."
 }
 
 # ------------------------------------------------------------------ main --
 
 main() {
-    info ""
-    info "${C_BOLD}hicloud installer${C_RESET}"
-    info ""
+    banner
 
     detect_os
+    detect_privileges
     detect_source
+
     step "Environment"
-    ok "System: $OS_PRETTY"
+    label "System" "$OS_PRETTY"
     command -v python3 >/dev/null 2>&1 || die "python3 not found. Install Python 3.9 or newer and re-run."
-    ok "Python: $(python3 --version 2>&1)"
+    label "Python" "$(python3 --version 2>&1 | sed 's/^Python //')"
+    label "Privileges" "$PRIV_NOTE"
 
     resolve_scope
     resolve_deps
-    ok "Target: $INSTALL_DIR, command $LAUNCHER"
+
+    step "Installation plan"
+    label "Location" "$(tilde "$INSTALL_DIR")"
+    label "Command" "$(tilde "$LAUNCHER")"
     if [ "$OPT_DEPS" = "apt" ]; then
-        ok "Dependencies: apt packages"
+        label "Dependencies" "apt packages (python3-requests, python3-toml)"
     else
-        ok "Dependencies: virtual environment"
+        label "Dependencies" "virtual environment (pip)"
     fi
 
     fetch_sources
@@ -631,18 +700,18 @@ main() {
     verify_install
     configure
 
-    info ""
-    info "${C_GREEN}${C_BOLD}hicloud is ready.${C_RESET}"
-    info ""
+    blank
+    plain "  ${C_GREEN}${C_BOLD}hicloud is ready${C_RESET}"
+    blank
     if [ "$PATH_NEEDS_RELOAD" -eq 1 ]; then
-        info "  Open a new terminal (or run: ${C_BOLD}source $(shell_rc)${C_RESET}),"
-        info "  then start it with: ${C_BOLD}hicloud${C_RESET}"
+        label "Start" "open a new terminal, then run: ${C_BOLD}hicloud${C_RESET}"
+        label "" "${C_DIM}or right now: source $(tilde "$(shell_rc)")${C_RESET}"
     else
-        info "  Start it with:   ${C_BOLD}hicloud${C_RESET}"
+        label "Start" "${C_BOLD}hicloud${C_RESET}"
     fi
-    info "  Show the help:   hicloud --help"
-    info "  Configuration:   $CONFIG_FILE"
-    info ""
+    label "Help" "hicloud --help"
+    label "Configuration" "$(tilde "$CONFIG_FILE")"
+    blank
 }
 
 main "$@"
