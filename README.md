@@ -103,7 +103,7 @@ below are for a manual installation or for adding further projects.
 Generate a sample configuration file:
 
 ```bash
-python hicloud.py --gen-config ~/.hicloud.toml
+hicloud --gen-config ~/.hicloud.toml     # or: python hicloud.py --gen-config ~/.hicloud.toml
 ```
 
 Then edit it and replace the placeholder tokens:
@@ -130,26 +130,30 @@ chmod 600 ~/.hicloud.toml
 
 ## Usage
 
+After the one-line install the command is simply `hicloud`. From a manual
+installation, run `python hicloud.py` from the repository instead — the
+options are identical.
+
 Start the interactive console:
 
 ```bash
-python hicloud.py
+hicloud
 ```
 
 Use a specific project from your configuration:
 
 ```bash
-python hicloud.py --project project1
+hicloud --project project1
 ```
 
 Use a one-time API token without a configuration file:
 
 ```bash
 export HCLOUD_TOKEN=your_api_token   # preferred: keeps the token out of shell history
-python hicloud.py
+hicloud
 
 # or directly (visible in shell history and process list):
-python hicloud.py --token your_api_token
+hicloud --token your_api_token
 ```
 
 ### Interactive Console Commands
