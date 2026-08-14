@@ -100,16 +100,62 @@ have_tty() { [ -r "$TTY" ] && [ -w "$TTY" ]; }
 # stop the installer and a closed input would spin forever.
 ANSWER=""
 
-# read_tty <target-variable> [-s]  -> aborts when the input stream is closed
+# read_tty <target-variable>  -> aborts when the input stream is closed
 read_tty() {
-    local __var="$1" silent="${2:-}" __value=""
-    if [ "$silent" = "-s" ]; then
-        IFS= read -r -s __value < "$TTY" || die "Input stream closed. Re-run with -y for a non-interactive install."
-        printf '\n' > "$TTY"
-    else
-        IFS= read -r __value < "$TTY" || die "Input stream closed. Re-run with -y for a non-interactive install."
-    fi
+    local __var="$1" __value=""
+    IFS= read -r __value < "$TTY" || die "Input stream closed. Re-run with -y for a non-interactive install."
     printf -v "$__var" '%s' "$__value"
+}
+
+# read_secret <target-variable>  -> reads without echoing the characters, but
+# prints one * per character: a terminal that shows nothing at all looks like
+# a hung script, and people stop typing.
+read_secret() {
+    local __var="$1" prompt="${2:-}" char="" value="" finished=0 tty_state=""
+
+    # Turning the echo off per character (read -s) would leave it on between
+    # the reads - a pasted token arrives faster than that and the terminal
+    # would print it. So the echo stays off for the whole input.
+    if tty_state="$(stty -g < "$TTY" 2>/dev/null)"; then
+        stty -echo < "$TTY" 2>/dev/null || tty_state=""
+    else
+        tty_state=""
+    fi
+    [ -n "$tty_state" ] && trap 'stty "$tty_state" < "$TTY" 2>/dev/null; exit 130' INT
+
+    # The prompt comes after the echo is off: anything typed in between would
+    # otherwise be echoed by the terminal before the first read.
+    [ -n "$prompt" ] && printf '%s' "$prompt" > "$TTY"
+
+    while true; do
+        IFS= read -r -n 1 char < "$TTY" || break
+        case "$char" in
+            ""|$'\r'|$'\n')
+                finished=1
+                break
+                ;;
+            $'\177'|$'\b')
+                if [ -n "$value" ]; then
+                    value="${value%?}"
+                    # Erase the last star: back up, overwrite, back up again.
+                    printf '\b \b' > "$TTY"
+                fi
+                ;;
+            *)
+                value="$value$char"
+                printf '*' > "$TTY"
+                ;;
+        esac
+    done
+    if [ -n "$tty_state" ]; then
+        trap - INT
+        stty "$tty_state" < "$TTY" 2>/dev/null || true
+    fi
+    printf '\n' > "$TTY"
+
+    [ "$finished" -eq 1 ] \
+        || die "Input stream closed. Re-run with -y for a non-interactive install."
+    printf -v "$__var" '%s' "$value"
 }
 
 # ask <prompt> <default>  -> answer in $ANSWER, default on Enter
@@ -633,8 +679,7 @@ configure() {
     local token="" project="" attempt=0
     while true; do
         attempt=$((attempt + 1))
-        printf '    API token (input hidden): ' > "$TTY"
-        read_tty token -s
+        read_secret token '    API token: '
 
         if [ -z "$token" ]; then
             if [ "$attempt" -ge 3 ]; then
