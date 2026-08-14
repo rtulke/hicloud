@@ -38,32 +38,32 @@ Because it's enough for most people and because it's much faster than using comp
 curl -fsSL https://raw.githubusercontent.com/rtulke/hicloud/main/setup.sh | bash
 ```
 
-The installer asks whether to install system-wide or for the current user,
-how to resolve the Python dependencies, and — if `~/.hicloud.toml` does not
-exist yet — walks you through creating it, including where to obtain a
-Hetzner API token. Afterwards `hicloud` is available as a command.
+You are asked two things: where to install, and — if `~/.hicloud.toml` does
+not exist yet — the API token, including where to create it. Everything else
+follows from your system:
 
 | | System-wide | User only |
 |---|---|---|
 | Installed to | `/opt/hicloud` | `~/.local/share/hicloud` |
-| Launcher | `/usr/local/bin/hicloud` | `~/.local/bin/hicloud` |
+| Command | `/usr/local/bin/hicloud` | `~/.local/bin/hicloud` |
+| Dependencies | apt packages on Debian/Ubuntu, otherwise a virtual environment | virtual environment |
 | Requires | root / sudo | nothing |
 
-On Debian and Ubuntu you can choose between a virtual environment (via pip,
-matches the version pins) and system packages (`python3-requests`,
-`python3-toml` via apt). On all other systems a virtual environment is used.
-`~/.local/bin` must be in your `PATH` for a user installation — the installer
-says so if it is not.
+For a user installation `~/.local/bin` is added to your `PATH` in your shell's
+startup file, so `hicloud` works from a new terminal without further steps.
+At the end the installer runs `hicloud --version` once: if that fails, the
+installation fails loudly instead of pretending to be finished.
 
-Run it again at any time to update: an existing checkout is refreshed and
-your configuration is left untouched.
+Run it again at any time to update: an existing checkout is refreshed, your
+configuration and your `PATH` entry stay untouched.
 
 Options — useful for a non-interactive install:
 
 ```bash
 ./setup.sh --help          # show all options
-./setup.sh --user --venv   # no questions about scope and dependencies
-./setup.sh --system --apt  # to /opt/hicloud, dependencies via apt
+./setup.sh --user          # no question about the location
+./setup.sh --system        # to /opt/hicloud, needs sudo
+./setup.sh --venv          # force a virtual environment instead of apt packages
 ./setup.sh --dev           # additionally install pytest and ruff
 ./setup.sh --user -y       # accept every default, never prompt
 ```
