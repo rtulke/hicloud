@@ -76,6 +76,18 @@ tilde() {
 # label <name> <value> - aligned two-column output for the summary lines
 label() { printf '    %-14s %s\n' "$1" "$2"; }
 
+# Run a command without its chatter. Package managers report every unrelated
+# detail of the system; that is only worth showing when something failed, so
+# the output is held back and printed on failure.
+quiet() {
+    local output=""
+    if output="$("$@" 2>&1)"; then
+        return 0
+    fi
+    printf '%s\n' "$output" >&2
+    return 1
+}
+
 # --------------------------------------------------------------- prompts --
 
 # Read from the terminal, not from stdin: with `curl ... | bash` stdin is the
@@ -394,26 +406,37 @@ resolve_deps() {
 }
 
 install_deps_apt() {
-    step "Installing dependencies via apt"
+    step "Installing dependencies"
     need_sudo
-    $SUDO apt-get update -qq || warn "apt-get update failed - continuing with the cached package lists."
-    $SUDO apt-get install -y python3 python3-requests python3-toml \
-        || die "Installing the apt packages failed."
+
+    # Nobody needs to read apt's package bookkeeping. The output is kept and
+    # printed only when the command actually fails.
+    export DEBIAN_FRONTEND=noninteractive
+
+    info "Reading package lists ..."
+    quiet $SUDO apt-get update \
+        || warn "apt-get update failed - continuing with the cached package lists."
+
+    info "Installing python3-requests and python3-toml ..."
+    quiet $SUDO apt-get install -y python3 python3-requests python3-toml \
+        || die "Installing the apt packages failed (output above)."
+
     PYTHON_BIN="$(command -v python3)"
-    ok "Installed python3-requests and python3-toml"
 
     # Debian 12 ships requests 2.28 while requirements.txt asks for >= 2.32.
     local version
     version="$("$PYTHON_BIN" -c 'import requests; print(requests.__version__)' 2>/dev/null || true)"
-    if [ -n "$version" ]; then
-        case "$version" in
-            2.3[2-9]*|2.[4-9]*|[3-9].*) ok "requests $version" ;;
-            *) warn "requests $version is older than the pinned >= 2.32. hicloud works, but use --venv if you need the exact versions." ;;
-        esac
-    fi
+    case "$version" in
+        "") ok "Installed python3-requests and python3-toml" ;;
+        2.3[2-9]*|2.[4-9]*|[3-9].*) ok "Installed requests $version and python3-toml" ;;
+        *)  ok "Installed requests $version and python3-toml"
+            hint "requests $version is older than the pinned >= 2.32 - use --venv if you need the exact versions" ;;
+    esac
 
     if [ "$OPT_DEV" -eq 1 ]; then
-        $SUDO apt-get install -y python3-pytest ruff \
+        info "Installing pytest and ruff ..."
+        quiet $SUDO apt-get install -y python3-pytest ruff \
+            && ok "Installed python3-pytest and ruff" \
             || warn "pytest/ruff not available via apt - install them with pip if you need them."
     fi
 }
@@ -421,21 +444,23 @@ install_deps_apt() {
 install_deps_venv() {
     step "Setting up the virtual environment"
 
-    local venv_dir
+    local venv_dir venv_error=""
     if venv_dir="$(find_venv "$INSTALL_DIR")"; then
         ok "Reusing existing environment at $(tilde "$venv_dir")"
     else
         venv_dir="$INSTALL_DIR/.venv"
         info "Creating $(tilde "$venv_dir") ..."
-        if ! run python3 -m venv "$venv_dir" 2>/dev/null; then
-            # Debian and Ubuntu split venv out of the python3 package.
+        if ! venv_error="$(run python3 -m venv "$venv_dir" 2>&1)"; then
+            # Debian and Ubuntu split venv out of the python3 package, so this
+            # first failure is expected there and not worth showing.
             if [ "$OS_FAMILY" = "apt" ]; then
-                warn "python3 -m venv failed - installing python3-venv."
+                info "Installing python3-venv ..."
                 [ "$CAN_SYSTEM" -eq 1 ] \
                     || die "python3-venv is missing and cannot be installed without root. Install it with: apt install python3-venv"
-                $SUDO apt-get install -y python3-venv || die "Installing python3-venv failed."
-                run python3 -m venv "$venv_dir" || die "Could not create the virtual environment."
+                quiet $SUDO apt-get install -y python3-venv || die "Installing python3-venv failed (output above)."
+                quiet run python3 -m venv "$venv_dir" || die "Could not create the virtual environment."
             else
+                printf '%s\n' "$venv_error" >&2
                 die "Could not create the virtual environment at $venv_dir."
             fi
         fi
@@ -445,14 +470,14 @@ install_deps_venv() {
     PYTHON_BIN="$venv_dir/bin/python"
     [ -x "$PYTHON_BIN" ] || die "No interpreter found at $PYTHON_BIN."
 
-    info "Installing dependencies ..."
-    run "$PYTHON_BIN" -m pip install --quiet --upgrade pip \
-        || warn "Could not update pip - continuing."
-
     local requirements="requirements.txt"
     [ "$OPT_DEV" -eq 1 ] && requirements="requirements-dev.txt"
-    run "$PYTHON_BIN" -m pip install --quiet -r "$INSTALL_DIR/$requirements" \
-        || die "Installing the dependencies failed."
+
+    info "Installing dependencies ..."
+    quiet run "$PYTHON_BIN" -m pip install --upgrade pip \
+        || warn "Could not update pip - continuing."
+    quiet run "$PYTHON_BIN" -m pip install -r "$INSTALL_DIR/$requirements" \
+        || die "Installing the dependencies failed (output above)."
     ok "Installed dependencies from $requirements"
 }
 
