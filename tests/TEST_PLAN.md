@@ -2,7 +2,7 @@
 
 This doc shows where testing currently stands in the repo and what is still missing.
 
-Updated: 2026-07-14
+Updated: 2026-08-18
 
 ---
 
@@ -40,7 +40,7 @@ Updated: 2026-07-14
 |----------|-----------|------------|--------|
 | API Core / Request Handling | `tests/lib/test_api_core.py` | 10 | done |
 | Config Manager (permissions) | `tests/lib/test_config_manager.py` | 8 | done |
-| Console registry & dispatch | `tests/lib/test_console.py` | 12 | done |
+| Console registry, dispatch & readline fallback | `tests/lib/test_console.py` | 14 | done |
 | Action API | `tests/lib/test_api_action.py` | 7 | done |
 | Placement Group API | `tests/lib/test_api_placement_group.py` | 10 | done |
 | Formatting / table truncation | `tests/utils/test_formatting.py` | 9 | done |
@@ -86,7 +86,7 @@ Recommended inside the venv:
 ```
 
 Latest run in this repo:
-- Result: `560 passed`
+- Result: `562 passed`
 - Runtime: `0.29s`
 
 Note: `pytest -q` works from any directory (`pythonpath = ["."]` in `pyproject.toml` puts the repo root on the import path), but the interpreter needs `requests` and `toml` installed — run it inside the venv.

@@ -2,6 +2,15 @@
 
 All notable changes to hicloud are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- Windows without `pyreadline3` crashed on start: `readline` was imported at
+  module level in `lib/console.py`, so the friendly `pip install pyreadline3`
+  hint further down was never reached. The console now starts without
+  readline (no tab completion, no history) and says how to get it.
+
 ## [1.4.0] - 2026-08-18
 
 Installer release: `setup.sh` replaces the old activation script and

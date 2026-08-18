@@ -111,3 +111,32 @@ def test_detailed_help_for_single_command(console, capsys):
     out = capsys.readouterr().out
     assert "vm list" in out
     assert "vm create" in out
+
+
+# --- readline fallback ---
+
+def test_console_starts_without_readline(monkeypatch, tmp_path, capsys):
+    """Windows without pyreadline3: the console must come up with a hint,
+    not die on the module import."""
+    monkeypatch.setattr(console_module, "HISTORY_DIR", str(tmp_path / "hist"))
+    monkeypatch.setattr(console_module, "readline", None)
+    monkeypatch.setattr(console_module.platform, "system", lambda: "Windows")
+
+    console = InteractiveConsole(DummyHetzner())
+
+    out = capsys.readouterr().out
+    assert "readline is not available" in out
+    assert "pip install pyreadline3" in out
+    assert console.commands  # registry still built
+
+
+def test_history_commands_degrade_without_readline(console, monkeypatch, capsys):
+    monkeypatch.setattr(console_module, "readline", None)
+
+    console._save_history()          # must stay silent, nothing to save
+    console._clean_history()
+    console._display_history()
+
+    out = capsys.readouterr().out
+    assert out.count("Command history is not available") == 2
+    assert "Warning" not in out

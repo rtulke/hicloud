@@ -3,11 +3,18 @@
 
 import os
 import platform
-import readline
 import sys
 import time
 import toml
 from contextlib import contextmanager
+
+# Windows ships no readline. pyreadline3 provides a drop-in replacement that
+# registers itself under the same module name; without it the console still
+# runs, only without tab completion and command history.
+try:
+    import readline
+except ImportError:
+    readline = None
 
 from typing import Dict, List, Optional
 from utils.constants import (
@@ -191,16 +198,15 @@ class InteractiveConsole:
     
     def _setup_readline(self):
         """Setup readline with history and tab completion support"""
-        # Readline-Konfiguration für verschiedene Betriebssysteme
-        if platform.system() == 'Windows':
-            # Windows-spezifische Konfiguration
-            try:
-                import pyreadline3
-            except ImportError:
-                print("Warning: pyreadline3 not installed. Tab completion may not work correctly.")
+        if readline is None:
+            print("Warning: readline is not available - tab completion and command history are disabled.")
+            if platform.system() == 'Windows':
                 print("Try: pip install pyreadline3")
-        else:
-            # Unix/Mac Konfiguration
+            return
+
+        # Key bindings: pyreadline3 on Windows binds Tab itself; GNU readline
+        # and libedit on Unix/Mac need explicit configuration.
+        if platform.system() != 'Windows':
             try:
                 doc = (readline.__doc__ or "").lower()
                 is_libedit = "libedit" in doc
@@ -1336,6 +1342,8 @@ class InteractiveConsole:
     
     def _save_history(self):
         """Save command history to file"""
+        if readline is None:
+            return
         try:
             readline.write_history_file(HISTORY_FILE)
         except Exception as e:
@@ -1343,6 +1351,9 @@ class InteractiveConsole:
             
     def _clean_history(self):
         """Clean command history"""
+        if readline is None:
+            print("Command history is not available (readline missing)")
+            return
         try:
             # Lösche alle Einträge aus der readline-History
             hist_len = readline.get_current_history_length()
@@ -1357,6 +1368,9 @@ class InteractiveConsole:
     
     def _display_history(self):
         """Display command history"""
+        if readline is None:
+            print("Command history is not available (readline missing)")
+            return
         try:
             hist_len = readline.get_current_history_length()
             print("\nCommand History:")
