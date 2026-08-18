@@ -419,10 +419,16 @@ fetch_sources() {
         return
     fi
 
+    # An installation directory holds no local work, so it simply follows the
+    # remote branch - also across a rewritten history, where a plain pull
+    # would refuse to fast-forward and leave the installation stuck.
     if [ -d "$INSTALL_DIR/.git" ]; then
-        run git -C "$INSTALL_DIR" pull --ff-only --quiet \
-            && ok "Updated existing checkout at $(tilde "$INSTALL_DIR")" \
-            || warn "Could not update $(tilde "$INSTALL_DIR") - keeping the current state."
+        if quiet run git -C "$INSTALL_DIR" fetch --quiet origin "$REPO_BRANCH" \
+           && quiet run git -C "$INSTALL_DIR" reset --hard --quiet "origin/$REPO_BRANCH"; then
+            ok "Updated existing installation at $(tilde "$INSTALL_DIR")"
+        else
+            warn "Could not update $(tilde "$INSTALL_DIR") - keeping the current state."
+        fi
         return
     fi
 
