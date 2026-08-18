@@ -579,6 +579,7 @@ Status: done = shipped, partial = partial support, open = not started.
 | 26 | Infrastructure | DNS Zones & RRsets | open | DNS API surface not represented; add zone and record-set command modules. |
 | 27 | Infrastructure | Server Type Discovery | done | `server-type list [location]` and `server-type info <name|id>` implemented in `commands/location.py`. |
 | 28 | Safety | IP Deletion Policy Guard (May 1, 2026) | done | Built into `floating-ip delete` and `primary-ip delete`: blocks deletion if IP is assigned or protected, with actionable error messages. |
+| 29 | Distribution | Installer & Packaging | partial | `setup.sh` ships a curl-able installer (system-wide or per-user, apt or venv, PATH setup, config wizard, smoke test). A pip-installable package with a `console_scripts` entry point still needs `lib/`, `commands/`, `utils/` moved under one `hicloud/` package. |
 
 ## License
 

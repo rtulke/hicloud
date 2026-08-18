@@ -86,10 +86,10 @@ Recommended inside the venv:
 ```
 
 Latest run in this repo:
-- Result: `528 passed`
-- Runtime: `0.21s`
+- Result: `560 passed`
+- Runtime: `0.29s`
 
-Note: running global `pytest -q` without venv can fail during collection because of missing deps (`toml`, `requests`).
+Note: `pytest -q` works from any directory (`pythonpath = ["."]` in `pyproject.toml` puts the repo root on the import path), but the interpreter needs `requests` and `toml` installed — run it inside the venv.
 
 ---
 

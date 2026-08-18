@@ -2,6 +2,54 @@
 
 All notable changes to hicloud are documented in this file.
 
+## [1.4.0] - 2026-08-18
+
+Installer release: `setup.sh` replaces the old activation script and
+installs hicloud end to end, either from a checkout or straight from curl.
+
+### Added
+
+- One-line install: `curl -fsSL .../setup.sh | bash`. The installer clones
+  the repository when run standalone, or copies the tracked files when
+  started from a local checkout.
+- System-wide installation to `/opt/hicloud` with a command in
+  `/usr/local/bin`, or per-user installation to `~/.local/share/hicloud`
+  with a command in `~/.local/bin`. Only the location is asked; root
+  defaults to system-wide, and without root or sudo the system-wide option
+  is not offered at all.
+- Dependency handling follows the system: apt packages
+  (`python3-requests`, `python3-toml`) for a system-wide install on Debian
+  and Ubuntu, a virtual environment everywhere else. `--apt` and `--venv`
+  override the choice; `--dev` adds pytest and ruff.
+- Existing `.venv`, `venv`, `~/.venv/hicloud` or `~/.venv` are reused
+  instead of creating another environment. On Debian and Ubuntu a missing
+  `python3-venv` is installed on demand.
+- A per-user install adds `~/.local/bin` to the `PATH` in the login shell's
+  startup file (zsh, bash, fish or `.profile`), idempotently across
+  re-runs.
+- Configuration wizard: when `~/.hicloud.toml` does not exist, the installer
+  explains where to create a Hetzner API token, reads it with `*` feedback
+  and echo off for the whole input, verifies it against the API and writes
+  the file with permissions 600. A token the API rejects is not written.
+- The run ends with `hicloud --version`; a broken installation fails loudly
+  instead of reporting success.
+- Non-interactive options: `--system`, `--user`, `--prefix DIR`, `-y`.
+
+### Changed
+
+- `activate_hicloud.sh` is gone; `setup.sh` takes over its job and more.
+- README documents the one-line install, the target directories and the
+  non-interactive options, and uses the installed `hicloud` command in the
+  usage examples.
+- Package manager output from apt, pip and venv is captured and only shown
+  when a command fails.
+
+### Fixed
+
+- The test import path was lost when `conftest.py` was replaced: a fresh
+  checkout could not collect any tests. `pythonpath = ["."]` in
+  `pyproject.toml` restores it.
+
 ## [1.3.2] - 2026-08-13
 
 ### Changed
