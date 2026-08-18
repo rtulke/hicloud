@@ -160,8 +160,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-AGENTS.md
-CLAUDE.md
 TODO.md
 
 # PyCharm

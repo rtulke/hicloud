@@ -409,7 +409,7 @@ fetch_sources() {
         else
             ( cd "$SRC_DIR" && tar cf - \
                 --exclude='./.git' --exclude='./.venv' --exclude='./venv' \
-                --exclude='./.claude' --exclude='.DS_Store' \
+                --exclude='.DS_Store' \
                 --exclude='__pycache__' --exclude='./.pytest_cache' \
                 --exclude='./.ruff_cache' . ) \
                 | run tar xf - -C "$INSTALL_DIR" \

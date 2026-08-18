@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # utils/prompts.py - Shared interactive prompt helpers
 #
-# Convention (see CLAUDE.md): on invalid input re-prompt in a loop;
+# Convention: on invalid input re-prompt in a loop;
 # plain Enter selects the default. Never silently substitute a default
 # for invalid input.
 
