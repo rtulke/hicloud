@@ -6,6 +6,23 @@ All notable changes to hicloud are documented in this file.
 
 ### Fixed
 
+- Cursor, line wrapping and history redraws went astray in the console:
+  the prompt's colour codes were not marked as non-printing, so readline
+  took the prompt for ~50 columns instead of 9 and placed the cursor a
+  line up and far to the right on every edit beyond a few dozen
+  characters. The codes are now wrapped in `\001`/`\002`, and the blank
+  line before the prompt is printed outside of it (libedit on macOS
+  counted that newline as a column too).
+- Tab completion: `vm <TAB>` redrew the prompt without the text already
+  typed; a unique subcommand match printed the whole command overview and
+  completed without the trailing space (`vm list<TAB>` did nothing at
+  all); argument values did not extend to their common prefix; free-form
+  arguments and subcommands without arguments gave no hint; `VM li<TAB>`
+  found nothing although dispatch is case-insensitive. All of these now
+  behave like the main-command completion.
+- Key bindings are chosen by the readline backend in use, not by the
+  operating system: GNU readline from Homebrew on macOS no longer gets
+  libedit syntax.
 - Windows without `pyreadline3` crashed on start: `readline` was imported at
   module level in `lib/console.py`, so the friendly `pip install pyreadline3`
   hint further down was never reached. The console now starts without

@@ -62,6 +62,17 @@ from commands.floating_ip import FloatingIPCommands
 from commands.primary_ip import PrimaryIPCommands
 
 
+def _rl_hidden(sequence: str) -> str:
+    """Mark a non-printing sequence for readline.
+
+    readline measures the prompt to place the cursor, wrap long lines and
+    redraw after history or completion. Colour codes count as visible
+    characters unless wrapped in \\001/\\002, which throws every one of
+    those calculations off by the length of the codes.
+    """
+    return f"\001{sequence}\002"
+
+
 class _LeadingNewlineWriter:
     """Normalize leading/trailing whitespace around a command response."""
 
@@ -126,8 +137,17 @@ class InteractiveConsole:
         self.running = True
         self.history = []
         self._completion_cache = {}
+        # Two flavours of the prompt: prompt_label for plain print() (e.g. the
+        # redraw after a completion hint), prompt_string for input(), where
+        # readline must not count the colour codes as columns.
         self.prompt_label = f"{PROMPT_TEXT_COLOR}hicloud{ANSI_RESET}{PROMPT_ARROW_COLOR}>{ANSI_RESET}"
-        self.prompt_string = f"\n{self.prompt_label} "
+        # No newline inside prompt_string: libedit counts it as a column and
+        # places the cursor one position too far right on every redraw. The
+        # blank line before the prompt is printed by the REPL loop instead.
+        self.prompt_string = (
+            f"{_rl_hidden(PROMPT_TEXT_COLOR)}hicloud{_rl_hidden(ANSI_RESET)}"
+            f"{_rl_hidden(PROMPT_ARROW_COLOR)}>{_rl_hidden(ANSI_RESET)} "
+        )
         
         # Stelle sicher, dass das History-Verzeichnis existiert
         if not os.path.exists(HISTORY_DIR):
@@ -211,8 +231,9 @@ class InteractiveConsole:
                 doc = (readline.__doc__ or "").lower()
                 is_libedit = "libedit" in doc
 
-                if is_libedit or platform.system() == 'Darwin':
-                    # macOS/libedit bindings
+                if is_libedit:
+                    # libedit (Apple and python.org builds on macOS); GNU readline
+                    # from Homebrew reports itself as such and takes the other branch
                     readline.parse_and_bind("bind ^I rl_complete")
                     libedit_bindings = [
                         '"\\e[5~": ed-prev-history',
@@ -1137,87 +1158,92 @@ class InteractiveConsole:
 
         return sorted(locations)
     
+    # Completion hands readline exactly one candidate per TAB: the unique
+    # match, or the common prefix of several. Alternatives are printed above
+    # the prompt as a hint, then prompt and buffer are redrawn by hand - the
+    # hint has moved the cursor, and readline does not know about it.
+
     def _command_completer(self, text, state):
         """Context-aware command completer built from command metadata"""
+        if state > 0:
+            return None
+
         buffer = readline.get_line_buffer()
         line = buffer.lstrip()
         ends_with_space = line.endswith(" ")
-        
-        if state > 0:
-            return None
-        
         parts = line.split()
-        if not parts:
+
+        if not parts or (len(parts) == 1 and not ends_with_space):
             return self._complete_main_command(text, line)
-        
-        if len(parts) == 1 and not ends_with_space:
-            return self._complete_main_command(text, line)
-        
-        cmd_name = parts[0]
+
+        # Dispatch lower-cases the command, so completion accepts "VM " too
+        cmd_name = parts[0].lower()
         cmd_info = self.commands.get(cmd_name)
         if not cmd_info:
             return None
-        
+
         subcommands = cmd_info.get("subcommands")
         if subcommands:
-            if len(parts) == 1 and ends_with_space:
-                self._show_command_help(cmd_name)
+            if len(parts) == 1:
+                # "vm " -> the overview of what the command offers
+                self._show_command_help(cmd_name, line)
                 return None
-            
-            if len(parts) == 2 and not ends_with_space:
+            subcmd_name = parts[1].lower()
+            if (len(parts) == 2 and not ends_with_space) or subcmd_name not in subcommands:
                 return self._complete_subcommand(cmd_name, text, line)
-            
-            if len(parts) >= 2:
-                subcmd_name = parts[1]
-                if subcmd_name not in subcommands:
-                    return self._complete_subcommand(cmd_name, text, line)
-                
-                if len(parts) == 2 and ends_with_space and not subcommands[subcmd_name].get("arguments"):
-                    return None
-                
-                return self._complete_arguments(cmd_name, subcmd_name, parts, text, line, ends_with_space)
-        
-        # Commands without subcommands but with arguments
+            return self._complete_arguments(cmd_name, subcmd_name, parts, text, line, ends_with_space)
+
         if cmd_info.get("arguments"):
             return self._complete_arguments(cmd_name, None, parts, text, line, ends_with_space)
-        
         return None
-    
+
+    def _hint(self, message: str, line: str) -> None:
+        """Print a completion hint above the prompt and redraw prompt + buffer."""
+        print(f"\n{HINT_COLOR}{message}{ANSI_RESET}")
+        self._print_prompt_with_line(line)
+
+    @staticmethod
+    def _preview(values: List[str], limit: int = 8) -> str:
+        shown = ", ".join(values[:limit])
+        return shown + ", ..." if len(values) > limit else shown
+
     def _complete_main_command(self, prefix: str, line: str) -> Optional[str]:
         commands = self._get_command_names()
         if not prefix:
-            print(f"\n{HINT_COLOR}Available commands: " + ", ".join(commands) + ANSI_RESET)
-            self._print_prompt_with_line(line)
+            self._hint("Available commands: " + ", ".join(commands), line)
             return None
-        
-        matches = [cmd for cmd in commands if cmd.startswith(prefix)]
+
+        matches = [cmd for cmd in commands if cmd.startswith(prefix.lower())]
         if len(matches) == 1:
             return matches[0] + " "
         if matches:
-            print(f"\n{HINT_COLOR}Matching commands: " + ", ".join(matches) + ANSI_RESET)
-            self._print_prompt_with_line(line)
+            self._hint("Matching commands: " + ", ".join(matches), line)
             common = self._get_common_prefix(matches)
-            if common and len(common) > len(prefix):
+            if len(common) > len(prefix):
                 return common
         return None
-    
+
     def _complete_subcommand(self, cmd_name: str, prefix: str, line: str) -> Optional[str]:
         subcommands = self.commands.get(cmd_name, {}).get("subcommands", {})
         if not subcommands:
             return None
-        
-        matches = [sub for sub in subcommands.keys() if sub.startswith(prefix)]
-        print(f"\n{HINT_COLOR}{self.commands[cmd_name]['help']}{ANSI_RESET}")
-        self._print_prompt_with_line(line)
-        
+
+        matches = [sub for sub in subcommands if sub.startswith(prefix.lower())]
         if len(matches) == 1:
-            return matches[0]
-        if matches:
+            # Unique - also when the subcommand is already complete, so that
+            # TAB after "vm list" adds the space instead of doing nothing
+            return matches[0] + " "
+        if matches and prefix:
+            self._hint("Matching subcommands: " + ", ".join(matches), line)
             common = self._get_common_prefix(matches)
-            if common and len(common) > len(prefix):
+            if len(common) > len(prefix):
                 return common
+            return None
+
+        # Nothing typed yet, or nothing matches: show what the command offers
+        self._show_command_help(cmd_name, line)
         return None
-    
+
     def _complete_arguments(
         self,
         cmd_name: str,
@@ -1236,10 +1262,13 @@ class InteractiveConsole:
             )
         else:
             arg_specs = self.commands.get(cmd_name, {}).get("arguments", [])
-        
+
         if not arg_specs:
+            # Takes no arguments - say so via the subcommand's own help line
+            if subcmd_name:
+                self._show_subcommand_help(cmd_name, subcmd_name, line)
             return None
-        
+
         consumed_tokens = 1 + (1 if subcmd_name else 0)
         arg_index = len(parts) - consumed_tokens
         if not ends_with_space:
@@ -1252,7 +1281,7 @@ class InteractiveConsole:
                 return None
         else:
             spec = arg_specs[arg_index]
-        
+
         values = set()
         provider_key = spec.get("provider")
         if provider_key:
@@ -1261,45 +1290,46 @@ class InteractiveConsole:
             values.update(spec["choices"])
         if spec.get("literals"):
             values.update(spec["literals"])
-        
         values = sorted([val for val in values if isinstance(val, str) and val])
-        if not values:
-            return None
-        
+
+        label = spec.get("name", "value")
         prefix = "" if ends_with_space else text
+
+        if not values:
+            # Free-form argument (a name, a type): show what is expected
+            # instead of staying silent
+            if subcmd_name:
+                self._show_subcommand_help(cmd_name, subcmd_name, line)
+            else:
+                self._hint(f"Expected <{label}>", line)
+            return None
+
         matches = [val for val in values if val.startswith(prefix)]
-        
         if len(matches) == 1:
             return matches[0] + " "
-        
-        label = spec.get("name", "value")
         if matches:
-            preview = ", ".join(matches[:8])
-            if len(matches) > 8:
-                preview += ", ..."
-            print(f"\n{HINT_COLOR}Matching {label}: {preview}{ANSI_RESET}")
-        else:
-            preview = ", ".join(values[:8])
-            if len(values) > 8:
-                preview += ", ..."
-            print(f"\n{HINT_COLOR}{label} options: {preview}{ANSI_RESET}")
-        self._print_prompt_with_line(line)
+            heading = f"Matching {label}" if prefix else label
+            self._hint(f"{heading}: {self._preview(matches)}", line)
+            common = self._get_common_prefix(matches)
+            if len(common) > len(prefix):
+                return common
+            return None
+
+        self._hint(f"No {label} starting with '{prefix}'. Options: {self._preview(values)}", line)
         return None
-    
-    def _show_command_help(self, cmd):
-        """Zeigt Hilfe für einen Hauptbefehl an"""
+
+    def _show_command_help(self, cmd, line: str = ""):
+        """Zeigt Hilfe für einen Hauptbefehl über dem Prompt an"""
         if cmd in self.commands and 'help' in self.commands[cmd]:
-            # Zeige die Hilfe über dem Prompt
-            print(f"\n{HINT_COLOR}{self.commands[cmd]['help']}{ANSI_RESET}")
-            self._print_prompt_with_line()
-            
+            self._hint(self.commands[cmd]['help'], line)
+
     def _get_common_prefix(self, strings):
         """Findet das gemeinsame Präfix aller Strings in der Liste"""
         if not strings:
             return ""
         if len(strings) == 1:
             return strings[0]
-            
+
         prefix = strings[0]
         for s in strings[1:]:
             i = 0
@@ -1308,16 +1338,15 @@ class InteractiveConsole:
             prefix = prefix[:i]
             if not prefix:
                 break
-        
+
         return prefix
-    
-    def _show_subcommand_help(self, cmd, subcmd):
-        """Zeigt Hilfe für einen Unterbefehl an"""
-        if cmd in self.commands and 'subcommands' in self.commands[cmd]:
-            if subcmd in self.commands[cmd]['subcommands'] and 'help' in self.commands[cmd]['subcommands'][subcmd]:
-                print(f"\n{HINT_COLOR}{self.commands[cmd]['subcommands'][subcmd]['help']}{ANSI_RESET}")
-                self._print_prompt_with_line()
-    
+
+    def _show_subcommand_help(self, cmd, subcmd, line: str = ""):
+        """Zeigt Hilfe für einen Unterbefehl über dem Prompt an"""
+        sub = self.commands.get(cmd, {}).get('subcommands', {}).get(subcmd, {})
+        if 'help' in sub:
+            self._hint(sub['help'], line)
+
     def _show_detailed_help(self, cmd_name: str):
         """Renders a detailed help section for a specific command"""
         cmd_info = self.commands.get(cmd_name)
@@ -1435,6 +1464,7 @@ class InteractiveConsole:
         
         while self.running:
             try:
+                print()
                 command = input(self.prompt_string).strip()
                 if not command:
                     continue
